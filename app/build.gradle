@@ -22,7 +22,6 @@ android {
 
         resValue "string", "app_version", versionName
         resValue "integer", "app_version_code", versionCode.toString()
-        buildConfigField "boolean", "VECTRA_CORE_ENABLED", "false"
     }
 
     signingConfigs {
@@ -45,11 +44,13 @@ android {
             signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField "boolean", "VECTRA_CORE_ENABLED", "false"
         }
         debug {
             signingConfig signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField "boolean", "VECTRA_CORE_ENABLED", "true"
         }
     }
 
@@ -70,9 +71,12 @@ android {
         abortOnError false
     }
 
+    // Note: Using Java 17 for CI compatibility
+    // GitHub Actions runners currently support Java 17 by default
+    // If using Java 21 features locally, consider updating CI to Java 21
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_21
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     buildToolsVersion '36.1.0'
@@ -80,7 +84,7 @@ android {
 
     kotlin {
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_21)
+            jvmTarget.set(JvmTarget.JVM_17)
         }
     }
 }
