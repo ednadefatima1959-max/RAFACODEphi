@@ -71,6 +71,9 @@ android {
         abortOnError false
     }
 
+    // Note: Using Java 17 for CI compatibility
+    // GitHub Actions runners currently support Java 17 by default
+    // If using Java 21 features locally, consider updating CI to Java 21
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17

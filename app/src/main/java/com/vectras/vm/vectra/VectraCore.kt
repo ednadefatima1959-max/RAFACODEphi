@@ -501,11 +501,9 @@ class VectraBitStackLog(logFile: File) {
             recordHeader.putInt(payload.size)
             recordHeader.putInt(meta)
             
-            // Compute CRC over header (except CRC field) + payload
-            val crcData = ByteArray(12 + payload.size)
-            System.arraycopy(recordHeader.array(), 0, crcData, 0, 12)
-            System.arraycopy(payload, 0, crcData, 12, payload.size)
-            val crc = CRC32C.update(0, crcData)
+            // Compute CRC incrementally without concatenation
+            var crc = CRC32C.update(0, recordHeader.array(), 0, 12)
+            crc = CRC32C.update(crc, payload)
             recordHeader.putInt(crc)
 
             file.write(recordHeader.array())
@@ -634,14 +632,19 @@ object VectraCore {
      * Starts a background thread that posts timer tick events.
      */
     private fun startTimerTicks() {
+        // Pre-allocate buffer to avoid GC pressure (runs every second)
+        val timestampBuffer = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
         Thread {
             while (initialized.get()) {
                 try {
+                    timestampBuffer.clear()
+                    timestampBuffer.putLong(System.currentTimeMillis())
+                    val payload = timestampBuffer.array().copyOf() // Copy to avoid sharing mutable buffer
                     eventBus?.post(
                         VectraEvent(
                             type = VectraEvent.EventType.TIMER_TICK,
                             priority = 1,
-                            payload = ByteBuffer.allocate(8).putLong(System.currentTimeMillis()).array()
+                            payload = payload
                         )
                     )
                     Thread.sleep(1000) // 1 Hz tick
