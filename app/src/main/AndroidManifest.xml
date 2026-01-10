@@ -74,6 +74,10 @@
             android:configChanges="uiMode|orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
         <activity
+            android:name=".settings.LanguageModulesActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:exported="false" />
+        <activity
             android:name=".settings.VNCSettingsActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />

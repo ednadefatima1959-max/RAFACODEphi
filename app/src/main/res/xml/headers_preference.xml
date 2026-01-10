@@ -13,6 +13,15 @@
         android:title="@string/theme"
         android:summary="@string/personalization_settings_description"
         app:iconSpaceReserved="false" />
+    <Preference
+        android:key="languagemodules"
+        android:title="@string/lang_modules_title"
+        android:summary="@string/lang_modules_description"
+        app:iconSpaceReserved="false">
+        <intent
+            android:targetPackage="com.vectras.vm"
+            android:targetClass="com.vectras.vm.settings.LanguageModulesActivity" />
+    </Preference>
 
     <Preference
         android:key="qemu"

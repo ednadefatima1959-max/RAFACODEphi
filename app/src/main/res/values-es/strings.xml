@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Vectras VM</string>
+
+    <!--======================VECTRAS STRINGS====================-->
+    <!-- logger -->
+    <string name="startvm">¡VM INICIADA!</string>
+    <string name="stopvm">¡VM DETENIDA!</string>
+    <string name="noproccesses">¡SIN PROCESOS!</string>
+    <string name="unknownstate">¡ESTADO DESCONOCIDO!</string>
+
+    <string name="welcome">¡Bienvenido!</string>
+    <string name="settings">Configuración</string>
+    <string name="about">Acerca de</string>
+    <string name="help">Ayuda</string>
+    <string name="save">GUARDAR</string>
+    <string name="cancel">Cancelar</string>
+    <string name="ok">OK</string>
+    <string name="close">Cerrar</string>
+    <string name="create">Crear</string>
+    <string name="remove">Eliminar</string>
+    <string name="edit">Editar</string>
+    <string name="delete_all">Eliminar todo</string>
+    <string name="reset">Reiniciar</string>
+    <string name="shutdown">Apagar</string>
+    <string name="devices">Dispositivos</string>
+    <string name="keyboard">TECLADO</string>
+    <string name="display">Pantalla</string>
+    <string name="terminal">Terminal</string>
+    <string name="install">Instalar</string>
+    <string name="modify">Modificar</string>
+    <string name="export">Exportar</string>
+    <string name="import_iso">Importar ISO</string>
+    <string name="importRom">Importar ROM</string>
+    <string name="store">Tienda</string>
+    <string name="search">Buscar</string>
+    <string name="copy">Copiar</string>
+    <string name="done">Hecho</string>
+    <string name="warning">¡Advertencia!</string>
+    <string name="info">Información</string>
+    <string name="language">Idioma</string>
+    <string name="version">Versión:</string>
+    <string name="running">En ejecución</string>
+    <string name="stopped">Detenido</string>
+    <string name="available">Disponible</string>
+    <string name="unavailable">No disponible</string>
+    <string name="downloading_file">Descargando archivo...</string>
+    <string name="downloaded_successfully">¡Descargado con éxito!</string>
+    <string name="no_internet_connection">Sin conexión a internet</string>
+    <string name="check_your_internet_connection">Comprueba tu conexión a internet.</string>
+    <string name="unable_to_connect_to_server">No se pudo conectar al servidor.</string>
+    <string name="just_a_moment">Un momento...</string>
+    <string name="try_again">Intentar de nuevo</string>
+    <string name="nothing_here">Nada aquí</string>
+    <string name="home">Inicio</string>
+    <string name="more">Más</string>
+    <string name="general">General</string>
+    <string name="personalization">Personalización</string>
+    <string name="system">Sistema</string>
+    <string name="theme">Tema</string>
+    <string name="themes">Temas</string>
+    <string name="light">Claro</string>
+    <string name="dark">Oscuro</string>
+    <string name="dynamic_color">Color dinámico</string>
+    <string name="memory">Memoria</string>
+    <string name="storage">Almacenamiento</string>
+    <string name="update">Actualizar</string>
+    <string name="check_for_updates">Buscar actualizaciones</string>
+    <string name="new_update_available">Nueva actualización disponible</string>
+    <string name="you_are_up_to_date">Estás actualizado</string>
+    <string name="power">Energía</string>
+    <string name="stop">Detener</string>
+    <string name="later">Más tarde</string>
+    <string name="continuetext">Continuar</string>
+    <string name="allow">Permitir</string>
+    <string name="join">Unirse</string>
+    <string name="donate">Donar</string>
+    <string name="developers">Desarrolladores</string>
+    <string name="author">Autor</string>
+    <string name="verified">Verificado</string>
+    <string name="not_verified">No verificado</string>
+    <string name="architecture">Arquitectura</string>
+    <string name="file_name">Nombre del archivo</string>
+    <string name="description">Descripción</string>
+    <string name="change">Cambiar</string>
+    <string name="eject">Expulsar</string>
+    <string name="replace">Reemplazar</string>
+    <string name="importing">Importando...</string>
+    <string name="exporting">Exportando...</string>
+    <string name="completed">Completado</string>
+    <string name="failed">¡Fallido!</string>
+    <string name="please_stay_here">Por favor, quédate aquí.</string>
+
+    <!-- Navigation -->
+    <string name="navigation_drawer_open">Abrir menú</string>
+    <string name="navigation_drawer_close">Cerrar menú</string>
+    
+    <!-- VM Creation -->
+    <string name="create_a_machine">Crear una máquina</string>
+    <string name="rom_name">Nombre de VM</string>
+    <string name="rom_drive_qcow2_img_etc">Disco (qcow2, img, etc...)</string>
+    <string name="qemu_params">Parámetros QEMU</string>
+    <string name="add">AGREGAR</string>
+    <string name="memory_usage">Uso de memoria</string>
+    <string name="mouse_mode">Modo de ratón</string>
+    <string name="sign_out">Cerrar sesión</string>
+    
+    <!-- Controls -->
+    <string name="arrow_down">Flecha abajo</string>
+    <string name="arrow_left">Flecha izquierda</string>
+    <string name="arrow_right">Flecha derecha</string>
+    <string name="arrow_up">Flecha arriba</string>
+    <string name="auto">Auto</string>
+    <string name="off">Apagado</string>
+    <string name="on">Encendido</string>
+    
+    <!-- Language Module Strings -->
+    <string name="lang_status_icon">Estado del idioma</string>
+    <string name="lang_action_button">Acción de idioma</string>
+    <string name="lang_built_in">Integrado</string>
+    <string name="lang_module_size">%d KB</string>
+    <string name="lang_modules_title">Módulos de Idioma</string>
+    <string name="lang_modules_description">Descarga paquetes de idioma para usar la aplicación en tu idioma preferido. El inglés está integrado y siempre disponible.</string>
+    <string name="lang_download_success">Paquete de idioma descargado con éxito</string>
+    <string name="lang_download_failed">Error al descargar el paquete de idioma</string>
+    <string name="lang_delete_success">Paquete de idioma eliminado</string>
+    <string name="lang_delete_confirm">¿Eliminar este paquete de idioma?</string>
+    <string name="lang_selected">Idioma seleccionado: %s</string>
+    <string name="lang_restart_required">Reinicia la aplicación para aplicar el nuevo idioma</string>
+    <string name="lang_downloading">Descargando...</string>
+    <string name="lang_download_not_available">Descarga no disponible. Por favor, descarga el paquete de idioma primero.</string>
+    <string name="lang_total_size">Total descargado: %s</string>
+    <string name="lang_clear_all">Borrar todos los paquetes de idioma</string>
+    <string name="lang_clear_all_confirm">¿Eliminar todos los paquetes de idioma descargados? La aplicación volverá al inglés.</string>
+</resources>
