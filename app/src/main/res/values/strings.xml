@@ -786,4 +786,24 @@
 
     <!-- ========================== TERMUX-X11 STRINGS ========================== -->
     <!-- <string name="plugin_info" translatable="false">lol</string> -->
+
+    <!-- ========================== LANGUAGE MODULE STRINGS ========================== -->
+    <string name="lang_status_icon">Language status</string>
+    <string name="lang_action_button">Language action</string>
+    <string name="lang_built_in">Built-in</string>
+    <string name="lang_module_size">%d KB</string>
+    <string name="lang_modules_title">Language Modules</string>
+    <string name="lang_modules_description">Download language packs to use the app in your preferred language. English is built-in and always available.</string>
+    <string name="lang_download_success">Language pack downloaded successfully</string>
+    <string name="lang_download_failed">Failed to download language pack</string>
+    <string name="lang_delete_success">Language pack deleted</string>
+    <string name="lang_delete_confirm">Delete this language pack?</string>
+    <string name="lang_selected">Language selected: %s</string>
+    <string name="lang_restart_required">Restart Required</string>
+    <string name="lang_restart_message">The app needs to be restarted to apply the new language settings.</string>
+    <string name="lang_downloading">Downloading…</string>
+    <string name="lang_download_not_available">Download not available. Please download the language pack first.</string>
+    <string name="lang_total_size">Total downloaded: %s</string>
+    <string name="lang_clear_all">Clear all language packs</string>
+    <string name="lang_clear_all_confirm">Remove all downloaded language packs? The app will revert to English.</string>
 </resources>
