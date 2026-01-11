@@ -645,7 +645,7 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
                         currentLogLevel[0] = VectrasStatus.LogLevel.ERROR.getInt();
                         break;
                     case 4: // Debug
-                        currentLogLevel[0] = VectrasStatus.LogLevel.VERBOSE.getInt();
+                        currentLogLevel[0] = VectrasStatus.LogLevel.DEBUG.getInt();
                         break;
                 }
                 mLogAdapter.setLogLevel(currentLogLevel[0]);
@@ -713,7 +713,7 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
         binding.btnClear.setOnClickListener(v -> {
             new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.delete_all)
-                .setMessage("Are you sure you want to clear all logs?")
+                .setMessage(R.string.clear_logs_confirmation)
                 .setPositiveButton(R.string.ok, (dialog, which) -> {
                     VectrasStatus.clearLog();
                     mLogAdapter.notifyDataSetChanged();
