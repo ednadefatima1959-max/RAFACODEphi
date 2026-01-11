@@ -936,16 +936,22 @@ public class FileUtils {
 	 * Uses the Castagnoli polynomial for better error detection.
 	 * 
 	 * @param file The file to calculate checksum for
-	 * @return CRC32C checksum value, or -1 if error
-	 * @throws IOException If file cannot be read
+	 * @return CRC32C checksum value
+	 * @throws IOException If file cannot be read or is too large
+	 * @throws IllegalArgumentException If file is null, doesn't exist, or is a directory
 	 */
 	public static long calculateCRC32C(File file) throws IOException {
-		if (file == null || !file.exists() || !file.isFile()) {
-			return -1;
+		if (file == null) {
+			throw new IllegalArgumentException("File cannot be null");
 		}
-		
+		if (!file.exists()) {
+			throw new IllegalArgumentException("File does not exist: " + file.getPath());
+		}
+		if (!file.isFile()) {
+			throw new IllegalArgumentException("Path is not a file: " + file.getPath());
+		}
 		if (file.length() > MAX_CRC_FILE_SIZE) {
-			throw new IOException("File too large for checksum calculation");
+			throw new IOException("File too large for checksum calculation (max 100MB)");
 		}
 		
 		java.util.zip.CRC32C crc = new java.util.zip.CRC32C();
@@ -962,31 +968,40 @@ public class FileUtils {
 	/**
 	 * Formats a CRC32C checksum as an 8-character hex string.
 	 * 
-	 * @param crc The CRC32C value
+	 * @param crc The CRC32C value (must be non-negative)
 	 * @return Formatted hex string (e.g., "A1B2C3D4")
 	 */
 	public static String formatCRC32C(long crc) {
-		return String.format("%08X", crc);
+		return String.format("%08X", crc & 0xFFFFFFFFL);
 	}
 
 	/**
 	 * Calculates and formats CRC32C checksum for a file.
-	 * Returns error message if calculation fails.
+	 * Returns descriptive error message if calculation fails.
 	 * 
 	 * @param file The file to calculate checksum for
-	 * @return Formatted checksum or error message
+	 * @return Formatted checksum or descriptive error message
 	 */
 	public static String getFileCRC32CString(File file) {
-		if (file == null || !file.exists()) {
-			return "File not found";
+		if (file == null) {
+			return "Error: File is null";
+		}
+		if (!file.exists()) {
+			return "Error: File not found";
+		}
+		if (!file.isFile()) {
+			return "Error: Not a file";
 		}
 		if (file.length() > MAX_CRC_FILE_SIZE) {
-			return "File too large (>100MB)";
+			return "Skipped: File too large (>100MB)";
 		}
 		try {
 			long crc = calculateCRC32C(file);
 			return formatCRC32C(crc);
 		} catch (IOException e) {
+			Log.e(TAG, "getFileCRC32CString: ", e);
+			return "Error: " + e.getMessage();
+		} catch (IllegalArgumentException e) {
 			Log.e(TAG, "getFileCRC32CString: ", e);
 			return "Error: " + e.getMessage();
 		}

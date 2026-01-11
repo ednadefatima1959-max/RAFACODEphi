@@ -33,13 +33,18 @@ public class DialogUtils {
      * Shows a progress dialog for long-running operations.
      * The dialog shows an indeterminate progress bar with a message.
      * 
-     * @param context The context
+     * @param context The context (must be an Activity that is not finishing/destroyed)
      * @param title Dialog title
      * @param message Dialog message
-     * @return The AlertDialog instance (call dismiss() when operation completes)
+     * @return The AlertDialog instance (call dismiss() when operation completes), 
+     *         or null if context is invalid (activity is finishing/destroyed).
+     *         Callers should check for null before using the returned dialog.
      */
     public static AlertDialog showProgressDialog(Context context, String title, String message) {
-        if (!isAllowShow(context)) return null;
+        if (!isAllowShow(context)) {
+            // Context is not valid for showing dialog (activity finishing/destroyed)
+            return null;
+        }
         
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_progress_operation, null);
@@ -64,14 +69,18 @@ public class DialogUtils {
      * Shows a progress dialog with determinate progress.
      * Call updateProgressDialog() to update progress.
      * 
-     * @param context The context
+     * @param context The context (must be an Activity that is not finishing/destroyed)
      * @param title Dialog title
      * @param message Dialog message
      * @param max Maximum progress value
-     * @return The AlertDialog instance
+     * @return The AlertDialog instance, or null if context is invalid.
+     *         Callers should check for null before using the returned dialog.
      */
     public static AlertDialog showProgressDialog(Context context, String title, String message, int max) {
-        if (!isAllowShow(context)) return null;
+        if (!isAllowShow(context)) {
+            // Context is not valid for showing dialog (activity finishing/destroyed)
+            return null;
+        }
         
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_progress_operation, null);
