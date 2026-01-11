@@ -68,6 +68,9 @@ import java.util.concurrent.Executors;
 public class ProfessionalToolsActivity extends AppCompatActivity {
     private static final String TAG = "ProfessionalToolsActivity";
     
+    // Statistical constants
+    private static final double Z_SCORE_95_PERCENT = 1.96;
+    
     // Time estimates in seconds for each category
     private static final int TIME_CPU_SINGLE = 15;
     private static final int TIME_CPU_MULTI = 20;
@@ -423,9 +426,10 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
     
     private double calculateMean(long[] values) {
         if (values.length == 0) return 0;
-        long sum = 0;
+        // Use double accumulation to prevent overflow
+        double sum = 0;
         for (long v : values) sum += v;
-        return (double) sum / values.length;
+        return sum / values.length;
     }
     
     private double calculateMedian(long[] values) {
@@ -453,8 +457,7 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
     private double[] calculateConfidenceInterval(long[] values, double confidenceLevel) {
         double mean = calculateMean(values);
         double stdDev = calculateStdDev(values, mean);
-        double z = 1.96; // Z-score for 95% confidence
-        double margin = z * (stdDev / Math.sqrt(values.length));
+        double margin = Z_SCORE_95_PERCENT * (stdDev / Math.sqrt(values.length));
         return new double[] { mean - margin, mean + margin };
     }
     
@@ -599,7 +602,8 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
         messageView.setText(fullReport);
         messageView.setTextIsSelectable(true);
         messageView.setTypeface(android.graphics.Typeface.MONOSPACE);
-        messageView.setTextSize(9f);
+        // Use 10sp which is small but readable for monospace report
+        messageView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 10);
         messageView.setPadding(32, 32, 32, 32);
         
         android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
@@ -651,10 +655,9 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
         sb.append(String.format("║ Median:                %-53s ║\n", formatNumber(report.median)));
         sb.append(String.format("║ Standard Deviation:    %-53s ║\n", formatNumber(report.stdDev)));
         if (report.confidenceInterval95 != null) {
-            sb.append(String.format("║ 95%% Confidence:        [%.0f, %.0f]%s ║\n", 
-                    report.confidenceInterval95[0], report.confidenceInterval95[1],
-                    String.format("%" + (46 - String.format("[%.0f, %.0f]", 
-                            report.confidenceInterval95[0], report.confidenceInterval95[1]).length()) + "s", "")));
+            String ciValue = String.format(Locale.US, "[%.0f, %.0f]", 
+                    report.confidenceInterval95[0], report.confidenceInterval95[1]);
+            sb.append(String.format("║ 95%% Confidence:        %-53s ║\n", ciValue));
         }
         sb.append(String.format("║ Reproducibility Score: %-53s ║\n", 
                 String.format(Locale.US, "%.1f%%", report.reproducibilityScore)));
