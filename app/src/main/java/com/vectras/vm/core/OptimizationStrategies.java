@@ -517,6 +517,7 @@ public final class OptimizationStrategies {
     public enum AccessPattern {
         SEQUENTIAL,
         RANDOM,
-        STRIDED
+        STRIDED,
+        VECTORIZED
     }
 }

@@ -512,10 +512,10 @@ public class BitwiseMathTest {
 
     @Test
     public void isPowerOf2_invalidPowers() {
-        assertEquals(false, BitwiseMath.isPowerOf2(0));
-        assertEquals(false, BitwiseMath.isPowerOf2(3));
-        assertEquals(false, BitwiseMath.isPowerOf2(5));
-        assertEquals(false, BitwiseMath.isPowerOf2(100));
+        assertFalse(BitwiseMath.isPowerOf2(0));
+        assertFalse(BitwiseMath.isPowerOf2(3));
+        assertFalse(BitwiseMath.isPowerOf2(5));
+        assertFalse(BitwiseMath.isPowerOf2(100));
     }
 
     @Test
