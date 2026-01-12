@@ -270,10 +270,15 @@ public class BenchmarkManager {
                     CPU_FREQ_VARIANCE_THRESHOLD_HOMOGENEOUS;
                 
                 // Calculate actual frequency variance across all active cores
+                // variance = (maxFreq - minFreq) / maxFreq
                 double freqVariance = 1.0 - ((double)minFreq / (double)maxFreq);
                 
+                // For homogeneous: warn if variance > 50% (cores differ by more than half)
+                // For heterogeneous: warn if variance > 30% (more than expected for big.LITTLE)
+                double warnThreshold = isHeterogeneous ? 0.30 : 0.50;
+                
                 // Warn if variance exceeds threshold
-                if (freqVariance > (1.0 - threshold)) {
+                if (freqVariance > warnThreshold) {
                     warnings.add(String.format(java.util.Locale.US,
                         "High CPU frequency variance detected (%.1f%%, min: %d kHz, max: %d kHz, arch: %s)",
                         freqVariance * 100, minFreq, maxFreq, 
