@@ -20,9 +20,12 @@ import androidx.appcompat.widget.Toolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.vectras.vm.AppConfig;
 import com.vectras.vm.R;
-import com.vectras.vm.utils.FileUtils;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -41,6 +44,15 @@ import java.util.concurrent.Executors;
  */
 public class BenchmarkActivity extends AppCompatActivity {
     private static final String TAG = "BenchmarkActivity";
+    private static final String REPORT_HEADER = "VECTRAS VM PROFESSIONAL BENCHMARK REPORT";
+    private static final String REPORT_HEADER_DIVIDER =
+        "═══════════════════════════════════════════════════════════";
+    private static final String ENVIRONMENT_HEADER = "ENVIRONMENT SNAPSHOT";
+    private static final String SECTION_DIVIDER =
+        "─────────────────────────────────────────────────────────";
+    private static final String DIAGNOSTICS_HEADER = "BENCHMARK DIAGNOSTICS";
+    private static final String SHARE_HEADER = "VECTRAS VM BENCHMARK RESULTS";
+    private static final String SHARE_HEADER_DIVIDER = "════════════════════════════";
     
     // UI Elements
     private TextView tvTotalScore;
@@ -140,8 +152,7 @@ public class BenchmarkActivity extends AppCompatActivity {
                                 tvProgressText.setText(currentMetric);
                                 if (totalMetrics > 0) {
                                     int percent = (metricIndex * 100) / totalMetrics;
-                                    tvScoreStatus.setText(String.format(java.util.Locale.US, 
-                                        "Running: %d%%", percent));
+                                    tvScoreStatus.setText("Running: " + percent + "%");
                                 }
                             });
                         }
@@ -363,6 +374,31 @@ public class BenchmarkActivity extends AppCompatActivity {
                         fullReport.append(String.format("Benchmark Duration: %d ms\n", lastBenchmarkResult.durationMs));
                         fullReport.append("\n\n");
                     }
+
+                    if (lastBenchmarkResult != null && lastBenchmarkResult.diagnostics != null
+                        && lastBenchmarkResult.diagnostics.size() > 0) {
+                        writeLine(writer, DIAGNOSTICS_HEADER);
+                        writeLine(writer, SECTION_DIVIDER);
+                        BenchmarkManager.DiagnosticMetricsView diagnostics =
+                            lastBenchmarkResult.diagnostics;
+                        for (int i = 0; i < diagnostics.size(); i++) {
+                            String unit = diagnostics.getUnit(i);
+                            String unitLabel = unit == null || unit.isEmpty()
+                                ? ""
+                                : " " + unit;
+                            writeLine(writer, diagnostics.getName(i) + ": "
+                                + diagnostics.getFormattedValue(i) + unitLabel);
+                            String description = diagnostics.getDescription(i);
+                            if (description != null && !description.isEmpty()) {
+                                writeLine(writer, "  • " + description);
+                            }
+                        }
+                        writer.newLine();
+                        writer.newLine();
+                    }
+
+                    // Add detailed benchmark results
+                    writer.write(VectraBenchmark.formatDetailedReport(lastResults));
                 }
 
                 if (lastBenchmarkResult != null && lastBenchmarkResult.diagnostics != null
@@ -381,12 +417,6 @@ public class BenchmarkActivity extends AppCompatActivity {
                     }
                     fullReport.append("\n\n");
                 }
-                
-                // Add detailed benchmark results
-                fullReport.append(VectraBenchmark.formatDetailedReport(lastResults));
-                
-                // Write to file
-                FileUtils.writeToFile(exportDir.getAbsolutePath(), fileName, fullReport.toString());
                 
                 mainHandler.post(() -> {
                     Toast.makeText(this, 
@@ -413,16 +443,38 @@ public class BenchmarkActivity extends AppCompatActivity {
         StringBuilder shareText = new StringBuilder();
         
         // Add summary
-        shareText.append("VECTRAS VM BENCHMARK RESULTS\n");
-        shareText.append("════════════════════════════\n\n");
+        shareText.append(SHARE_HEADER).append("\n");
+        shareText.append(SHARE_HEADER_DIVIDER).append("\n\n");
         
         // Add validation summary if available
         if (lastBenchmarkResult != null && lastBenchmarkResult.validation != null) {
             BenchmarkManager.ValidationReport val = lastBenchmarkResult.validation;
-            shareText.append(String.format("Confidence Score: %.0f%%\n", val.confidenceScore * 100));
-            shareText.append(String.format("Result Variance: %.1f%%\n", val.resultVariance));
+            int confidencePercent = (int) Math.round(val.confidenceScore * 100);
+            shareText.append("Confidence Score: ").append(confidencePercent).append("%\n");
+            shareText.append("Result Variance: ")
+                .append(formatOneDecimal(val.resultVariance))
+                .append("%\n");
             if (!val.warnings.isEmpty()) {
-                shareText.append(String.format("Warnings: %d\n", val.warnings.size()));
+                shareText.append("Warnings: ").append(val.warnings.size()).append("\n");
+            }
+            shareText.append("\n");
+        }
+
+        if (lastBenchmarkResult != null && lastBenchmarkResult.diagnostics != null
+            && lastBenchmarkResult.diagnostics.size() > 0) {
+            shareText.append("Diagnostics:\n");
+            BenchmarkManager.DiagnosticMetricsView diagnostics = lastBenchmarkResult.diagnostics;
+            for (int i = 0; i < diagnostics.size(); i++) {
+                String unit = diagnostics.getUnit(i);
+                String unitLabel = unit == null || unit.isEmpty()
+                    ? ""
+                    : " " + unit;
+                shareText.append("  - ")
+                    .append(diagnostics.getName(i))
+                    .append(": ")
+                    .append(diagnostics.getFormattedValue(i))
+                    .append(unitLabel)
+                    .append("\n");
             }
             shareText.append("\n");
         }
@@ -463,5 +515,27 @@ public class BenchmarkActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         executor.shutdown();
+    }
+
+    private static void writeLine(BufferedWriter writer, String line) throws IOException {
+        writer.write(line);
+        writer.newLine();
+    }
+
+    private static String formatOneDecimal(double value) {
+        long rounded = Math.round(value * 10);
+        long absoluteRounded = Math.abs(rounded);
+        long whole = absoluteRounded / 10;
+        long fraction = absoluteRounded % 10;
+        StringBuilder builder = new StringBuilder();
+        if (rounded < 0) {
+            builder.append('-');
+        }
+        builder.append(whole).append('.').append(fraction);
+        return builder.toString();
+    }
+
+    private static String safeValue(String value) {
+        return value == null ? "" : value;
     }
 }

@@ -47,6 +47,43 @@ public class BenchmarkManager {
     private static final double MAX_TIMER_JITTER_PERCENT = 500.0;
     private static final double MAX_STABILITY_VARIANCE_PERCENT = 30.0;
     private static final int DIAGNOSTIC_DECIMALS = 2;
+    private static final boolean ENABLE_STABILITY_PROBE = false;
+    private static final long TIMER_DIAGNOSTIC_CACHE_MS = 5 * 60 * 1000L;
+    private static final long TIMER_DRIFT_TARGET_NS = 20_000_000L;
+    private static final int TIMER_JITTER_SAMPLES = 64;
+    private static final Object TIMER_DIAGNOSTIC_LOCK = new Object();
+    private static final long[] TIMER_JITTER_DELTAS = new long[TIMER_JITTER_SAMPLES];
+    private static volatile long lastTimerDiagnosticUptimeMs = -1;
+    private static volatile double cachedTimeSourceDriftPercent = 0.0;
+    private static volatile double cachedTimerJitterPercent = 0.0;
+
+    private static final int DIAGNOSTIC_INDEX_TIMER_DRIFT = 0;
+    private static final int DIAGNOSTIC_INDEX_TIMER_JITTER = 1;
+    private static final int DIAGNOSTIC_INDEX_CPU_STABILITY = 2;
+    private static final int DIAGNOSTIC_INDEX_EMULATOR_SIGNALS = 3;
+    private static final int DIAGNOSTIC_INDEX_ABI_CPU_MISMATCH = 4;
+    private static final int DIAGNOSTIC_COUNT = 5;
+    private static final String[] DIAGNOSTIC_NAMES = {
+        "Timer Drift",
+        "Timer Jitter",
+        "CPU Stability Variance",
+        "Emulator Signals",
+        "ABI/CPU Mismatch"
+    };
+    private static final String[] DIAGNOSTIC_UNITS = {
+        "%",
+        "%",
+        "%",
+        "",
+        ""
+    };
+    private static final String[] DIAGNOSTIC_DESCRIPTIONS = {
+        "Difference between nanoTime and elapsedRealtime clocks",
+        "Max deviation across nanoTime samples",
+        "Variance across repeated integer add microbenchmarks",
+        "Fingerprint and CPU info inspection",
+        "ABI and cpuinfo consistency check"
+    };
     
     // Progress callback interface
     public interface ProgressCallback {
@@ -62,6 +99,7 @@ public class BenchmarkManager {
         public final ValidationReport validation;
         public final EnvironmentSnapshot environment;
         public final List<DiagnosticMetric> diagnostics;
+        public final DiagnosticMetricsView diagnostics;
         public final long durationMs;
         public final boolean isValid;
         
@@ -69,6 +107,7 @@ public class BenchmarkManager {
                              ValidationReport validation,
                              EnvironmentSnapshot environment,
                              List<DiagnosticMetric> diagnostics,
+                             DiagnosticMetricsView diagnostics,
                              long durationMs,
                              boolean isValid) {
             this.metrics = metrics;
@@ -91,6 +130,48 @@ public class BenchmarkManager {
             this.value = value;
             this.unit = unit;
             this.description = description;
+    public static final class DiagnosticMetricsView {
+        private final String[] names;
+        private final double[] values;
+        private final String[] units;
+        private final String[] descriptions;
+
+        private DiagnosticMetricsView(String[] names,
+                                      double[] values,
+                                      String[] units,
+                                      String[] descriptions) {
+            this.names = names;
+            this.values = values;
+            this.units = units;
+            this.descriptions = descriptions;
+        }
+
+        public int size() {
+            return values.length;
+        }
+
+        public String getName(int index) {
+            return names[index];
+        }
+
+        public double getValue(int index) {
+            return values[index];
+        }
+
+        public String getUnit(int index) {
+            return units[index];
+        }
+
+        public String getDescription(int index) {
+            return descriptions[index];
+        }
+
+        public String getFormattedValue(int index) {
+            if (index == DIAGNOSTIC_INDEX_EMULATOR_SIGNALS
+                || index == DIAGNOSTIC_INDEX_ABI_CPU_MISMATCH) {
+                return values[index] > 0.5 ? "DETECTED" : "NOT DETECTED";
+            }
+            return formatTwoDecimals(values[index]);
         }
     }
 
@@ -191,6 +272,14 @@ public class BenchmarkManager {
     private final ArrayList<String> warningBuffer = new ArrayList<>(64);
     private final ArrayList<DiagnosticMetric> diagnosticsBuffer = new ArrayList<>(8);
     private final StringBuilder scratchBuilder = new StringBuilder(128);
+    private final ThreadLocal<ArrayList<String>> warningBuffer =
+        ThreadLocal.withInitial(() -> new ArrayList<>(64));
+    private final ThreadLocal<DiagnosticMetricsView> diagnosticsView =
+        ThreadLocal.withInitial(() -> new DiagnosticMetricsView(
+            DIAGNOSTIC_NAMES,
+            new double[DIAGNOSTIC_COUNT],
+            DIAGNOSTIC_UNITS,
+            DIAGNOSTIC_DESCRIPTIONS));
     
     public BenchmarkManager(Context context) {
         this.context = context.getApplicationContext();
@@ -236,6 +325,7 @@ public class BenchmarkManager {
                             validation.confidenceScore >= MIN_CONFIDENCE_THRESHOLD;
 
             List<DiagnosticMetric> diagnostics = buildDiagnostics(envBefore, preflight);
+            DiagnosticMetricsView diagnostics = buildDiagnostics(envBefore, preflight);
             BenchmarkResult result = new BenchmarkResult(
                 results, validation, envAfter, diagnostics, duration, isValid);
             
@@ -268,6 +358,8 @@ public class BenchmarkManager {
      */
     private PreflightReport performPreflightChecks(EnvironmentSnapshot env) {
         warningBuffer.clear();
+        ArrayList<String> warnings = warningBuffer.get();
+        warnings.clear();
         
         // Check 1-5: Thermal state
         if (env.cpuTempC > MAX_CPU_TEMP_C) {
@@ -344,6 +436,17 @@ public class BenchmarkManager {
                     warningBuffer.add(buildFrequencyVarianceWarning(
                         freqVariance * 100, minFreq, maxFreq,
                         isHeterogeneous ? "heterogeneous" : "homogeneous"));
+                    StringBuilder message = new StringBuilder(128);
+                    message.append("High CPU frequency variance detected (")
+                        .append(formatOneDecimal(freqVariance * 100))
+                        .append("%, min: ")
+                        .append(minFreq)
+                        .append(" kHz, max: ")
+                        .append(maxFreq)
+                        .append(" kHz, arch: ")
+                        .append(isHeterogeneous ? "heterogeneous" : "homogeneous")
+                        .append(")");
+                    warnings.add(message.toString());
                 }
             }
         }
@@ -377,6 +480,43 @@ public class BenchmarkManager {
         }
         
         return new PreflightReport(warningBuffer, stabilityVariance, emulatorLikely, abiMismatch);
+            warnings.add("Potential emulator or spoofed fingerprint detected");
+        }
+
+        boolean abiMismatch = isAbiCpuMismatch(env.cpuAbi, env.cpuInfoModel, env.cpuInfoHardware);
+        if (abiMismatch) {
+            warnings.add("CPU/ABI mismatch detected (possible hardware spoofing)");
+        }
+
+        if (env.timeSourceDriftPercent > MAX_TIME_DRIFT_PERCENT) {
+            warnings.add(new StringBuilder(96)
+                .append("Timer drift detected: ")
+                .append(formatOneDecimal(env.timeSourceDriftPercent))
+                .append("% difference between clocks")
+                .toString());
+        }
+
+        if (env.timerJitterPercent > MAX_TIMER_JITTER_PERCENT) {
+            warnings.add(new StringBuilder(64)
+                .append("High timer jitter detected: ")
+                .append(formatOneDecimal(env.timerJitterPercent))
+                .append("%")
+                .toString());
+        }
+
+        double stabilityVariance = 0.0;
+        if (ENABLE_STABILITY_PROBE && CONSISTENCY_SAMPLES > 0) {
+            stabilityVariance = measureCpuStabilityVariance();
+            if (stabilityVariance > MAX_STABILITY_VARIANCE_PERCENT) {
+                warnings.add(new StringBuilder(128)
+                    .append("CPU stability variance high: ")
+                    .append(formatOneDecimal(stabilityVariance))
+                    .append("% (possible throttling or background load)")
+                    .toString());
+            }
+        }
+        
+        return new PreflightReport(warnings, stabilityVariance, emulatorLikely, abiMismatch);
     }
     
     /**
@@ -459,6 +599,15 @@ public class BenchmarkManager {
             "",
             "ABI and cpuinfo consistency check"));
         return new ArrayList<>(diagnosticsBuffer);
+    private DiagnosticMetricsView buildDiagnostics(EnvironmentSnapshot env, PreflightReport preflight) {
+        DiagnosticMetricsView diagnostics = diagnosticsView.get();
+        double[] values = diagnostics.values;
+        values[DIAGNOSTIC_INDEX_TIMER_DRIFT] = env.timeSourceDriftPercent;
+        values[DIAGNOSTIC_INDEX_TIMER_JITTER] = env.timerJitterPercent;
+        values[DIAGNOSTIC_INDEX_CPU_STABILITY] = preflight.cpuStabilityVariance;
+        values[DIAGNOSTIC_INDEX_EMULATOR_SIGNALS] = preflight.emulatorLikely ? 1.0 : 0.0;
+        values[DIAGNOSTIC_INDEX_ABI_CPU_MISMATCH] = preflight.abiMismatch ? 1.0 : 0.0;
+        return diagnostics;
     }
     
     /**
@@ -713,6 +862,39 @@ public class BenchmarkManager {
             Thread.sleep(20);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        updateTimerDiagnosticsIfNeeded(false);
+        return cachedTimeSourceDriftPercent;
+    }
+
+    private double measureTimerJitterPercent() {
+        updateTimerDiagnosticsIfNeeded(false);
+        return cachedTimerJitterPercent;
+    }
+
+    private void updateTimerDiagnosticsIfNeeded(boolean force) {
+        long nowUptimeMs = android.os.SystemClock.elapsedRealtime();
+        if (!force && lastTimerDiagnosticUptimeMs >= 0
+            && (nowUptimeMs - lastTimerDiagnosticUptimeMs) < TIMER_DIAGNOSTIC_CACHE_MS) {
+            return;
+        }
+        synchronized (TIMER_DIAGNOSTIC_LOCK) {
+            nowUptimeMs = android.os.SystemClock.elapsedRealtime();
+            if (!force && lastTimerDiagnosticUptimeMs >= 0
+                && (nowUptimeMs - lastTimerDiagnosticUptimeMs) < TIMER_DIAGNOSTIC_CACHE_MS) {
+                return;
+            }
+            cachedTimeSourceDriftPercent = computeTimeSourceDriftPercent();
+            cachedTimerJitterPercent = computeTimerJitterPercent();
+            lastTimerDiagnosticUptimeMs = nowUptimeMs;
+        }
+    }
+
+    private double computeTimeSourceDriftPercent() {
+        long startNano = System.nanoTime();
+        long startElapsed = android.os.SystemClock.elapsedRealtimeNanos();
+        long target = startNano + TIMER_DRIFT_TARGET_NS;
+        while (System.nanoTime() < target) {
+            // Busy wait to avoid scheduler-induced sleep jitter.
         }
         long endNano = System.nanoTime();
         long endElapsed = android.os.SystemClock.elapsedRealtimeNanos();
@@ -734,6 +916,14 @@ public class BenchmarkManager {
         for (int i = 0; i < samples; i++) {
             long now = System.nanoTime();
             long delta = now - prev;
+    private double computeTimerJitterPercent() {
+        long prev = System.nanoTime();
+        long maxDelta = 0;
+        long sumDelta = 0;
+        for (int i = 0; i < TIMER_JITTER_SAMPLES; i++) {
+            long now = System.nanoTime();
+            long delta = now - prev;
+            TIMER_JITTER_DELTAS[i] = delta;
             if (delta > maxDelta) {
                 maxDelta = delta;
             }
@@ -744,6 +934,7 @@ public class BenchmarkManager {
             return 0.0;
         }
         double avg = sumDelta / (double) samples;
+        double avg = sumDelta / (double) TIMER_JITTER_SAMPLES;
         return (maxDelta / avg) * 100.0;
     }
 
@@ -763,6 +954,27 @@ public class BenchmarkManager {
             return 0.0;
         }
         double variance = Math.sqrt(sumSquares / samples);
+        int configuredSamples = CONSISTENCY_SAMPLES;
+        if (!ENABLE_STABILITY_PROBE || configuredSamples <= 0) {
+            return 0.0;
+        }
+        int samples = Math.max(2, configuredSamples);
+        int workload = Math.max(10_000, VectraBenchmark.CPU_WORKLOAD_SIZE / 50);
+        double mean = 0.0;
+        double m2 = 0.0;
+        int count = 0;
+        for (int i = 0; i < samples; i++) {
+            long duration = VectraBenchmark.benchCpuIntegerAdd(workload);
+            count++;
+            double delta = duration - mean;
+            mean += delta / count;
+            double delta2 = duration - mean;
+            m2 += delta * delta2;
+        }
+        if (count == 0 || mean <= 0.0) {
+            return 0.0;
+        }
+        double variance = Math.sqrt(m2 / count);
         return (variance / mean) * 100.0;
     }
 
@@ -949,5 +1161,15 @@ public class BenchmarkManager {
     private static String truncate(String s, int maxLen) {
         if (s == null) return "";
         return s.length() <= maxLen ? s : s.substring(0, maxLen - 3) + "...";
+    }
+
+    private static String formatOneDecimal(double value) {
+        double rounded = Math.round(value * 10.0) / 10.0;
+        return Double.toString(rounded);
+    }
+
+    private static String formatTwoDecimals(double value) {
+        double rounded = Math.round(value * 100.0) / 100.0;
+        return Double.toString(rounded);
     }
 }
