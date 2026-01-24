@@ -364,6 +364,23 @@ public class BenchmarkActivity extends AppCompatActivity {
                         fullReport.append("\n\n");
                     }
                 }
+
+                if (lastBenchmarkResult != null && lastBenchmarkResult.diagnostics != null
+                    && !lastBenchmarkResult.diagnostics.isEmpty()) {
+                    fullReport.append("BENCHMARK DIAGNOSTICS\n");
+                    fullReport.append("─────────────────────────────────────────────────────────\n");
+                    for (BenchmarkManager.DiagnosticMetric metric : lastBenchmarkResult.diagnostics) {
+                        String unit = metric.unit == null || metric.unit.isEmpty()
+                            ? ""
+                            : " " + metric.unit;
+                        fullReport.append(String.format("%s: %s%s\n",
+                            metric.name, metric.value, unit));
+                        if (metric.description != null && !metric.description.isEmpty()) {
+                            fullReport.append(String.format("  • %s\n", metric.description));
+                        }
+                    }
+                    fullReport.append("\n\n");
+                }
                 
                 // Add detailed benchmark results
                 fullReport.append(VectraBenchmark.formatDetailedReport(lastResults));
@@ -406,6 +423,19 @@ public class BenchmarkActivity extends AppCompatActivity {
             shareText.append(String.format("Result Variance: %.1f%%\n", val.resultVariance));
             if (!val.warnings.isEmpty()) {
                 shareText.append(String.format("Warnings: %d\n", val.warnings.size()));
+            }
+            shareText.append("\n");
+        }
+
+        if (lastBenchmarkResult != null && lastBenchmarkResult.diagnostics != null
+            && !lastBenchmarkResult.diagnostics.isEmpty()) {
+            shareText.append("Diagnostics:\n");
+            for (BenchmarkManager.DiagnosticMetric metric : lastBenchmarkResult.diagnostics) {
+                String unit = metric.unit == null || metric.unit.isEmpty()
+                    ? ""
+                    : " " + metric.unit;
+                shareText.append(String.format("  - %s: %s%s\n",
+                    metric.name, metric.value, unit));
             }
             shareText.append("\n");
         }

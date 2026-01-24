@@ -60,19 +60,53 @@ public class BenchmarkManager {
         public final VectraBenchmark.BenchmarkResult[] metrics;
         public final ValidationReport validation;
         public final EnvironmentSnapshot environment;
+        public final List<DiagnosticMetric> diagnostics;
         public final long durationMs;
         public final boolean isValid;
         
         public BenchmarkResult(VectraBenchmark.BenchmarkResult[] metrics,
                              ValidationReport validation,
                              EnvironmentSnapshot environment,
+                             List<DiagnosticMetric> diagnostics,
                              long durationMs,
                              boolean isValid) {
             this.metrics = metrics;
             this.validation = validation;
             this.environment = environment;
+            this.diagnostics = diagnostics;
             this.durationMs = durationMs;
             this.isValid = isValid;
+        }
+    }
+
+    public static class DiagnosticMetric {
+        public final String name;
+        public final String value;
+        public final String unit;
+        public final String description;
+
+        public DiagnosticMetric(String name, String value, String unit, String description) {
+            this.name = name;
+            this.value = value;
+            this.unit = unit;
+            this.description = description;
+        }
+    }
+
+    private static class PreflightReport {
+        public final List<String> warnings;
+        public final double cpuStabilityVariance;
+        public final boolean emulatorLikely;
+        public final boolean abiMismatch;
+
+        private PreflightReport(List<String> warnings,
+                                double cpuStabilityVariance,
+                                boolean emulatorLikely,
+                                boolean abiMismatch) {
+            this.warnings = warnings;
+            this.cpuStabilityVariance = cpuStabilityVariance;
+            this.emulatorLikely = emulatorLikely;
+            this.abiMismatch = abiMismatch;
         }
     }
     
@@ -170,9 +204,9 @@ public class BenchmarkManager {
             // Step 1: Pre-flight checks
             notifyProgress(0, VectraBenchmark.METRIC_COUNT, "Performing pre-flight checks...");
             EnvironmentSnapshot envBefore = captureEnvironment();
-            List<String> preflightWarnings = performPreflightChecks(envBefore);
+            PreflightReport preflight = performPreflightChecks(envBefore);
             
-            for (String warning : preflightWarnings) {
+            for (String warning : preflight.warnings) {
                 notifyWarning(warning);
             }
             
@@ -196,9 +230,10 @@ public class BenchmarkManager {
             long duration = System.currentTimeMillis() - startTime;
             boolean isValid = validation.errors.isEmpty() && 
                             validation.confidenceScore >= MIN_CONFIDENCE_THRESHOLD;
-            
+
+            List<DiagnosticMetric> diagnostics = buildDiagnostics(envBefore, preflight);
             BenchmarkResult result = new BenchmarkResult(
-                results, validation, envAfter, duration, isValid);
+                results, validation, envAfter, diagnostics, duration, isValid);
             
             notifyComplete(result);
             return result;
@@ -227,7 +262,7 @@ public class BenchmarkManager {
     /**
      * Perform 30+ pre-flight checks for interference detection.
      */
-    private List<String> performPreflightChecks(EnvironmentSnapshot env) {
+    private PreflightReport performPreflightChecks(EnvironmentSnapshot env) {
         List<String> warnings = new ArrayList<>();
         
         // Check 1-5: Thermal state
@@ -338,7 +373,31 @@ public class BenchmarkManager {
                 stabilityVariance));
         }
         
-        return warnings;
+        boolean abiMismatch = isAbiCpuMismatch(env.cpuAbi, env.cpuInfoModel, env.cpuInfoHardware);
+        if (abiMismatch) {
+            warnings.add("CPU/ABI mismatch detected (possible hardware spoofing)");
+        }
+
+        if (env.timeSourceDriftPercent > MAX_TIME_DRIFT_PERCENT) {
+            warnings.add(String.format(java.util.Locale.US,
+                "Timer drift detected: %.1f%% difference between clocks",
+                env.timeSourceDriftPercent));
+        }
+
+        if (env.timerJitterPercent > MAX_TIMER_JITTER_PERCENT) {
+            warnings.add(String.format(java.util.Locale.US,
+                "High timer jitter detected: %.1f%%",
+                env.timerJitterPercent));
+        }
+
+        double stabilityVariance = measureCpuStabilityVariance();
+        if (stabilityVariance > MAX_STABILITY_VARIANCE_PERCENT) {
+            warnings.add(String.format(java.util.Locale.US,
+                "CPU stability variance high: %.1f%% (possible throttling or background load)",
+                stabilityVariance));
+        }
+        
+        return new PreflightReport(warnings, stabilityVariance, emulatorLikely, abiMismatch);
     }
     
     /**
@@ -391,6 +450,36 @@ public class BenchmarkManager {
                                      cpuInfoModel, cpuInfoHardware, cpuAbi,
                                      buildFingerprint, buildHardware, buildProduct,
                                      timeSourceDrift, timerJitter);
+    }
+
+    private List<DiagnosticMetric> buildDiagnostics(EnvironmentSnapshot env, PreflightReport preflight) {
+        List<DiagnosticMetric> diagnostics = new ArrayList<>();
+        diagnostics.add(new DiagnosticMetric(
+            "Timer Drift",
+            String.format(java.util.Locale.US, "%.2f", env.timeSourceDriftPercent),
+            "%",
+            "Difference between nanoTime and elapsedRealtime clocks"));
+        diagnostics.add(new DiagnosticMetric(
+            "Timer Jitter",
+            String.format(java.util.Locale.US, "%.2f", env.timerJitterPercent),
+            "%",
+            "Max deviation across nanoTime samples"));
+        diagnostics.add(new DiagnosticMetric(
+            "CPU Stability Variance",
+            String.format(java.util.Locale.US, "%.2f", preflight.cpuStabilityVariance),
+            "%",
+            "Variance across repeated integer add microbenchmarks"));
+        diagnostics.add(new DiagnosticMetric(
+            "Emulator Signals",
+            preflight.emulatorLikely ? "DETECTED" : "NOT DETECTED",
+            "",
+            "Fingerprint and CPU info inspection"));
+        diagnostics.add(new DiagnosticMetric(
+            "ABI/CPU Mismatch",
+            preflight.abiMismatch ? "DETECTED" : "NOT DETECTED",
+            "",
+            "ABI and cpuinfo consistency check"));
+        return diagnostics;
     }
     
     /**
