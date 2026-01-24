@@ -20,9 +20,12 @@ import androidx.appcompat.widget.Toolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.vectras.vm.AppConfig;
 import com.vectras.vm.R;
-import com.vectras.vm.utils.FileUtils;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -41,6 +44,15 @@ import java.util.concurrent.Executors;
  */
 public class BenchmarkActivity extends AppCompatActivity {
     private static final String TAG = "BenchmarkActivity";
+    private static final String REPORT_HEADER = "VECTRAS VM PROFESSIONAL BENCHMARK REPORT";
+    private static final String REPORT_HEADER_DIVIDER =
+        "═══════════════════════════════════════════════════════════";
+    private static final String ENVIRONMENT_HEADER = "ENVIRONMENT SNAPSHOT";
+    private static final String SECTION_DIVIDER =
+        "─────────────────────────────────────────────────────────";
+    private static final String DIAGNOSTICS_HEADER = "BENCHMARK DIAGNOSTICS";
+    private static final String SHARE_HEADER = "VECTRAS VM BENCHMARK RESULTS";
+    private static final String SHARE_HEADER_DIVIDER = "════════════════════════════";
     
     // UI Elements
     private TextView tvTotalScore;
@@ -140,8 +152,7 @@ public class BenchmarkActivity extends AppCompatActivity {
                                 tvProgressText.setText(currentMetric);
                                 if (totalMetrics > 0) {
                                     int percent = (metricIndex * 100) / totalMetrics;
-                                    tvScoreStatus.setText(String.format(java.util.Locale.US, 
-                                        "Running: %d%%", percent));
+                                    tvScoreStatus.setText("Running: " + percent + "%");
                                 }
                             });
                         }
@@ -328,65 +339,68 @@ public class BenchmarkActivity extends AppCompatActivity {
                 }
                 File exportFile = new File(exportDir, fileName);
                 
-                // Build comprehensive report with validation
-                StringBuilder fullReport = new StringBuilder();
-                
-                // Add header
-                fullReport.append("VECTRAS VM PROFESSIONAL BENCHMARK REPORT\n");
-                fullReport.append("Generated: ").append(timestamp).append("\n");
-                fullReport.append("═══════════════════════════════════════════════════════════\n\n");
-                
-                // Add validation report if available
-                if (lastBenchmarkResult != null && lastBenchmarkResult.validation != null) {
-                    fullReport.append(BenchmarkManager.formatValidationReport(lastBenchmarkResult.validation));
-                    fullReport.append("\n\n");
-                    
-                    // Add environment snapshot
-                    if (lastBenchmarkResult.environment != null) {
-                        BenchmarkManager.EnvironmentSnapshot env = lastBenchmarkResult.environment;
-                        fullReport.append("ENVIRONMENT SNAPSHOT\n");
-                        fullReport.append("─────────────────────────────────────────────────────────\n");
-                        fullReport.append(String.format("CPU Temperature: %.1f°C\n", env.cpuTempC));
-                        fullReport.append(String.format("Free Memory: %d MB\n", env.freeMemoryMb));
-                        fullReport.append(String.format("Running Processes: %d\n", env.runningProcesses));
-                        fullReport.append(String.format("CPU Governor: %s\n", env.cpuGovernor));
-                        fullReport.append(String.format("CPU Info Model: %s\n", env.cpuInfoModel));
-                        fullReport.append(String.format("CPU Info Hardware: %s\n", env.cpuInfoHardware));
-                        fullReport.append(String.format("Primary ABI: %s\n", env.cpuAbi));
-                        fullReport.append(String.format("Build Fingerprint: %s\n", env.buildFingerprint));
-                        fullReport.append(String.format("Build Hardware: %s\n", env.buildHardware));
-                        fullReport.append(String.format("Build Product: %s\n", env.buildProduct));
-                        fullReport.append(String.format(java.util.Locale.US,
-                            "Timer Drift: %.1f%%\n", env.timeSourceDriftPercent));
-                        fullReport.append(String.format(java.util.Locale.US,
-                            "Timer Jitter: %.1f%%\n", env.timerJitterPercent));
-                        fullReport.append(String.format("Benchmark Duration: %d ms\n", lastBenchmarkResult.durationMs));
-                        fullReport.append("\n\n");
-                    }
-                }
+                try (BufferedWriter writer = new BufferedWriter(
+                    new OutputStreamWriter(new FileOutputStream(exportFile)))) {
+                    // Add header
+                    writeLine(writer, REPORT_HEADER);
+                    writeLine(writer, "Generated: " + timestamp);
+                    writeLine(writer, REPORT_HEADER_DIVIDER);
+                    writer.newLine();
 
-                if (lastBenchmarkResult != null && lastBenchmarkResult.diagnostics != null
-                    && !lastBenchmarkResult.diagnostics.isEmpty()) {
-                    fullReport.append("BENCHMARK DIAGNOSTICS\n");
-                    fullReport.append("─────────────────────────────────────────────────────────\n");
-                    for (BenchmarkManager.DiagnosticMetric metric : lastBenchmarkResult.diagnostics) {
-                        String unit = metric.unit == null || metric.unit.isEmpty()
-                            ? ""
-                            : " " + metric.unit;
-                        fullReport.append(String.format("%s: %s%s\n",
-                            metric.name, metric.value, unit));
-                        if (metric.description != null && !metric.description.isEmpty()) {
-                            fullReport.append(String.format("  • %s\n", metric.description));
+                    // Add validation report if available
+                    if (lastBenchmarkResult != null && lastBenchmarkResult.validation != null) {
+                        writer.write(BenchmarkManager.formatValidationReport(lastBenchmarkResult.validation));
+                        writer.newLine();
+                        writer.newLine();
+
+                        // Add environment snapshot
+                        if (lastBenchmarkResult.environment != null) {
+                            BenchmarkManager.EnvironmentSnapshot env = lastBenchmarkResult.environment;
+                            writeLine(writer, ENVIRONMENT_HEADER);
+                            writeLine(writer, SECTION_DIVIDER);
+                            writeLine(writer, "CPU Temperature: "
+                                + formatOneDecimal(env.cpuTempC) + "°C");
+                            writeLine(writer, "Free Memory: " + env.freeMemoryMb + " MB");
+                            writeLine(writer, "Running Processes: " + env.runningProcesses);
+                            writeLine(writer, "CPU Governor: " + safeValue(env.cpuGovernor));
+                            writeLine(writer, "CPU Info Model: " + safeValue(env.cpuInfoModel));
+                            writeLine(writer, "CPU Info Hardware: " + safeValue(env.cpuInfoHardware));
+                            writeLine(writer, "Primary ABI: " + safeValue(env.cpuAbi));
+                            writeLine(writer, "Build Fingerprint: " + safeValue(env.buildFingerprint));
+                            writeLine(writer, "Build Hardware: " + safeValue(env.buildHardware));
+                            writeLine(writer, "Build Product: " + safeValue(env.buildProduct));
+                            writeLine(writer, "Timer Drift: "
+                                + formatOneDecimal(env.timeSourceDriftPercent) + "%");
+                            writeLine(writer, "Timer Jitter: "
+                                + formatOneDecimal(env.timerJitterPercent) + "%");
+                            writeLine(writer, "Benchmark Duration: "
+                                + lastBenchmarkResult.durationMs + " ms");
+                            writer.newLine();
+                            writer.newLine();
                         }
                     }
-                    fullReport.append("\n\n");
+
+                    if (lastBenchmarkResult != null && lastBenchmarkResult.diagnostics != null
+                        && !lastBenchmarkResult.diagnostics.isEmpty()) {
+                        writeLine(writer, DIAGNOSTICS_HEADER);
+                        writeLine(writer, SECTION_DIVIDER);
+                        for (BenchmarkManager.DiagnosticMetric metric : lastBenchmarkResult.diagnostics) {
+                            String unit = metric.unit == null || metric.unit.isEmpty()
+                                ? ""
+                                : " " + metric.unit;
+                            writeLine(writer, metric.name + ": "
+                                + safeValue(metric.value) + unit);
+                            if (metric.description != null && !metric.description.isEmpty()) {
+                                writeLine(writer, "  • " + metric.description);
+                            }
+                        }
+                        writer.newLine();
+                        writer.newLine();
+                    }
+
+                    // Add detailed benchmark results
+                    writer.write(VectraBenchmark.formatDetailedReport(lastResults));
                 }
-                
-                // Add detailed benchmark results
-                fullReport.append(VectraBenchmark.formatDetailedReport(lastResults));
-                
-                // Write to file
-                FileUtils.writeToFile(exportDir.getAbsolutePath(), fileName, fullReport.toString());
                 
                 mainHandler.post(() -> {
                     Toast.makeText(this, 
@@ -413,16 +427,19 @@ public class BenchmarkActivity extends AppCompatActivity {
         StringBuilder shareText = new StringBuilder();
         
         // Add summary
-        shareText.append("VECTRAS VM BENCHMARK RESULTS\n");
-        shareText.append("════════════════════════════\n\n");
+        shareText.append(SHARE_HEADER).append("\n");
+        shareText.append(SHARE_HEADER_DIVIDER).append("\n\n");
         
         // Add validation summary if available
         if (lastBenchmarkResult != null && lastBenchmarkResult.validation != null) {
             BenchmarkManager.ValidationReport val = lastBenchmarkResult.validation;
-            shareText.append(String.format("Confidence Score: %.0f%%\n", val.confidenceScore * 100));
-            shareText.append(String.format("Result Variance: %.1f%%\n", val.resultVariance));
+            int confidencePercent = (int) Math.round(val.confidenceScore * 100);
+            shareText.append("Confidence Score: ").append(confidencePercent).append("%\n");
+            shareText.append("Result Variance: ")
+                .append(formatOneDecimal(val.resultVariance))
+                .append("%\n");
             if (!val.warnings.isEmpty()) {
-                shareText.append(String.format("Warnings: %d\n", val.warnings.size()));
+                shareText.append("Warnings: ").append(val.warnings.size()).append("\n");
             }
             shareText.append("\n");
         }
@@ -434,8 +451,12 @@ public class BenchmarkActivity extends AppCompatActivity {
                 String unit = metric.unit == null || metric.unit.isEmpty()
                     ? ""
                     : " " + metric.unit;
-                shareText.append(String.format("  - %s: %s%s\n",
-                    metric.name, metric.value, unit));
+                shareText.append("  - ")
+                    .append(metric.name)
+                    .append(": ")
+                    .append(safeValue(metric.value))
+                    .append(unit)
+                    .append("\n");
             }
             shareText.append("\n");
         }
@@ -463,5 +484,27 @@ public class BenchmarkActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         executor.shutdown();
+    }
+
+    private static void writeLine(BufferedWriter writer, String line) throws IOException {
+        writer.write(line);
+        writer.newLine();
+    }
+
+    private static String formatOneDecimal(double value) {
+        long rounded = Math.round(value * 10);
+        long absoluteRounded = Math.abs(rounded);
+        long whole = absoluteRounded / 10;
+        long fraction = absoluteRounded % 10;
+        StringBuilder builder = new StringBuilder();
+        if (rounded < 0) {
+            builder.append('-');
+        }
+        builder.append(whole).append('.').append(fraction);
+        return builder.toString();
+    }
+
+    private static String safeValue(String value) {
+        return value == null ? "" : value;
     }
 }
