@@ -25,6 +25,23 @@ typedef struct {
 
 u64 RmR_ReadCycles(void);
 void RmR_Bench_Run(u8 size, u8 shift, RmR_Bench_Result *out);
+typedef struct {
+  u32 score;
+  u32 variance;
+  u32 error_margin;
+} RmR_Bench_Metric;
+typedef struct {
+  RmR_Bench_Metric metric[50];
+  u32 total_score;
+  u32 total_error;
+} RmR_Bench_SuiteResult;
+typedef struct {
+  u32 budget_cycles;
+  u32 max_iters;
+  u32 stride_bytes;
+  u32 matrix_n;
+} RmR_Bench_Config;
+void RmR_BenchSuite_Run(const RmR_Bench_Config *cfg, RmR_Bench_SuiteResult *out);
 
 /* ==== Backend mínimo (pluga em stdout/UART/MMIO) ==== */
 struct RMR_API {
@@ -344,6 +361,8 @@ typedef struct {
   u32 bench_mem;
   u32 bench_branch;
   u32 bench_matrix;
+  u32 bench_suite_score;
+  u32 bench_suite_error;
   u32 bench_count;
   raf_best_t best[RAF_BEST_MAX];
   u32 best_count;
@@ -375,17 +394,19 @@ static void raf_autotune_config(raf_config_t *cfg, const raf_store_t *st){
   cfg->score_attractor_bonus = rmr_u16_clamp(cfg->score_attractor_bonus, 64u, 255u);
 
   if(st->bench_count > 0u){
+    u32 err = st->bench_suite_error;
+    u32 err_gate = (err > 0x2000u) ? 1u : 0u;
     if(st->bench_score > 0x4000u){
       cfg->noise_mix_shift = 0u;
     } else {
       cfg->noise_mix_shift = 1u;
     }
     cfg->bench_size = rmr_u8_clamp((u8)((st->bench_score & 0x0Fu) + 4u), 4u, (u8)RMR_BENCH_MAX);
-    if(st->bench_mem > st->bench_alu){
+    if(st->bench_mem > st->bench_alu && err_gate == 0u){
       if(cfg->score_noise_weight > 96u){
         cfg->score_noise_weight = (u16)(cfg->score_noise_weight - 1u);
       }
-    } else if(st->bench_alu > st->bench_mem){
+    } else if(st->bench_alu > st->bench_mem && err_gate == 0u){
       if(cfg->score_noise_weight < 255u){
         cfg->score_noise_weight = (u16)(cfg->score_noise_weight + 1u);
       }
@@ -452,6 +473,17 @@ static void raf_bench_update(raf_store_t *st, raf_config_t *cfg){
   st->bench_branch = r.branch;
   st->bench_matrix = r.matrix;
   st->bench_score = (r.alu ^ r.mem ^ r.branch ^ r.matrix);
+  {
+    RmR_Bench_SuiteResult sr;
+    RmR_Bench_Config sc;
+    sc.budget_cycles = 0u;
+    sc.max_iters = 1024u;
+    sc.stride_bytes = 2u;
+    sc.matrix_n = 4u;
+    RmR_BenchSuite_Run(&sc, &sr);
+    st->bench_suite_score = sr.total_score;
+    st->bench_suite_error = sr.total_error;
+  }
   st->bench_count++;
 }
 
