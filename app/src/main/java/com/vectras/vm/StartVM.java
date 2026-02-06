@@ -11,6 +11,7 @@ import com.vectras.vm.utils.FileUtils;
 import com.vectras.vm.rafaelia.RafaeliaConfig;
 import com.vectras.vm.rafaelia.RafaeliaQemuTuning;
 import com.vectras.vm.rafaelia.RafaeliaSettings;
+import com.vectras.vm.qemu.KvmProbe;
 import com.vectras.vm.qemu.QemuArgsBuilder;
 import com.vectras.vm.qemu.VmProfile;
 
@@ -23,6 +24,9 @@ public class StartVM {
     public static String cache;
 
     public static String cdrompath;
+    public static volatile String lastResolvedProfile = "BALANCED";
+    public static volatile boolean lastKvmEnabled = false;
+    public static volatile String lastKvmReason = "unknown";
 
     public static String env(Activity activity, String extras, String img, boolean isQuickRun) {
 
@@ -263,9 +267,13 @@ public class StartVM {
         VmProfile profile = QemuArgsBuilder.resolveProfile(activity, finalextra);
         QemuArgsBuilder.applyProfile(params, activity, finalextra);
         QemuArgsBuilder.applyVirtioNet(params, finalextra);
-        QemuArgsBuilder.applyAcceleration(params);
+        KvmProbe.ProbeResult kvmProbe = QemuArgsBuilder.applyAcceleration(params);
+        lastResolvedProfile = profile.name();
+        lastKvmEnabled = kvmProbe.enabled;
+        lastKvmReason = kvmProbe.reason;
         if (BuildConfig.DEBUG) {
-            Log.i("StartVM", "QEMU profile=" + profile + " arch=" + MainSettingsManager.getArch(activity));
+            Log.i("StartVM", "QEMU profile=" + profile + " arch=" + MainSettingsManager.getArch(activity)
+                    + " kvm=" + (kvmProbe.enabled ? "on" : "off") + " reason=" + kvmProbe.reason);
         }
 
         params.add(finalextra);

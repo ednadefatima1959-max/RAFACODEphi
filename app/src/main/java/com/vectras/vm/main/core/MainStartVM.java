@@ -26,8 +26,10 @@ import com.vectras.vm.AppConfig;
 import com.vectras.vm.BuildConfig;
 import com.vectras.vm.MainService;
 import com.vectras.vm.R;
+import com.vectras.vm.StartVM;
 import com.vectras.vm.VMManager;
 import com.vectras.vm.logger.VectrasStatus;
+import com.vectras.vm.qemu.VmLaunchLedger;
 import com.vectras.vm.settings.ExternalVNCSettingsActivity;
 import com.vectras.vm.utils.DeviceUtils;
 import com.vectras.vm.utils.DialogUtils;
@@ -214,6 +216,16 @@ public class MainStartVM {
         if (BuildConfig.DEBUG) {
             Log.i(TAG, finalCommand);
         }
+
+        VmLaunchLedger.append(
+                context,
+                finalvmID,
+                StartVM.lastResolvedProfile,
+                headless,
+                StartVM.lastKvmEnabled,
+                StartVM.lastKvmReason,
+                finalCommand
+        );
 
         RafaeliaConfig rafaeliaConfig = RafaeliaConfig.fromPreferences(context);
         if (rafaeliaConfig.getEnabled() && RafaeliaSettings.isLogCaptureEnabled(context)) {
