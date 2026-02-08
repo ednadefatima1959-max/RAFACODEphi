@@ -207,6 +207,7 @@ public final class TerminalBuffer {
             mScreenRows = newRows;
             mActiveTranscriptRows = mScreenFirstRow = 0;
             mColumns = newColumns;
+            final int screenRows = mScreenRows;
             final int screenLastRow = mScreenRows - 1;
             final int columns = mColumns;
 
@@ -237,8 +238,8 @@ public final class TerminalBuffer {
                 } else if (skippedBlankLines > 0) {
                     // After skipping some blank lines we encounter a non-blank line. Insert the skipped blank lines.
                     for (int i = 0; i < skippedBlankLines; i++) {
-                        if (currentOutputExternalRow == mScreenRows - 1) {
-                            scrollDownOneLine(0, mScreenRows, currentStyle);
+                        if (currentOutputExternalRow == screenLastRow) {
+                            scrollDownOneLine(0, screenRows, currentStyle);
                         } else {
                             currentOutputExternalRow++;
                         }
@@ -287,7 +288,7 @@ public final class TerminalBuffer {
                         setLineWrap(currentOutputExternalRow);
                         if (currentOutputExternalRow == screenLastRow) {
                             if (newCursorPlaced) newCursorRow--;
-                            scrollDownOneLine(0, mScreenRows, currentStyle);
+                            scrollDownOneLine(0, screenRows, currentStyle);
                         } else {
                             currentOutputExternalRow++;
                         }
@@ -313,7 +314,7 @@ public final class TerminalBuffer {
                 if (externalOldRow != (oldScreenRows - 1) && !oldLine.mLineWrap) {
                     if (currentOutputExternalRow == screenLastRow) {
                         if (newCursorPlaced) newCursorRow--;
-                        scrollDownOneLine(0, mScreenRows, currentStyle);
+                        scrollDownOneLine(0, screenRows, currentStyle);
                     } else {
                         currentOutputExternalRow++;
                     }
@@ -394,7 +395,7 @@ public final class TerminalBuffer {
      * @param dy destination Y coordinate
      */
     public void blockCopy(int sx, int sy, int w, int h, int dx, int dy) {
-        if (w == 0) return;
+        if (w == 0 || h == 0) return;
         if (sx < 0 || sx + w > mColumns || sy < 0 || sy + h > mScreenRows || dx < 0 || dx + w > mColumns || dy < 0 || dy + h > mScreenRows)
             throw new IllegalArgumentException();
         final boolean copyingUp = sy > dy;
@@ -414,6 +415,7 @@ public final class TerminalBuffer {
      * of characters.
      */
     public void blockSet(int sx, int sy, int w, int h, int val, long style) {
+        if (w == 0 || h == 0) return;
         if (sx < 0 || sx + w > mColumns || sy < 0 || sy + h > mScreenRows) {
             throw new IllegalArgumentException(
                 "Illegal arguments! blockSet(" + sx + ", " + sy + ", " + w + ", " + h + ", " + val + ", " + mColumns + ", " + mScreenRows + ")");

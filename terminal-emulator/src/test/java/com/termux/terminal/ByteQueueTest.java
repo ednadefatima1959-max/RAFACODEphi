@@ -82,4 +82,24 @@ public class ByteQueueTest extends TestCase {
         queue.close();
         assertFalse(queue.write(new byte[]{1, 2, 3}, 0, 3));
     }
+
+    public void testWriteRejectsNegativeOffset() {
+        ByteQueue queue = new ByteQueue(8);
+        try {
+            queue.write(new byte[]{1, 2, 3}, -1, 1);
+            fail("Expected IllegalArgumentException");
+        } catch (IllegalArgumentException expected) {
+            // Expected.
+        }
+    }
+
+    public void testWriteRejectsOverflowedOffsetAndLength() {
+        ByteQueue queue = new ByteQueue(8);
+        try {
+            queue.write(new byte[]{1, 2, 3}, 2, 2);
+            fail("Expected IllegalArgumentException");
+        } catch (IllegalArgumentException expected) {
+            // Expected.
+        }
+    }
 }

@@ -56,7 +56,7 @@ final class ByteQueue {
      * Returns whether the output was totally written, false if it was closed before.
      */
     public boolean write(byte[] buffer, int offset, int lengthToWrite) {
-        if (lengthToWrite + offset > buffer.length) {
+        if (offset < 0 || lengthToWrite > (buffer.length - offset)) {
             throw new IllegalArgumentException("length + offset > buffer.length");
         } else if (lengthToWrite <= 0) {
             throw new IllegalArgumentException("length <= 0");
