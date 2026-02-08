@@ -146,5 +146,13 @@ size_t bitraf_reconstruct(const uint8_t *in, size_t in_len,
 
 int bitraf_verify(const uint8_t *data, size_t len,
                   uint64_t expected_hash, uint64_t seed) {
-  return bitraf_hash(data, len, seed) == expected_hash ? 1 : 0;
+  uint64_t h = bitraf_hash(data, len, seed);
+  uint64_t d = h ^ expected_hash;
+  d |= d >> 32;
+  d |= d >> 16;
+  d |= d >> 8;
+  d |= d >> 4;
+  d |= d >> 2;
+  d |= d >> 1;
+  return (int)((d ^ 1u) & 1u);
 }
