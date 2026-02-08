@@ -71,6 +71,7 @@ public final class TerminalRow {
 
     /** Note that the column may end of second half of wide character. */
     public int findStartOfColumn(int column) {
+        if (!mHasNonOneWidthOrSurrogateChars) return column;
         if (column == mColumns) return getSpaceUsed();
 
         int currentColumn = 0;
@@ -109,6 +110,7 @@ public final class TerminalRow {
     }
 
     private boolean wideDisplayCharacterStartingAt(int column) {
+        if (!mHasNonOneWidthOrSurrogateChars) return false;
         for (int currentCharIndex = 0, currentColumn = 0; currentCharIndex < mSpaceUsed; ) {
             char c = mText[currentCharIndex++];
             int codePoint = Character.isHighSurrogate(c) ? Character.toCodePoint(c, mText[currentCharIndex++]) : c;
