@@ -96,4 +96,12 @@ public class ScreenBufferTest extends TerminalTestCase {
 		screen.blockCopy(0, 0, 5, 1, 0, 0);
 		assertEquals("QWERT", screen.getSelectedText(0, 0, 4, 0));
 	}
+
+	public void testGetSelectedTextHandlesNullRows() {
+		TerminalBuffer screen = new TerminalBuffer(5, 6, 3);
+		screen.setChar(0, 0, 'A', 0);
+		screen.setChar(0, 2, 'B', 0);
+		screen.mLines[screen.externalToInternalRow(1)] = null;
+		assertEquals("A\n\nB", screen.getSelectedText(0, 0, 0, 2));
+	}
 }

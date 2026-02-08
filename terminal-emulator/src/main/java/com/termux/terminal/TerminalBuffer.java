@@ -76,6 +76,10 @@ public final class TerminalBuffer {
                 x2 = columns;
             }
             TerminalRow lineObject = mLines[externalToInternalRow(row)];
+            if (lineObject == null) {
+                if (row < selY2 && row < screenLastRow) builder.append('\n');
+                continue;
+            }
             int x1Index = lineObject.findStartOfColumn(x1);
             int x2Index = (x2 < mColumns) ? lineObject.findStartOfColumn(x2) : lineObject.getSpaceUsed();
             if (x2Index == x1Index) {
