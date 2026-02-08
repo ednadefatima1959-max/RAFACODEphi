@@ -72,6 +72,10 @@
 | [PERFORMANCE_INTEGRITY.md](PERFORMANCE_INTEGRITY.md) | Performance measurement and integrity validation guide |
 | [BENCHMARK_MANAGER.md](BENCHMARK_MANAGER.md) | Source-aligned BenchmarkManager behavior, diagnostics, and tuning flow |
 | [SOURCE_TRACEABILITY_MATRIX.md](SOURCE_TRACEABILITY_MATRIX.md) | Consolidated source inventory with documentation traceability and navigation map |
+| [REPO_XRAY.md](REPO_XRAY.md) | Raio-X estrutural do repositório com foco de produto/IP |
+| [BENCHMARKS.md](BENCHMARKS.md) | Guia reproduzível da suite benchmark RMR (CSV/JSON + p95) |
+| [WHITEPAPER.md](WHITEPAPER.md) | Whitepaper executivo da arquitetura de produto RAFAELIA |
+| [IP_MAP.md](IP_MAP.md) | Mapa de propriedade intelectual, forks, licenças e riscos |
 | [VECTRA_CORE.md](../VECTRA_CORE.md) | Vectra Core MVP - Information-theoretic runtime framework |
 | [IMPLEMENTATION_SUMMARY.md](../IMPLEMENTATION_SUMMARY.md) | Implementation summary and deliverables |
 | [FIREBASE.md](../app/FIREBASE.md) | Firebase configuration and setup guide |
