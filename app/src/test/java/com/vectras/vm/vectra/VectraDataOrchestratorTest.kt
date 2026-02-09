@@ -65,4 +65,70 @@ class VectraDataOrchestratorTest {
         assertEquals(first.route, second.route)
         assertNotEquals(first.orchestrationTag, second.orchestrationTag)
     }
+
+
+    @Test
+    fun orchestrate_monotonicCpuPressure_increasesWithCpu() {
+        val state = VectraState()
+        val orchestrator = VectraDataOrchestrator(state)
+
+        val a = orchestrator.orchestrate(
+            cpuCycles = 1024,
+            storageReadBytes = 0,
+            storageWriteBytes = 0,
+            inputBytes = 0,
+            outputBytes = 0,
+            m00 = 1,
+            m01 = 0,
+            m10 = 0,
+            m11 = 1
+        )
+
+        val b = orchestrator.orchestrate(
+            cpuCycles = 2048,
+            storageReadBytes = 0,
+            storageWriteBytes = 0,
+            inputBytes = 0,
+            outputBytes = 0,
+            m00 = 1,
+            m01 = 0,
+            m10 = 0,
+            m11 = 1
+        )
+
+        assertTrue(b.cpuPressure >= a.cpuPressure)
+    }
+
+    @Test
+    fun orchestrate_hysteresis_preventsFlipFlopNearTie() {
+        val state = VectraState()
+        val orchestrator = VectraDataOrchestrator(state)
+
+        val first = orchestrator.orchestrate(
+            cpuCycles = 4096,
+            storageReadBytes = 4096,
+            storageWriteBytes = 0,
+            inputBytes = 0,
+            outputBytes = 0,
+            m00 = 2,
+            m01 = 1,
+            m10 = 1,
+            m11 = 1
+        )
+
+        val second = orchestrator.orchestrate(
+            cpuCycles = 4096,
+            storageReadBytes = 4096,
+            storageWriteBytes = 0,
+            inputBytes = 0,
+            outputBytes = 0,
+            m00 = 2,
+            m01 = 1,
+            m10 = 1,
+            m11 = 1
+        )
+
+        assertEquals(first.route, second.route)
+    }
+
 }

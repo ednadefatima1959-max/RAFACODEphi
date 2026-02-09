@@ -18,7 +18,7 @@ class VectraDeterministicContainerTest {
 
         assertEquals("system/boot/kernel.bin", entry.normalizedPath)
         assertEquals(2, entry.layer)
-        assertTrue(entry.pathVectorBase35.matches(Regex("[0-9A-Y]+")))
+        assertTrue(entry.pathVectorBase60.matches(Regex("[0-9A-Za-x]+")))
         assertArrayEquals(payload, restored)
     }
 
@@ -52,6 +52,6 @@ class VectraDeterministicContainerTest {
         val second = container.buildManifest()
 
         assertNotEquals(first.deterministicTag, second.deterministicTag)
-        assertTrue(first.entries.first().waveState in 0 until 109_096)
+        assertTrue(first.entries.first().waveState in 0 until 10)
     }
 }

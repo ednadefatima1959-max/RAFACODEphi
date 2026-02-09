@@ -334,6 +334,7 @@ class VectraDataOrchestrator(private val state: VectraState) {
     private val history = LongArray(HISTORY_SIZE)
     private var historyIndex = 0
     private var sequence = 0L
+    private var lastRoute: VectraFlowRoute = VectraFlowRoute.BALANCED
 
     fun orchestrate(
         cpuCycles: Long,
@@ -352,20 +353,19 @@ class VectraDataOrchestrator(private val state: VectraState) {
         val input = if (inputBytes < 0) 0 else inputBytes
         val output = if (outputBytes < 0) 0 else outputBytes
 
-        val storageTotal = storageRead + storageWrite
+        val storageTotal = safeAdd(storageRead, storageWrite)
         val ioDiff = if (input >= output) input - output else output - input
-        val matrixDet = (m00 * m11) - (m01 * m10)
+        val ioVolume = safeAdd(input, output)
+        val matrixDet = safeSub(safeMul(m00, m11), safeMul(m01, m10))
 
-        val cpuPressure = ((cpu xor (input shl 1) xor output) and 0x7FFFFFFF).toInt()
-        val storagePressure = ((storageTotal xor (storageRead shl 2) xor (storageWrite shl 1)) and 0x7FFFFFFF).toInt()
-        val ioPressure = ((ioDiff xor (input shl 3) xor (output shl 2)) and 0x7FFFFFFF).toInt()
+        val cpuPressure = log2p1(cpu)
+        val storagePressure = log2p1(storageTotal)
+        val ioPressure = log2p1(ioVolume)
 
-        val route = when {
-            cpuPressure > storagePressure && cpuPressure > ioPressure -> VectraFlowRoute.CPU_HEAVY
-            storagePressure > cpuPressure && storagePressure > ioPressure -> VectraFlowRoute.STORAGE_HEAVY
-            ioPressure > cpuPressure && ioPressure > storagePressure -> VectraFlowRoute.IO_HEAVY
-            else -> VectraFlowRoute.BALANCED
-        }
+        val margin = 1
+        val routeCandidate = chooseRoute(cpuPressure, storagePressure, ioPressure, margin)
+        val route = stabilizeRoute(lastRoute, routeCandidate, cpuPressure, storagePressure, ioPressure, margin)
+        lastRoute = route
 
         val mixed = mix64(
             cpu xor (storageTotal shl 1) xor (ioDiff shl 2) xor matrixDet xor sequence
@@ -406,6 +406,62 @@ class VectraDataOrchestrator(private val state: VectraState) {
         x = (x xor (x ushr 30)) * FLOW_MIX_A
         x = (x xor (x ushr 27)) * FLOW_MIX_B
         return x xor (x ushr 31)
+    }
+
+    private fun log2p1(x: Long): Int {
+        val v = if (x <= 0L) 0L else x
+        return 63 - java.lang.Long.numberOfLeadingZeros(v + 1L)
+    }
+
+    private fun chooseRoute(cpuP: Int, storP: Int, ioP: Int, margin: Int): VectraFlowRoute {
+        return when {
+            cpuP >= storP + margin && cpuP >= ioP + margin -> VectraFlowRoute.CPU_HEAVY
+            storP >= cpuP + margin && storP >= ioP + margin -> VectraFlowRoute.STORAGE_HEAVY
+            ioP >= cpuP + margin && ioP >= storP + margin -> VectraFlowRoute.IO_HEAVY
+            else -> VectraFlowRoute.BALANCED
+        }
+    }
+
+    private fun stabilizeRoute(
+        prev: VectraFlowRoute,
+        cand: VectraFlowRoute,
+        cpuP: Int,
+        storP: Int,
+        ioP: Int,
+        margin: Int
+    ): VectraFlowRoute {
+        if (cand == prev) return prev
+        if (cand == VectraFlowRoute.BALANCED) return prev
+        return when (cand) {
+            VectraFlowRoute.CPU_HEAVY -> if (cpuP >= storP + margin && cpuP >= ioP + margin) cand else prev
+            VectraFlowRoute.STORAGE_HEAVY -> if (storP >= cpuP + margin && storP >= ioP + margin) cand else prev
+            VectraFlowRoute.IO_HEAVY -> if (ioP >= cpuP + margin && ioP >= storP + margin) cand else prev
+            VectraFlowRoute.BALANCED -> prev
+        }
+    }
+
+    private fun safeAdd(a: Long, b: Long): Long {
+        return try {
+            Math.addExact(a, b)
+        } catch (_: ArithmeticException) {
+            if (a >= 0 && b >= 0) Long.MAX_VALUE else Long.MIN_VALUE
+        }
+    }
+
+    private fun safeMul(a: Long, b: Long): Long {
+        return try {
+            Math.multiplyExact(a, b)
+        } catch (_: ArithmeticException) {
+            if ((a xor b) < 0) Long.MIN_VALUE else Long.MAX_VALUE
+        }
+    }
+
+    private fun safeSub(a: Long, b: Long): Long {
+        return try {
+            Math.subtractExact(a, b)
+        } catch (_: ArithmeticException) {
+            if (a >= 0 && b < 0) Long.MAX_VALUE else Long.MIN_VALUE
+        }
     }
 }
 

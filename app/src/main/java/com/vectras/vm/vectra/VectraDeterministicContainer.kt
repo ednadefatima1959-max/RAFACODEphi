@@ -2,8 +2,9 @@ package com.vectras.vm.vectra
 
 import kotlin.math.min
 
-private const val CONTAINER_BASE35_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXY"
-private const val CONTAINER_WAVE_STATES = 109_096
+private const val CONTAINER_BASE60_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx"
+private const val CONTAINER_STATE_COUNT = 10
+private const val CONTAINER_MATRIX_GRANULARITY = 1024
 
 data class VectraContainerEntry(
     val path: String,
@@ -15,7 +16,7 @@ data class VectraContainerEntry(
     val lane: Int,
     val matrixCell: Int,
     val waveState: Int,
-    val pathVectorBase35: String,
+    val pathVectorBase60: String,
     val entryTag: Long
 )
 
@@ -34,7 +35,7 @@ data class VectraContainerManifest(
  *
  * - Layered storage (zip-like layout) without decompression dependency.
  * - Deterministic path canonicalization and manifest ordering.
- * - Base-35 path vectors + wave-state index (0..109095).
+ * - Base-60 path vectors + deterministic state index (0..9).
  */
 class VectraDeterministicContainer(
     private val chunkSize: Int = 4096,
@@ -51,7 +52,7 @@ class VectraDeterministicContainer(
         val chunkIds: LongArray,
         val entryTag: Long,
         val waveState: Int,
-        val pathVectorBase35: String
+        val pathVectorBase60: String
     )
 
     private val chunkStore = LinkedHashMap<Long, ByteArray>()
@@ -65,7 +66,7 @@ class VectraDeterministicContainer(
         val pathHash = stablePathHash(normalized)
         val lane = ((pathHash ushr 1) and 0x7FFFFFFF).toInt() % laneCount
         val matrixCell = matrixCell(pathHash, preferredLayer, lane)
-        val pathVector35 = toBase35(pathHash)
+        val pathVector60 = toBase60(pathHash)
 
         val chunks = splitChunks(payload)
         val chunkIds = LongArray(chunks.size)
@@ -93,7 +94,7 @@ class VectraDeterministicContainer(
             chunkIds = chunkIds,
             entryTag = tag,
             waveState = wave,
-            pathVectorBase35 = pathVector35
+            pathVectorBase60 = pathVector60
         )
 
         entries[normalized] = record
@@ -159,7 +160,7 @@ class VectraDeterministicContainer(
             lane = record.lane,
             matrixCell = record.matrixCell,
             waveState = record.waveState,
-            pathVectorBase35 = record.pathVectorBase35,
+            pathVectorBase60 = record.pathVectorBase60,
             entryTag = record.entryTag
         )
     }
@@ -204,12 +205,12 @@ class VectraDeterministicContainer(
     private fun matrixCell(pathHash: Long, layer: Int, lane: Int): Int {
         val folded = (pathHash xor (pathHash ushr 32)).toInt()
         val base = folded xor (layer shl 11) xor (lane shl 6)
-        return (base and 0x7FFFFFFF) % 1024
+        return (base and 0x7FFFFFFF) % CONTAINER_MATRIX_GRANULARITY
     }
 
     private fun waveState(pathHash: Long, chunks: Int, bytes: Int, matrixCell: Int): Int {
         val folded = (pathHash xor (pathHash ushr 33)).toInt() and 0x7FFFFFFF
-        return (folded + (chunks * 257) + (bytes * 7) + (matrixCell * 13)) % CONTAINER_WAVE_STATES
+        return (folded + (chunks * 257) + (bytes * 7) + (matrixCell * 13)) % CONTAINER_STATE_COUNT
     }
 
     private fun chunkKey(pathHash: Long, index: Int, lane: Int, layer: Int): Long {
@@ -217,14 +218,14 @@ class VectraDeterministicContainer(
         return mix64(pathHash xor header xor (index.toLong() shl 17))
     }
 
-    private fun toBase35(value: Long): String {
+    private fun toBase60(value: Long): String {
         var x = if (value < 0) -value else value
         if (x == 0L) return "0"
         val out = StringBuilder(16)
         while (x > 0) {
-            val digit = (x % 35L).toInt()
-            out.append(CONTAINER_BASE35_ALPHABET[digit])
-            x /= 35L
+            val digit = (x % 60L).toInt()
+            out.append(CONTAINER_BASE60_ALPHABET[digit])
+            x /= 60L
         }
         return out.reverse().toString()
     }
