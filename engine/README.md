@@ -1,13 +1,19 @@
 # engine/
 
-## Objetivo
-Abriga o núcleo de execução determinística em linguagens de baixo nível para política, benchmark e inspeção de performance.
+## Camada 1 — Propósito do diretório
+Núcleo nativo C/Rust para políticas e performance.
 
-## Estrutura de arquivos
-- `rmr/`: engine C com headers em `include/`, implementações em `src/` e documentação própria.
-- `vectra_policy_kernel/`: kernel de política em Rust com `src/`, `tests/`, `Cargo.toml` e lockfile.
+## Camada 2 — Estrutura (até 3 níveis)
+- Nível 1: `engine/`
+- Nível 2: `rmr/`, `vectra_policy_kernel/`
+- Nível 3: detalhamento por arquivo em [`FILES_MAP.md`](FILES_MAP.md).
 
-## Conceitos principais
-1. **Determinismo operacional**: rotinas de benchmark e ciclo reproduzível de execução.
-2. **Separação por linguagem**: C para paths de alta previsibilidade e Rust para kernel com testes dedicados.
-3. **Instrumentação explícita**: APIs e binários voltados à medição, validação e políticas de execução.
+## Camada 3 — Arquivos e vínculos
+- Catálogo completo: [`FILES_MAP.md`](FILES_MAP.md)
+- Contexto global de camadas: [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md)
+
+## Cadeia de comando (lógica de inspeção)
+```bash
+find engine -maxdepth 3 -type d | sort
+sed -n '1,120p' engine/FILES_MAP.md
+```

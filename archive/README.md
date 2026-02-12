@@ -1,12 +1,19 @@
 # archive/
 
-## Objetivo
-Armazena materiais experimentais e históricos que não compõem o fluxo principal de build.
+## Camada 1 — Propósito do diretório
+Material experimental/histórico fora do fluxo primário de build.
 
-## Estrutura de arquivos
-- `experimental/rafael_melo_reis_bundle/.../RAFAELIA_KERNEL_SPEC_V22.md`: especificação experimental.
-- `experimental/seguranda/segurancaMilitarnasuditorias.md`: documento histórico de segurança.
+## Camada 2 — Estrutura (até 3 níveis)
+- Nível 1: `archive/`
+- Nível 2: `experimental/`
+- Nível 3: detalhamento por arquivo em [`FILES_MAP.md`](FILES_MAP.md).
 
-## Conceitos principais
-1. **Memória técnica**: preservação de hipóteses, propostas e referências antigas.
-2. **Isolamento do legado**: evita mistura de material experimental com código de produção.
+## Camada 3 — Arquivos e vínculos
+- Catálogo completo: [`FILES_MAP.md`](FILES_MAP.md)
+- Contexto global de camadas: [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md)
+
+## Cadeia de comando (lógica de inspeção)
+```bash
+find archive -maxdepth 3 -type d | sort
+sed -n '1,120p' archive/FILES_MAP.md
+```

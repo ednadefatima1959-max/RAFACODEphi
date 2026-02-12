@@ -1,57 +1,20 @@
 # Índice de Documentação do Repositório
 
-Este índice consolida a navegação entre documentação raiz, READMEs por diretório e documentos técnicos de profundidade.
+## Entradas principais
+- [`README.md`](README.md): visão institucional + navegação por camadas.
+- [`docs/README.md`](docs/README.md): curadoria técnica.
+- [`docs/THREE_LAYER_ANALYSIS.md`](docs/THREE_LAYER_ANALYSIS.md): análise estrutural em 3 camadas.
+- [`docs/ROOT_FILE_CHAIN.md`](docs/ROOT_FILE_CHAIN.md): reflexão arquivo-a-arquivo da raiz.
 
-## 1) Ponto de entrada institucional
-- `README.md` — visão global, abstract, dissertação analítica e mapa profissional de diretórios.
-- `docs/README.md` — curadoria da documentação técnica especializada.
+## Diretórios com documentação completa
+Cada diretório tem:
+1) `README.md` (camadas 1 e 2)
+2) `FILES_MAP.md` (camada 3)
 
-## 2) READMEs de estrutura por diretório
-- `app/README.md`
-- `engine/README.md`
-- `terminal-emulator/README.md`
-- `terminal-view/README.md`
-- `shell-loader/README.md`
-- `bench/README.md`
-- `demo_cli/README.md`
-- `tools/README.md`
-- `reports/README.md`
-- `resources/README.md`
-- `runtime/README.md`
-- `web/README.md`
-- `archive/README.md`
-- `fastlane/README.md`
-- `gradle/README.md`
-- `3dfx/README.md`
+- `app/`, `engine/`, `terminal-emulator/`, `terminal-view/`, `shell-loader/`, `bench/`, `demo_cli/`, `tools/`, `docs/`, `reports/`, `resources/`, `runtime/`, `web/`, `archive/`, `fastlane/`, `gradle/`, `3dfx/`.
 
-## 3) Arquitetura e estado técnico
-- `docs/ARCHITECTURE.md`
-- `docs/SOURCE_TRACEABILITY_MATRIX.md`
-- `PROJECT_STATE.md`
-- `VECTRA_CORE.md`
-
-## 4) Performance, benchmark e operação
-- `docs/PERFORMANCE_INTEGRITY.md`
-- `docs/BENCHMARKS.md`
-- `docs/BENCHMARK_MANAGER.md`
-- `BENCHMARK_REFACTORING_SUMMARY.md`
-- `ADVANCED_OPTIMIZATIONS.md`
-- `docs/OPERATIONS.md`
-
-## 5) Implementação e entregáveis
-- `IMPLEMENTATION_COMPLETE.md`
-- `IMPLEMENTATION_SUMMARY.md`
-- `docs/DETERMINISTIC_VM_MUTATION_LAYER.md`
-
-## 6) Licenças e conformidade
-- `LICENSE`
-- `THIRD_PARTY_NOTICES.md`
-- `docs/LEGAL_AND_LICENSES.md`
-- `docs/IP_MAP.md`
-
-## 7) Navegação por perfis
-- `docs/navigation/INDEX.md`
-- `docs/navigation/ENTERPRISE_COMPANIES.md`
-- `docs/navigation/SCIENTISTS_RESEARCH.md`
-- `docs/navigation/UNIVERSITIES_ACADEMIC.md`
-- `docs/navigation/BENCHMARK_COMPARISONS.md`
+## Documentos técnicos especializados
+- Arquitetura: `docs/ARCHITECTURE.md`
+- Operação: `docs/OPERATIONS.md`
+- Performance: `docs/PERFORMANCE_INTEGRITY.md`, `docs/BENCHMARKS.md`
+- Conformidade: `docs/LEGAL_AND_LICENSES.md`, `docs/IP_MAP.md`, `THIRD_PARTY_NOTICES.md`

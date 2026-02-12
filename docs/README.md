@@ -1,62 +1,26 @@
 # docs/
 
-Repositório central da documentação técnica, operacional e de governança do Vectras VM Android.
+Camada técnica central de documentação do Vectras VM Android.
 
-## Papel desta camada documental
-A documentação foi organizada para manter coerência entre:
-1. **Código-fonte ativo** (módulos e diretórios do repositório).
-2. **Racional técnico** (arquitetura, segurança, operação, benchmark).
-3. **Conformidade e rastreabilidade** (licenças, matriz de fonte e relatórios).
+## Estrutura em três camadas
+- Camada 1 (institucional): [`../README.md`](../README.md)
+- Camada 2 (diretório): READMEs locais por módulo.
+- Camada 3 (arquivo): `FILES_MAP.md` em cada diretório.
 
-## Fluxo de leitura recomendado
-1. `../README.md` — visão institucional, abstract e navegação global.
-2. `../DOC_INDEX.md` — índice rápido de documentos raiz e técnicos.
-3. `ARCHITECTURE.md` e `SOURCE_TRACEABILITY_MATRIX.md` — base de arquitetura e rastreabilidade.
-4. `OPERATIONS.md`, `PERFORMANCE_INTEGRITY.md`, `BENCHMARKS.md` — operação e validação.
-5. `LEGAL_AND_LICENSES.md` e `IP_MAP.md` — conformidade jurídica e propriedade intelectual.
+## Guias estruturais desta revisão
+- [`THREE_LAYER_ANALYSIS.md`](THREE_LAYER_ANALYSIS.md)
+- [`ROOT_FILE_CHAIN.md`](ROOT_FILE_CHAIN.md)
+- [`../DOC_INDEX.md`](../DOC_INDEX.md)
 
-## Estrutura temática
-### Fundamentos e visão
-- `ABSTRACT.md`
-- `RESUMO.md`
-- `PREFACE.md`
-- `WHITEPAPER.md`
+## Eixos técnicos especializados
+- Arquitetura: `ARCHITECTURE.md`, `API.md`
+- Operação e benchmark: `OPERATIONS.md`, `BENCHMARKS.md`, `BENCHMARK_MANAGER.md`
+- Qualidade e conformidade: `SECURITY.md`, `LEGAL_AND_LICENSES.md`, `SOURCE_TRACEABILITY_MATRIX.md`, `IP_MAP.md`
+- Navegação por público: `navigation/INDEX.md` e derivados
 
-### Arquitetura e engenharia
-- `ARCHITECTURE.md`
-- `API.md`
-- `INTEGRACAO_RM_QEMU_ANDROIDX.md`
-- `DETERMINISTIC_VM_MUTATION_LAYER.md`
-
-### Operação e desempenho
-- `OPERATIONS.md`
-- `PERFORMANCE_INTEGRITY.md`
-- `BENCHMARKS.md`
-- `BENCHMARK_MANAGER.md`
-- `RAFAELIA_PERF_OPS.md`
-
-### Governança documental
-- `DOCUMENTATION_STANDARDS.md`
-- `DOCUMENTATION_SUMMARY.md`
-- `ROOT_FILES_CATALOG.md`
-- `REPO_XRAY.md`
-
-### Conformidade
-- `SECURITY.md`
-- `LEGAL_AND_LICENSES.md`
-- `SOURCE_TRACEABILITY_MATRIX.md`
-- `IP_MAP.md`
-
-### Navegação por público
-- `navigation/INDEX.md`
-- `navigation/ENTERPRISE_COMPANIES.md`
-- `navigation/SCIENTISTS_RESEARCH.md`
-- `navigation/UNIVERSITIES_ACADEMIC.md`
-- `navigation/BENCHMARK_COMPARISONS.md`
-- `navigation/PERFORMANCE_OPERATIONS.md`
-
-## Princípio de manutenção
-Toda alteração estrutural em diretórios de primeiro nível deve refletir:
-- no `README.md` raiz (mapa institucional);
-- no README local do diretório afetado;
-- e, quando aplicável, em documentação técnica específica deste diretório `docs/`.
+## Cadeia de comando de validação documental
+```bash
+find docs -maxdepth 2 -type f | sort
+sed -n '1,120p' docs/THREE_LAYER_ANALYSIS.md
+sed -n '1,120p' docs/ROOT_FILE_CHAIN.md
+```

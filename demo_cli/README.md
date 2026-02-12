@@ -1,13 +1,19 @@
 # demo_cli/
 
-## Objetivo
-Exemplos de linha de comando para validar módulos de baixo nível sem depender da interface Android.
+## Camada 1 — Propósito do diretório
+Demonstrações CLI e auto-testes de componentes nativos.
 
-## Estrutura de arquivos
-- `src/main.c`: executável principal de demonstração.
-- `src/*_demo.c`: demos específicas de módulo.
-- `src/*_selftest.c`: auto-testes locais para validação de comportamento.
+## Camada 2 — Estrutura (até 3 níveis)
+- Nível 1: `demo_cli/`
+- Nível 2: `src/`
+- Nível 3: detalhamento por arquivo em [`FILES_MAP.md`](FILES_MAP.md).
 
-## Conceitos principais
-1. **Teste incremental via CLI**: facilita depuração de algoritmos e kernels.
-2. **Desacoplamento de UI**: valida a lógica nativa independentemente do app.
+## Camada 3 — Arquivos e vínculos
+- Catálogo completo: [`FILES_MAP.md`](FILES_MAP.md)
+- Contexto global de camadas: [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md)
+
+## Cadeia de comando (lógica de inspeção)
+```bash
+find demo_cli -maxdepth 3 -type d | sort
+sed -n '1,120p' demo_cli/FILES_MAP.md
+```

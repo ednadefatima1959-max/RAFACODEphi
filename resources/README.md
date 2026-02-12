@@ -1,13 +1,19 @@
 # resources/
 
-## Objetivo
-Armazena ativos compartilhados do projeto fora dos módulos principais de código.
+## Camada 1 — Propósito do diretório
+Ativos compartilhados android/web/lang.
 
-## Estrutura de arquivos
-- `android/res/`: ícones e recursos gráficos para distribuição Android.
-- `web/`: ativos estáticos para interface/publicação web.
-- `lang/`: recursos linguísticos e arquivos auxiliares de conteúdo.
+## Camada 2 — Estrutura (até 3 níveis)
+- Nível 1: `resources/`
+- Nível 2: `android/`, `lang/`, `web/`
+- Nível 3: detalhamento por arquivo em [`FILES_MAP.md`](FILES_MAP.md).
 
-## Conceitos principais
-1. **Separação entre código e ativos**: evita acoplamento de recursos com lógica.
-2. **Reuso multi-alvo**: suporte simultâneo a app Android e superfície web.
+## Camada 3 — Arquivos e vínculos
+- Catálogo completo: [`FILES_MAP.md`](FILES_MAP.md)
+- Contexto global de camadas: [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md)
+
+## Cadeia de comando (lógica de inspeção)
+```bash
+find resources -maxdepth 3 -type d | sort
+sed -n '1,120p' resources/FILES_MAP.md
+```

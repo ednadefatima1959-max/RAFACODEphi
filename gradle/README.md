@@ -1,12 +1,19 @@
 # gradle/
 
-## Objetivo
-Componente de bootstrap do sistema de build, garantindo execução reproduzível do Gradle wrapper.
+## Camada 1 — Propósito do diretório
+Wrapper e bootstrap de build.
 
-## Estrutura de arquivos
-- `wrapper/gradle-wrapper.properties`: versão/configuração de distribuição do Gradle.
-- `wrapper/gradle-wrapper.jar`: binário do wrapper.
+## Camada 2 — Estrutura (até 3 níveis)
+- Nível 1: `gradle/`
+- Nível 2: `wrapper/`
+- Nível 3: detalhamento por arquivo em [`FILES_MAP.md`](FILES_MAP.md).
 
-## Conceitos principais
-1. **Reprodutibilidade de build**: mesma cadeia de build entre ambientes.
-2. **Padronização de toolchain**: elimina dependência de instalação manual do Gradle.
+## Camada 3 — Arquivos e vínculos
+- Catálogo completo: [`FILES_MAP.md`](FILES_MAP.md)
+- Contexto global de camadas: [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md)
+
+## Cadeia de comando (lógica de inspeção)
+```bash
+find gradle -maxdepth 3 -type d | sort
+sed -n '1,120p' gradle/FILES_MAP.md
+```

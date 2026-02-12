@@ -1,11 +1,19 @@
 # 3dfx/
 
-## Objetivo
-Reúne imagens ISO relacionadas a wrappers 3dfx usados como artefatos auxiliares do ecossistema.
+## Camada 1 — Propósito do diretório
+Artefatos ISO de wrappers 3dfx para cenários de compatibilidade.
 
-## Estrutura de arquivos
-- `3dfx-wrappers-*.iso`: versões distintas de pacotes de wrapper.
+## Camada 2 — Estrutura (até 3 níveis)
+- Nível 1: `3dfx/`
+- Nível 2: Sem subdiretórios de primeiro nível relevantes.
+- Nível 3: detalhamento por arquivo em [`FILES_MAP.md`](FILES_MAP.md).
 
-## Conceitos principais
-1. **Versionamento de binários de suporte**: preserva múltiplas revisões de artefatos.
-2. **Compatibilidade retroativa**: mantém opções para diferentes cenários de execução.
+## Camada 3 — Arquivos e vínculos
+- Catálogo completo: [`FILES_MAP.md`](FILES_MAP.md)
+- Contexto global de camadas: [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md)
+
+## Cadeia de comando (lógica de inspeção)
+```bash
+find 3dfx -maxdepth 3 -type d | sort
+sed -n '1,120p' 3dfx/FILES_MAP.md
+```

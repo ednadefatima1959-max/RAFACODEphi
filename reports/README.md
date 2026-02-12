@@ -1,14 +1,19 @@
 # reports/
 
-## Objetivo
-Centraliza relatórios técnicos e evidências de validação do repositório.
+## Camada 1 — Propósito do diretório
+Relatórios técnicos e métricas.
 
-## Estrutura de arquivos
-- `ANALISE_COMPLETA_VECTRAS.md`, `COMPARISON_REPORT.md`, `Vectras-VM-Android_ARCH_REPORT.md`: análises estruturais e comparativas.
-- `POST_FIX_VALIDATION.md`: validação após correções.
-- `metrics/`: arquivos de métricas (`json`) e guia local.
-- `baremetal/`: área reservada para artefatos baremetal.
+## Camada 2 — Estrutura (até 3 níveis)
+- Nível 1: `reports/`
+- Nível 2: `baremetal/`, `metrics/`
+- Nível 3: detalhamento por arquivo em [`FILES_MAP.md`](FILES_MAP.md).
 
-## Conceitos principais
-1. **Auditabilidade**: relatórios como trilha formal de diagnóstico e decisão.
-2. **Consolidação de evidências**: dados quantitativos e análise textual no mesmo domínio.
+## Camada 3 — Arquivos e vínculos
+- Catálogo completo: [`FILES_MAP.md`](FILES_MAP.md)
+- Contexto global de camadas: [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md)
+
+## Cadeia de comando (lógica de inspeção)
+```bash
+find reports -maxdepth 3 -type d | sort
+sed -n '1,120p' reports/FILES_MAP.md
+```
