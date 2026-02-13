@@ -8,6 +8,8 @@ Fechar o ciclo do complemento arquitetural com validação técnica, rastreabili
 - ✅ Bloqueio de JDK (`major version 69`) reproduzido e mitigado com execução em JDK 21 via `tools/gradle_with_jdk21.sh`.
 - ✅ Android SDK local foi provisionado e o build avançou além do bloqueio de `sdk.dir`.
 - ✅ Build de teste alvo executado com sucesso após saneamento de toolchain + correções de compilação prioritárias.
+- ✅ Passo 3 concluído com testes de failover completos do `ProcessSupervisor` (QMP→TERM, TERM→KILL).
+- ✅ Auditoria operacional consolidada em `docs/VM_SUPERVISION_AUDIT_EVIDENCE.md`.
 
 ## Passo 1 — Validar toolchain e build determinístico
 - Fixar JDK/Gradle compatíveis para eliminar erro `Unsupported class file major version 69`.
@@ -48,8 +50,8 @@ Fechar o ciclo do complemento arquitetural com validação técnica, rastreabili
 - `app/src/main/java/com/vectras/vm/benchmark/BenchmarkManager.java`: trecho de métodos de timer/jitter estava inconsistente e compilação quebrada parcial (corrigido trecho com duplicações/sintaxe inválida).
 
 Pendências remanescentes (próxima rodada):
-- implementar testes direcionados para transições completas de failover no `ProcessSupervisor` (QMP → TERM → KILL);
-- consolidar auditoria operacional real com coleta de evidências em execução de VM.
+- publicar evidência operacional em execução de VM real (device/emulador com QEMU ativo), preservando rastreabilidade de latência real por causa/ação;
+- conectar relatório de auditoria à documentação arquitetural/API com exemplos de troubleshooting.
 
 
 Validação concluída nesta etapa:

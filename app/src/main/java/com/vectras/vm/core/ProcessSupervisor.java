@@ -22,6 +22,19 @@ import java.util.concurrent.TimeUnit;
  * sempre com timeout explícito para preservar previsibilidade.</p>
  */
 public class ProcessSupervisor {
+    interface QmpTransport {
+        String sendPowerdown();
+    }
+
+    interface TransitionSink {
+        void onTransition(State from, State to, String cause, String action, long stallMs, int droppedLogs, long bytes);
+    }
+
+    interface Clock {
+        long monoMs();
+        long wallMs();
+    }
+
     /** Estados operacionais suportados pelo supervisor. */
     public enum State {
         /** Supervisor criado e ainda sem processo vinculado. */
@@ -40,14 +53,43 @@ public class ProcessSupervisor {
 
     private final Context context;
     private final String vmId;
+    private final QmpTransport qmpTransport;
+    private final TransitionSink transitionSink;
+    private final Clock clock;
     private volatile Process process;
     private volatile State state = State.START;
     private volatile long startWallMs;
     private volatile long startMonoMs;
 
     public ProcessSupervisor(Context context, String vmId) {
+        this(context,
+                vmId,
+                () -> QmpClient.sendCommand("{ \"execute\": \"system_powerdown\" }"),
+                (from, to, cause, action, stallMs, droppedLogs, bytes) -> {
+                },
+                new Clock() {
+                    @Override
+                    public long monoMs() {
+                        return SystemClock.elapsedRealtime();
+                    }
+
+                    @Override
+                    public long wallMs() {
+                        return System.currentTimeMillis();
+                    }
+                });
+    }
+
+    ProcessSupervisor(Context context,
+                      String vmId,
+                      QmpTransport qmpTransport,
+                      TransitionSink transitionSink,
+                      Clock clock) {
         this.context = context;
         this.vmId = vmId == null ? "unknown" : vmId;
+        this.qmpTransport = qmpTransport;
+        this.transitionSink = transitionSink;
+        this.clock = clock;
     }
 
     /**
@@ -57,8 +99,8 @@ public class ProcessSupervisor {
      */
     public synchronized void bindProcess(Process process) {
         this.process = process;
-        this.startMonoMs = SystemClock.elapsedRealtime();
-        this.startWallMs = System.currentTimeMillis();
+        this.startMonoMs = clock.monoMs();
+        this.startWallMs = clock.wallMs();
         transition(State.START, State.VERIFY, "process_bound", 0, 0, 0, "bind");
         transition(State.VERIFY, State.RUN, "verified", 0, 0, 0, "run");
     }
@@ -85,11 +127,11 @@ public class ProcessSupervisor {
             return true;
         }
 
-        long stallMs = Math.max(0L, SystemClock.elapsedRealtime() - startMonoMs);
+        long stallMs = Math.max(0L, clock.monoMs() - startMonoMs);
         boolean qmpRequested = false;
         if (tryQmp) {
             qmpRequested = true;
-            String result = QmpClient.sendCommand("{ \"execute\": \"system_powerdown\" }");
+            String result = qmpTransport.sendPowerdown();
             if (result != null && result.contains("return")) {
                 if (awaitExit(3_000)) {
                     transition(state, State.STOP, "qmp_shutdown", 0, 0, stallMs, "qmp");
@@ -128,9 +170,10 @@ public class ProcessSupervisor {
                             long stallMs,
                             String action) {
         this.state = to;
+        transitionSink.onTransition(from, to, cause, action, stallMs, droppedLogs, bytes);
         AuditLedger.record(context, new AuditEvent(
-                SystemClock.elapsedRealtime(),
-                System.currentTimeMillis(),
+                clock.monoMs(),
+                clock.wallMs(),
                 vmId,
                 from.name(),
                 to.name(),
