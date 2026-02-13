@@ -374,8 +374,17 @@
                         android:id="@+id/tvFusionSummary"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
                         android:text="@string/benchmark_fusion_summary_placeholder"
+                        android:textAppearance="?attr/textAppearanceBodySmall" />
+
+                    <TextView
+                        android:id="@+id/tvFusionMicrograph"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="12dp"
+                        android:fontFamily="monospace"
+                        android:text="@string/benchmark_fusion_micrograph_placeholder"
                         android:textAppearance="?attr/textAppearanceBodySmall" />
 
                     <com.google.android.material.progressindicator.LinearProgressIndicator

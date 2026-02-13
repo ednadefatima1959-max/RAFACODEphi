@@ -79,6 +79,7 @@ public class BenchmarkActivity extends AppCompatActivity {
     private View cardFusion;
     private TextView tvFusionScore;
     private TextView tvFusionSummary;
+    private TextView tvFusionMicrograph;
     private LinearProgressIndicator pbCpuSingle;
     private LinearProgressIndicator pbCpuMulti;
     private LinearProgressIndicator pbMemory;
@@ -134,6 +135,7 @@ public class BenchmarkActivity extends AppCompatActivity {
         cardFusion = findViewById(R.id.cardFusion);
         tvFusionScore = findViewById(R.id.tvFusionScore);
         tvFusionSummary = findViewById(R.id.tvFusionSummary);
+        tvFusionMicrograph = findViewById(R.id.tvFusionMicrograph);
         pbCpuSingle = findViewById(R.id.pbCpuSingle);
         pbCpuMulti = findViewById(R.id.pbCpuMulti);
         pbMemory = findViewById(R.id.pbMemory);
@@ -436,6 +438,8 @@ public class BenchmarkActivity extends AppCompatActivity {
         tvFusionScore.setText(getString(R.string.benchmark_fusion_score_template, fusion));
         tvFusionSummary.setText(getString(R.string.benchmark_fusion_summary_template,
                 completeness, confidence, cpuSingle, cpuMulti, memory, storage, integrity, emulation));
+        String graph = buildMicrograph(cpuSingle, cpuMulti, memory, storage, integrity, emulation);
+        tvFusionMicrograph.setText(graph);
     }
 
     private int categoryCompletion(VectraBenchmark.BenchmarkResult[] results, String category) {

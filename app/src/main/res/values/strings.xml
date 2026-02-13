@@ -1016,4 +1016,10 @@ CPU %4$s · MEM %5$s · SMP %6$s · DRIVE %7$s · QMP %8$s · ACCEL %9$s</string
     <string name="benchmark_fusion_summary_template">Coverage: %1$d%% · Confidence: %2$d%%
 CPU1 %3$d%% · CPUm %4$d%% · MEM %5$d%% · IO %6$d%% · INT %7$d%% · EMU %8$d%%</string>
 
+
+    <string name="qemu_assist_base">Base</string>
+    <string name="qemu_assist_io">I/O</string>
+    <string name="qemu_assist_qmp">QMP</string>
+    <string name="benchmark_fusion_micrograph_placeholder">Micrograph will be generated after execution.</string>
+
 </resources>

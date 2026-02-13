@@ -66,6 +66,10 @@ public class QemuParamsEditorActivity extends AppCompatActivity {
             binding.edittext1.setSelection(normalized.length());
         });
 
+        binding.btnAssistBase.setOnClickListener(v -> applyAssistantSnippet("-cpu max -m 4096 -smp cpus=4"));
+        binding.btnAssistIo.setOnClickListener(v -> applyAssistantSnippet("-object iothread,id=ioth0 -device virtio-scsi-pci,id=scsi0,iothread=ioth0 -drive if=virtio,cache=writeback,aio=threads"));
+        binding.btnAssistQmp.setOnClickListener(v -> applyAssistantSnippet("-qmp unix:/data/data/com.vectras.vm/cache/vm/qmpsocket,server,nowait -d trace"));
+
         binding.edittext1.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) { }

@@ -135,3 +135,15 @@ Implementação aplicada em `engine/rmr/` para consolidar pontos de `qemu_rafael
   - validação executável de planejamento e leitura de telemetria.
 
 Esses entregáveis colocam em produção local os pilares de presets + observabilidade QMP do eixo `qemu_rafaelia` com abordagem determinística e baixo overhead alinhada ao RMR.
+
+
+## 9. Implantação total (CI Android)
+
+Pipeline Android atualizado para execução determinística de build no GitHub Actions:
+
+- setup de SDK Android via `android-actions/setup-android@v3`;
+- instalação explícita de `platform-tools`, `platforms;android-34`, `build-tools;34.0.0`;
+- geração automática de `local.properties` com `sdk.dir=${ANDROID_SDK_ROOT}`;
+- exportação de `ANDROID_HOME`/`ANDROID_SDK_ROOT` para os passos de `assembleDebug` e `assembleRelease`.
+
+Com isso, a validação de runtime da UI deixa de depender de configuração manual do runner.
