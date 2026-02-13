@@ -6,7 +6,8 @@ Fechar o ciclo do complemento arquitetural com validação técnica, rastreabili
 ## Status de execução atual
 - ✅ Passo 2 iniciado com teste `VMManagerStopVmProcessTest` cobrindo ausência de supervisor, remoção em sucesso e retenção em falha.
 - ✅ Bloqueio de JDK (`major version 69`) reproduzido e mitigado com execução em JDK 21 via `tools/gradle_with_jdk21.sh`.
-- ⚠️ Build/testes ainda bloqueados por ausência de Android SDK (`sdk.dir`/`ANDROID_HOME`) no ambiente atual.
+- ✅ Android SDK local foi provisionado e o build avançou além do bloqueio de `sdk.dir`.
+- ⚠️ Novos bloqueios reais do código-base identificados durante `:app:testDebugUnitTest`: recursos/style não resolvidos e erros de compilação Java/Kotlin fora do escopo direto de supervisão.
 
 ## Passo 1 — Validar toolchain e build determinístico
 - Fixar JDK/Gradle compatíveis para eliminar erro `Unsupported class file major version 69`.
@@ -37,3 +38,15 @@ Fechar o ciclo do complemento arquitetural com validação técnica, rastreabili
   - degradação (se houver flood);
   - shutdown limpo/failover.
 - Registrar evidências em documento de operação com timestamp, causa e latência de parada.
+
+
+## Bloqueios técnicos encontrados no passo completo
+- `shell-loader/build.gradle`: string literal quebrada em `buildConfigField` (corrigido nesta rodada).
+- `app/src/main/res/values/strings.xml`: `&` não escapado em recurso XML (corrigido para `&amp;`).
+- `app/src/main/res/values/theme.xml` + `values-night/theme.xml` + `styles.xml`: dependência de estilos Material3 Expressive indisponível no conjunto atual (aplicados fallbacks compatíveis).
+- `app/src/main/java/com/vectras/vm/vectra/VectraCore.kt`: `const val` com inicializador não-const (corrigido para literal `Long`).
+- `app/src/main/java/com/vectras/vm/benchmark/BenchmarkManager.java`: trecho de métodos de timer/jitter estava inconsistente e compilação quebrada parcial (corrigido trecho com duplicações/sintaxe inválida).
+
+Pendências remanescentes (fora do path de supervisão):
+- chamadas `Process.pid()` em fontes Java onde a toolchain atual não resolve método;
+- novos erros de compilação em `LowLevelAsm` e duplicações adicionais em `BenchmarkManager` que exigem rodada de saneamento dedicada.
