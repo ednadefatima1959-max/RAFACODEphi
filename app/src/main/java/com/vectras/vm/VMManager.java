@@ -104,7 +104,7 @@ public class VMManager {
      * @param context contexto Android para trilha de auditoria
      * @param vmId identificador da VM
      * @param tryQmp quando true, tenta desligamento limpo antes de TERM/KILL
-     * @return true quando a VM é finalizada dentro dos timeouts de failover
+     * @return true quando a VM é finalizada dentro dos timeouts de failover e removida do registro ativo
      */
     public static boolean stopVmProcess(Context context, String vmId, boolean tryQmp) {
         String key = (vmId == null || vmId.isEmpty()) ? "unknown" : vmId;
@@ -112,7 +112,11 @@ public class VMManager {
         if (supervisor == null) {
             return false;
         }
-        return supervisor.stopGracefully(tryQmp);
+        boolean stopped = supervisor.stopGracefully(tryQmp);
+        if (stopped) {
+            SUPERVISORS.remove(key, supervisor);
+        }
+        return stopped;
     }
 
     public static boolean isVMExist(String vmId) {

@@ -91,3 +91,7 @@ Classes de alto impacto para ciclo de vida de VM e parada determinística:
 - transições auditáveis com `AuditLedger`;
 - timeouts explícitos em cada etapa de parada;
 - compatibilidade com cenário sem QMP (fallback direto para TERM/KILL).
+
+
+## Roadmap imediato
+- Ver sequência de execução técnica: `docs/VM_SUPERVISION_NEXT_5_STEPS.md`.

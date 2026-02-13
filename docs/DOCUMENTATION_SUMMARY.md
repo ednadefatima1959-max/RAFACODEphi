@@ -55,6 +55,7 @@ Para garantir visão completa, os documentos foram organizados por dimensão. A 
 
 ### 🧩 Complemento arquitetural aplicado (VM supervision)
 
+- Roadmap operacional de continuidade publicado em `docs/VM_SUPERVISION_NEXT_5_STEPS.md` com sequência objetiva de validação e endurecimento.
 - JavaDoc técnico inserido em `VMManager` e `ProcessSupervisor` para explicitar contrato operacional real do código.
 - `docs/API.md` ampliado com a API Java/Android de supervisão, estados e garantias de failover.
 - Cobertura documental reforçada no caminho crítico de execução e parada de VM (QMP → TERM → KILL).
