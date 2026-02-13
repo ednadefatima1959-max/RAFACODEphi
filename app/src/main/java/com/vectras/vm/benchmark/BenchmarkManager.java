@@ -346,7 +346,6 @@ public class BenchmarkManager {
     private final Context context;
     private final AtomicInteger progressMetric = new AtomicInteger(0);
     private final AtomicReference<ProgressCallback> callback = new AtomicReference<>();
-    private final ArrayList<DiagnosticMetric> diagnosticsBuffer = new ArrayList<>(8);
     private final StringBuilder scratchBuilder = new StringBuilder(128);
     private final ThreadLocal<ArrayList<String>> warningBufferStore =
         ThreadLocal.withInitial(() -> new ArrayList<>(64));
@@ -887,12 +886,6 @@ public class BenchmarkManager {
     }
 
     private double measureTimeSourceDriftPercent() {
-        long startNano = System.nanoTime();
-        long startElapsed = android.os.SystemClock.elapsedRealtimeNanos();
-        try {
-            Thread.sleep(20);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         updateTimerDiagnosticsIfNeeded(false);
         return cachedTimeSourceDriftPercent;
     }
@@ -939,14 +932,6 @@ public class BenchmarkManager {
         return (diff / avg) * 100.0;
     }
 
-    private double measureTimerJitterPercent() {
-        int samples = 200;
-        long prev = System.nanoTime();
-        long maxDelta = 0;
-        long sumDelta = 0;
-        for (int i = 0; i < samples; i++) {
-            long now = System.nanoTime();
-            long delta = now - prev;
     private double computeTimerJitterPercent() {
         long prev = System.nanoTime();
         long maxDelta = 0;
@@ -964,7 +949,6 @@ public class BenchmarkManager {
         if (sumDelta == 0) {
             return 0.0;
         }
-        double avg = sumDelta / (double) samples;
         double avg = sumDelta / (double) TIMER_JITTER_SAMPLES;
         return (maxDelta / avg) * 100.0;
     }
