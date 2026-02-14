@@ -84,9 +84,9 @@ verify-librmr-symbols: $(LIB_STATIC)
 	done
 	@echo "[link-contract] verified required symbols in $(LIB_STATIC)"
 
-$(CTI_SCAN_BIN): engine/rmr/src/rafa_cti_scan.c
+$(CTI_SCAN_BIN): engine/rmr/src/rafa_cti_scan.c $(LIB_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< $(LDFLAGS) -lm -o $@
+	$(CC) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -lm -o $@
 
 
 $(POLICY_DEMO_BIN): demo_cli/src/policy_kernel_demo.c $(LIB_STATIC)
