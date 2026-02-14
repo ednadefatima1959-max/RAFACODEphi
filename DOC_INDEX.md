@@ -11,7 +11,9 @@ Cada diretório tem:
 1) `README.md` (camadas 1 e 2)
 2) `FILES_MAP.md` (camada 3)
 
-- `app/`, `engine/`, `terminal-emulator/`, `terminal-view/`, `shell-loader/`, `bench/`, `demo_cli/`, `tools/`, `docs/`, `reports/`, `resources/`, `runtime/`, `web/`, `archive/`, `fastlane/`, `gradle/`, `3dfx/`.
+- `app/`, `engine/`, `terminal-emulator/`, `terminal-view/`, `shell-loader/`, `bench/`, `bug/`, `demo_cli/`, `tools/`, `docs/`, `reports/`, `resources/`, `runtime/`, `web/`, `archive/`, `fastlane/`, `gradle/`, `3dfx/`.
+
+- `bug/`: [`bug/README.md`](bug/README.md) e [`bug/FILES_MAP.md`](bug/FILES_MAP.md).
 
 ## Documentos técnicos especializados
 - Arquitetura: `docs/ARCHITECTURE.md`
