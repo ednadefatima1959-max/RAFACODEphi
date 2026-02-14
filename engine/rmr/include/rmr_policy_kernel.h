@@ -40,6 +40,7 @@ typedef struct {
   uint32_t size;
   uint32_t crc32c;
   uint64_t hash64;
+  uint64_t stage_signature;
   uint32_t entropy_milli;
   uint32_t math_signature;
   uint8_t route_id;
@@ -61,6 +62,7 @@ typedef struct {
   uint32_t chunks_applied;
   uint32_t chunks_verified;
   uint32_t verify_failures;
+  uint64_t exec_signature;
 } RmR_AuditSummary;
 
 uint32_t RmR_CRC32C(const uint8_t *buf, size_t len);
