@@ -23,6 +23,7 @@ Referências estruturais:
 | `terminal-view/` | [terminal-view/README.md](terminal-view/README.md) | [terminal-view/FILES_MAP.md](terminal-view/FILES_MAP.md) |
 | `shell-loader/` | [shell-loader/README.md](shell-loader/README.md) | [shell-loader/FILES_MAP.md](shell-loader/FILES_MAP.md) |
 | `bench/` | [bench/README.md](bench/README.md) | [bench/FILES_MAP.md](bench/FILES_MAP.md) |
+| `bug/` | [bug/README.md](bug/README.md) | [bug/FILES_MAP.md](bug/FILES_MAP.md) |
 | `demo_cli/` | [demo_cli/README.md](demo_cli/README.md) | [demo_cli/FILES_MAP.md](demo_cli/FILES_MAP.md) |
 | `tools/` | [tools/README.md](tools/README.md) | [tools/FILES_MAP.md](tools/FILES_MAP.md) |
 | `docs/` | [docs/README.md](docs/README.md) | [docs/FILES_MAP.md](docs/FILES_MAP.md) |
@@ -50,3 +51,11 @@ find . -maxdepth 2 -type d | sort
 - Copie `local.properties.example` para `local.properties` e ajuste `sdk.dir`.
 - Ajuste versões via `gradle.properties` (`COMPILE_API`, `TOOLS_VERSION`, `JAVA_LANGUAGE_VERSION`, `CMAKE_VERSION`, `NDK_VERSION`).
 - Para override pontual, use `-P` no comando Gradle.
+
+## Política de assinatura Android (`vectras.jks`)
+- O arquivo `vectras.jks` **não é mais versionado** no Git e não deve ser commitado.
+- A chave de assinatura configurada no pipeline é tratada como **chave de release** e deve ficar apenas em segredo de CI/cofre seguro.
+- Build local de desenvolvimento deve usar somente o keystore de debug padrão do Android/Gradle.
+- Para release no CI, forneça os segredos: `VECTRAS_SIGNING_STORE_FILE`, `VECTRAS_SIGNING_STORE_PASSWORD`, `VECTRAS_SIGNING_KEY_ALIAS`, `VECTRAS_SIGNING_KEY_PASSWORD`.
+- Commits com `*.jks`, `*.keystore` e padrões de credenciais são bloqueados por verificação automatizada no CI (com exceções apenas via `security/sensitive-artifacts-allowlist.txt`).
+
