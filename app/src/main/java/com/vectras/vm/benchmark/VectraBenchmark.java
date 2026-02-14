@@ -846,16 +846,40 @@ public class VectraBenchmark {
                 teardownArenaBenchmarkContext(new ArenaBenchmarkContext(src, dst, false));
                 return new ArenaBenchmarkContext(0, 0, false);
             }
-            int o0 = 0;
+
+            byte[] linearM4 = new byte[M4_BYTES];
+            int linearOffset = 0;
             for (int i = 0; i < M4_ROWS; i++) {
                 byte[] row = M4[i];
-                for (int j = 0; j < M4_COLS; j++) {
-                    if (!NativeFastPath.fillArena(src, o0, 1, row[j] & 0xFF)) {
-                        teardownArenaBenchmarkContext(new ArenaBenchmarkContext(src, dst, false));
-                        return new ArenaBenchmarkContext(0, 0, false);
+                int rowOffset = 0;
+                while (rowOffset < M4_COLS) {
+                    int chunk = M4_COLS - rowOffset;
+                    if (chunk > copyStripeBytes) {
+                        chunk = copyStripeBytes;
                     }
-                    o0++;
+                    NativeFastPath.copyBytes(row, rowOffset, linearM4, linearOffset + rowOffset, chunk);
+                    rowOffset += chunk;
                 }
+                linearOffset += M4_COLS;
+            }
+
+            int arenaOffset = 0;
+            int blockBytes = copyStripeBytes << 3;
+            if (blockBytes < 4096) {
+                blockBytes = 4096;
+            } else if (blockBytes > M4_BYTES) {
+                blockBytes = M4_BYTES;
+            }
+            while (arenaOffset < M4_BYTES) {
+                int chunk = M4_BYTES - arenaOffset;
+                if (chunk > blockBytes) {
+                    chunk = blockBytes;
+                }
+                if (!NativeFastPath.writeArena(src, arenaOffset, linearM4, arenaOffset, chunk)) {
+                    teardownArenaBenchmarkContext(new ArenaBenchmarkContext(src, dst, false));
+                    return new ArenaBenchmarkContext(0, 0, false);
+                }
+                arenaOffset += chunk;
             }
             return new ArenaBenchmarkContext(src, dst, true);
         } catch (Throwable ignored) {
