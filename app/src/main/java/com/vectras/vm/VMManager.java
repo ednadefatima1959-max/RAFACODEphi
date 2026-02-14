@@ -85,6 +85,15 @@ public class VMManager {
     public static String latestUnsafeCommandReason = "";
     public static String lastQemuCommand = "";
     private static final ConcurrentHashMap<String, ProcessSupervisor> SUPERVISORS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, VmRuntimeState> VM_STATES = new ConcurrentHashMap<>();
+
+    private enum VmRuntimeState {
+        STOPPED,
+        STARTING,
+        RUNNING,
+        STOPPING
+    }
+
     /**
      * Android 15 tightened practical child-process pressure in app sandboxes.
      * Keep a conservative cap to avoid hitting process spawn failures under load.
@@ -106,9 +115,22 @@ public class VMManager {
         pruneInactiveSupervisors();
 
         ProcessSupervisor current = SUPERVISORS.get(key);
+        VmRuntimeState state = VM_STATES.getOrDefault(key, VmRuntimeState.STOPPED);
         if (current != null && current.isBoundTo(process) && current.isProcessAlive()) {
+            VM_STATES.put(key, VmRuntimeState.RUNNING);
             return;
         }
+
+        if (state == VmRuntimeState.STARTING || state == VmRuntimeState.STOPPING) {
+            if (current != null && current.isProcessAlive()) {
+                safeTerminateDetachedProcess(process);
+                Log.w(TAG, "registerVmProcess rejected: vm lifecycle busy for key=" + key + " state=" + state);
+                return;
+            }
+            VM_STATES.put(key, VmRuntimeState.STOPPED);
+        }
+
+        VM_STATES.put(key, VmRuntimeState.STARTING);
 
         ProcessSupervisor previous = SUPERVISORS.remove(key);
         if (previous != null) {
@@ -116,6 +138,7 @@ public class VMManager {
         }
 
         if (!ensureSupervisorCapacity()) {
+            VM_STATES.put(key, VmRuntimeState.STOPPED);
             safeTerminateDetachedProcess(process);
             Log.w(TAG, "registerVmProcess rejected: active supervisor cap reached (" + MAX_SUPERVISED_VM_PROCESSES + ")");
             return;
@@ -125,10 +148,36 @@ public class VMManager {
         try {
             supervisor.bindProcess(process);
             SUPERVISORS.put(key, supervisor);
+            VM_STATES.put(key, VmRuntimeState.RUNNING);
+            spawnProcessExitWatcher(key, supervisor, process);
         } catch (RuntimeException registerError) {
+            VM_STATES.put(key, VmRuntimeState.STOPPED);
             safeTerminateDetachedProcess(process);
             throw registerError;
         }
+    }
+
+    private static void spawnProcessExitWatcher(String key, ProcessSupervisor supervisor, Process process) {
+        Thread watcher = new Thread(() -> {
+            try {
+                process.waitFor();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                cleanupExitedSupervisor(key, supervisor, process);
+            }
+        }, "vm-exit-watch-" + key);
+        watcher.setDaemon(true);
+        watcher.start();
+    }
+
+    private static synchronized void cleanupExitedSupervisor(String key, ProcessSupervisor supervisor, Process process) {
+        ProcessSupervisor active = SUPERVISORS.get(key);
+        if (active == null || active != supervisor || !active.isBoundTo(process)) {
+            return;
+        }
+        SUPERVISORS.remove(key, supervisor);
+        VM_STATES.put(key, VmRuntimeState.STOPPED);
     }
 
     private static void pruneInactiveSupervisors() {
@@ -137,6 +186,7 @@ public class VMManager {
             if (supervisor == null) continue;
             if (!supervisor.isProcessAlive() || supervisor.getState() == ProcessSupervisor.State.STOP) {
                 SUPERVISORS.remove(key, supervisor);
+                VM_STATES.put(key, VmRuntimeState.STOPPED);
             }
         }
     }
@@ -168,6 +218,9 @@ public class VMManager {
         if (oldest != null) {
             oldest.stopGracefully(false);
             SUPERVISORS.remove(oldestKey, oldest);
+            if (oldestKey != null) {
+                VM_STATES.put(oldestKey, VmRuntimeState.STOPPED);
+            }
         }
 
         return SUPERVISORS.size() < MAX_SUPERVISED_VM_PROCESSES;
@@ -213,11 +266,17 @@ public class VMManager {
         String key = (vmId == null || vmId.isEmpty()) ? "unknown" : vmId;
         ProcessSupervisor supervisor = SUPERVISORS.get(key);
         if (supervisor == null) {
+            VM_STATES.put(key, VmRuntimeState.STOPPED);
             return false;
         }
+
+        VM_STATES.put(key, VmRuntimeState.STOPPING);
         boolean stopped = supervisor.stopGracefully(tryQmp);
         if (stopped) {
             SUPERVISORS.remove(key, supervisor);
+            VM_STATES.put(key, VmRuntimeState.STOPPED);
+        } else {
+            VM_STATES.put(key, supervisor.isProcessAlive() ? VmRuntimeState.RUNNING : VmRuntimeState.STOPPED);
         }
         return stopped;
     }

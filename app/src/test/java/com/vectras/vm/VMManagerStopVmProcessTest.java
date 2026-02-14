@@ -23,9 +23,21 @@ public class VMManagerStopVmProcessTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private static ConcurrentHashMap<String, Object> statesMap() {
+        try {
+            Field f = VMManager.class.getDeclaredField("VM_STATES");
+            f.setAccessible(true);
+            return (ConcurrentHashMap<String, Object>) f.get(null);
+        } catch (Exception e) {
+            throw new AssertionError("Unable to access VM_STATES map", e);
+        }
+    }
+
     @Before
     public void cleanState() {
         supervisorsMap().clear();
+        statesMap().clear();
     }
 
     @Test
@@ -71,6 +83,21 @@ public class VMManagerStopVmProcessTest {
         Assert.assertEquals(0, process.destroyForciblyCount);
     }
 
+    @Test
+    public void registerVmProcess_shouldCleanupStaleSupervisor_whenProcessExits() throws Exception {
+        ConcurrentHashMap<String, ProcessSupervisor> map = supervisorsMap();
+        FakeExitingProcess process = new FakeExitingProcess();
+
+        VMManager.registerVmProcess(null, "vm-exit", process);
+        process.releaseExit();
+
+        for (int i = 0; i < 40 && map.containsKey("vm-exit"); i++) {
+            Thread.sleep(25L);
+        }
+
+        Assert.assertFalse(map.containsKey("vm-exit"));
+    }
+
     private static final class FakeProcessSupervisor extends ProcessSupervisor {
         private final boolean result;
 
@@ -82,6 +109,66 @@ public class VMManagerStopVmProcessTest {
         @Override
         public synchronized boolean stopGracefully(boolean tryQmp) {
             return result;
+        }
+    }
+
+    private static final class FakeExitingProcess extends Process {
+        private final java.util.concurrent.CountDownLatch exitLatch = new java.util.concurrent.CountDownLatch(1);
+        private volatile boolean alive = true;
+
+        void releaseExit() {
+            alive = false;
+            exitLatch.countDown();
+        }
+
+        @Override
+        public java.io.OutputStream getOutputStream() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public java.io.InputStream getInputStream() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public java.io.InputStream getErrorStream() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int waitFor() throws InterruptedException {
+            exitLatch.await();
+            alive = false;
+            return 0;
+        }
+
+        @Override
+        public boolean waitFor(long timeout, TimeUnit unit) throws InterruptedException {
+            boolean done = exitLatch.await(timeout, unit);
+            if (done) alive = false;
+            return done;
+        }
+
+        @Override
+        public int exitValue() {
+            return 0;
+        }
+
+        @Override
+        public void destroy() {
+            releaseExit();
+        }
+
+        @Override
+        public Process destroyForcibly() {
+            releaseExit();
+            return this;
+        }
+
+        @Override
+        public boolean isAlive() {
+            return alive;
         }
     }
 
