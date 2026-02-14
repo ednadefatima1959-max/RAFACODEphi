@@ -859,87 +859,62 @@ Java_com_vectras_vm_core_NativeFastPath_nativeArenaFill(JNIEnv* env, jclass claz
 #if defined(__ARM_NEON)
         uint8x16_t vec = vdupq_n_u8(fill);
         size_t i = 0u;
-        size_t vec_end = len & ~(size_t)15u;
-        for (; i < vec_end; i += 16u) {
+        size_t vec64_end = len & ~(size_t)63u;
+        for (; i < vec64_end; i += 64u) {
+            vst1q_u8(ptr + i, vec);
+            vst1q_u8(ptr + i + 16u, vec);
+            vst1q_u8(ptr + i + 32u, vec);
+            vst1q_u8(ptr + i + 48u, vec);
+        }
+
+        size_t vec16_end = len & ~(size_t)15u;
+        for (; i < vec16_end; i += 16u) {
             vst1q_u8(ptr + i, vec);
         }
-        for (; i < len; i++) {
-            ptr[i] = fill;
+
+        if (i < len) {
+            memset(ptr + i, fill, len - i);
         }
 #else
         size_t i = 0u;
-        size_t block_end = len & ~(size_t)63u;
-        for (; i < block_end; i += 64u) {
-            ptr[i] = fill;
-            ptr[i + 1u] = fill;
-            ptr[i + 2u] = fill;
-            ptr[i + 3u] = fill;
-            ptr[i + 4u] = fill;
-            ptr[i + 5u] = fill;
-            ptr[i + 6u] = fill;
-            ptr[i + 7u] = fill;
-            ptr[i + 8u] = fill;
-            ptr[i + 9u] = fill;
-            ptr[i + 10u] = fill;
-            ptr[i + 11u] = fill;
-            ptr[i + 12u] = fill;
-            ptr[i + 13u] = fill;
-            ptr[i + 14u] = fill;
-            ptr[i + 15u] = fill;
-            ptr[i + 16u] = fill;
-            ptr[i + 17u] = fill;
-            ptr[i + 18u] = fill;
-            ptr[i + 19u] = fill;
-            ptr[i + 20u] = fill;
-            ptr[i + 21u] = fill;
-            ptr[i + 22u] = fill;
-            ptr[i + 23u] = fill;
-            ptr[i + 24u] = fill;
-            ptr[i + 25u] = fill;
-            ptr[i + 26u] = fill;
-            ptr[i + 27u] = fill;
-            ptr[i + 28u] = fill;
-            ptr[i + 29u] = fill;
-            ptr[i + 30u] = fill;
-            ptr[i + 31u] = fill;
-            ptr[i + 32u] = fill;
-            ptr[i + 33u] = fill;
-            ptr[i + 34u] = fill;
-            ptr[i + 35u] = fill;
-            ptr[i + 36u] = fill;
-            ptr[i + 37u] = fill;
-            ptr[i + 38u] = fill;
-            ptr[i + 39u] = fill;
-            ptr[i + 40u] = fill;
-            ptr[i + 41u] = fill;
-            ptr[i + 42u] = fill;
-            ptr[i + 43u] = fill;
-            ptr[i + 44u] = fill;
-            ptr[i + 45u] = fill;
-            ptr[i + 46u] = fill;
-            ptr[i + 47u] = fill;
-            ptr[i + 48u] = fill;
-            ptr[i + 49u] = fill;
-            ptr[i + 50u] = fill;
-            ptr[i + 51u] = fill;
-            ptr[i + 52u] = fill;
-            ptr[i + 53u] = fill;
-            ptr[i + 54u] = fill;
-            ptr[i + 55u] = fill;
-            ptr[i + 56u] = fill;
-            ptr[i + 57u] = fill;
-            ptr[i + 58u] = fill;
-            ptr[i + 59u] = fill;
-            ptr[i + 60u] = fill;
-            ptr[i + 61u] = fill;
-            ptr[i + 62u] = fill;
-            ptr[i + 63u] = fill;
+        const size_t word_bytes = sizeof(uintptr_t);
+
+        while (i < len && (((uintptr_t)(ptr + i)) & (word_bytes - 1u)) != 0u) {
+            ptr[i++] = fill;
         }
+
+        size_t rem = len - i;
+        if (rem >= 64u) {
+            uintptr_t pattern = (uintptr_t)fill;
+            pattern |= pattern << 8u;
+            pattern |= pattern << 16u;
+#if UINTPTR_MAX > 0xFFFFFFFFu
+            pattern |= pattern << 32u;
+#endif
+
+            uintptr_t* pword = (uintptr_t*)(ptr + i);
+            size_t words = rem / word_bytes;
+            size_t words_unrolled = words & ~(size_t)7u;
+            size_t w = 0u;
+            for (; w < words_unrolled; w += 8u) {
+                pword[w] = pattern;
+                pword[w + 1u] = pattern;
+                pword[w + 2u] = pattern;
+                pword[w + 3u] = pattern;
+                pword[w + 4u] = pattern;
+                pword[w + 5u] = pattern;
+                pword[w + 6u] = pattern;
+                pword[w + 7u] = pattern;
+            }
+            i += words_unrolled * word_bytes;
+        }
+
         if (i < len) {
             memset(ptr + i, fill, len - i);
         }
 #endif
     }
+
 
     pthread_mutex_unlock(&g_arena_lock);
     return VECTRA_ARENA_OK;
