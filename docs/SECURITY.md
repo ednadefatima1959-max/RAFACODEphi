@@ -22,28 +22,17 @@
 - Android 10+ prioriza armazenamento interno e SAF.
 - Android legado mantém fallback de `WRITE_EXTERNAL_STORAGE`.
 
+
 ## Política de uso de keystore (`vectras.jks`)
+- **Classificação:** material criptográfico sensível para assinatura de **release**.
+- **Ambiente permitido:** cofre seguro e segredos de CI; proibido manter chave privada em repositório Git.
+- **Acesso mínimo:** princípio de menor privilégio; acesso somente para pipeline de release e mantenedores autorizados.
+- **Rotação:** obrigatória no máximo a cada 90 dias, ou imediata em caso de suspeita de vazamento.
+- **Resposta a incidente:**
+  1. Revogar credenciais e descontinuar uso da chave comprometida.
+  2. Gerar novo keystore/alias e atualizar segredos do CI.
+  3. Auditar histórico de artefatos assinados e publicar comunicado de segurança.
+  4. Executar varredura de repositório e histórico para remoção de segredos expostos.
 
-### Classificação e ambiente permitido
-- `vectras.jks` é classificado como material sensível de assinatura **release**.
-- Uso permitido somente em ambiente de CI controlado e cofre de segredos; armazenamento em Git é proibido.
-- Em desenvolvimento local, utilize apenas chave de debug padrão.
-
-### Acesso mínimo (least privilege)
-- Acesso somente para mantenedores autorizados de release e conta de automação do CI.
-- Segredos de assinatura devem ser injetados por variáveis protegidas (`VECTRAS_SIGNING_*`) e nunca hardcoded em código/Gradle/workflows.
-- Princípio de necessidade de saber: restringir leitura/exportação da chave ao menor conjunto possível.
-
-### Rotação
-- Rotação obrigatória em periodicidade definida pela equipe de segurança/compliance ou imediatamente após suspeita de exposição.
-- Toda rotação deve atualizar: cofre/segredos de CI, documentação operacional e trilha de auditoria da release.
-
-### Incident response
-- Em caso de exposição/suspeita: revogar chave comprometida, gerar novo keystore de release, atualizar segredos de CI e invalidar builds assinadas pela chave comprometida quando aplicável.
-- Abrir incidente de segurança, registrar timeline, impacto e ações corretivas/preventivas.
-- Executar varredura completa no histórico e no estado atual do repositório para remover materiais sensíveis remanescentes.
-
-### Controle preventivo em CI
-- O pipeline executa `tools/check_sensitive_artifacts.sh` para bloquear inclusão de `*.jks`, `*.keystore`, `*.p12`, `*.pfx` e padrões de credenciais.
-- Exceções só são aceitas com justificativa explícita em `security/sensitive-artifacts-allowlist.txt` e documentação associada.
-
+## Controles automatizados
+- O CI executa `tools/security/block_sensitive_artifacts.sh` para bloquear inclusão de novos `*.jks`, `*.keystore` e padrões de credenciais sem exceção documentada em `.ci/sensitive-allowlist.txt`.

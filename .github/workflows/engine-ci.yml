@@ -27,8 +27,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run sensitive artifact gate
-        run: tools/check_sensitive_artifacts.sh
+      - name: Block sensitive artifacts in repository
+        run: bash tools/security/block_sensitive_artifacts.sh
 
       - name: Build with Make
         run: make clean && make all

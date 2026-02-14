@@ -31,27 +31,28 @@ android {
         resValue "integer", "app_version_code", versionCode.toString()
     }
 
-    def signingStoreFile = project.findProperty("VECTRAS_SIGNING_STORE_FILE") ?: System.getenv("VECTRAS_SIGNING_STORE_FILE")
-    def signingStorePassword = project.findProperty("VECTRAS_SIGNING_STORE_PASSWORD") ?: System.getenv("VECTRAS_SIGNING_STORE_PASSWORD")
-    def signingKeyAlias = project.findProperty("VECTRAS_SIGNING_KEY_ALIAS") ?: System.getenv("VECTRAS_SIGNING_KEY_ALIAS")
-    def signingKeyPassword = project.findProperty("VECTRAS_SIGNING_KEY_PASSWORD") ?: System.getenv("VECTRAS_SIGNING_KEY_PASSWORD")
-    def hasReleaseSigning = signingStoreFile && signingStorePassword && signingKeyAlias && signingKeyPassword
+    def releaseStoreFile = providers.gradleProperty("android.injected.signing.store.file").orNull ?: System.getenv("VECTRAS_RELEASE_STORE_FILE")
+    def releaseStorePassword = providers.gradleProperty("android.injected.signing.store.password").orNull ?: System.getenv("VECTRAS_RELEASE_STORE_PASSWORD")
+    def releaseKeyAlias = providers.gradleProperty("android.injected.signing.key.alias").orNull ?: System.getenv("VECTRAS_RELEASE_KEY_ALIAS")
+    def releaseKeyPassword = providers.gradleProperty("android.injected.signing.key.password").orNull ?: System.getenv("VECTRAS_RELEASE_KEY_PASSWORD")
 
     signingConfigs {
-        if (hasReleaseSigning) {
+        if (releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword) {
             release {
-                storeFile file(signingStoreFile)
-                storePassword signingStorePassword
-                keyAlias signingKeyAlias
-                keyPassword signingKeyPassword
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
             }
         }
     }
 
     buildTypes {
         release {
-            if (hasReleaseSigning) {
+            if (signingConfigs.findByName('release') != null) {
                 signingConfig = signingConfigs.release
+            } else {
+                logger.lifecycle("Release signing não configurado: build de release seguirá sem assinatura de produção.")
             }
             minifyEnabled = true
             shrinkResources = true

@@ -36,6 +36,14 @@ Referências estruturais:
 | `gradle/` | [gradle/README.md](gradle/README.md) | [gradle/FILES_MAP.md](gradle/FILES_MAP.md) |
 | `3dfx/` | [3dfx/README.md](3dfx/README.md) | [3dfx/FILES_MAP.md](3dfx/FILES_MAP.md) |
 
+
+## Política de assinatura (`vectras.jks`)
+- A chave `vectras.jks` **não deve permanecer versionada** no Git.
+- A assinatura de **release** deve usar segredo de CI/cofre seguro (`VECTRAS_RELEASE_*` / `android.injected.signing.*`).
+- Builds de `debug` usam apenas assinatura debug padrão do Android Gradle Plugin (não usar chave de release).
+- Rotação recomendada: a cada 90 dias (ou imediatamente após incidente), com revogação e atualização de segredos no CI.
+- Acesso mínimo: apenas mantenedores responsáveis por release e conta de automação do CI.
+
 ## Cadeia de comando recomendada
 ```bash
 git ls-files
