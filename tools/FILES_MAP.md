@@ -12,6 +12,11 @@ Mapa arquivo-a-arquivo em três linhas por item: papel, ligação e comando de i
 - **Liga com**: ver [`tools/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
 - **Inspeção**: `file "tools/apk/rmr_termux_release_orchestrator.sh"` e, quando texto, `sed -n "1,80p" "tools/apk/rmr_termux_release_orchestrator.sh"`.
 
+## `tools/apk/build_release_signed_local.sh`
+- **Papel**: build local de release assinado com verificação de assinatura e checksum SHA-256 do artefato.
+- **Liga com**: usa `vectras.jks`, Gradle wrapper do projeto e `apksigner` do Android SDK.
+- **Inspeção**: `file "tools/apk/build_release_signed_local.sh"` e, quando texto, `sed -n "1,160p" "tools/apk/build_release_signed_local.sh"`.
+
 ## `tools/baremetal/dir_integrity_matrix.sh`
 - **Papel**: código-fonte ou automação executável.
 - **Liga com**: ver [`tools/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
