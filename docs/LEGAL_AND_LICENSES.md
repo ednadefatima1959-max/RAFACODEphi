@@ -76,6 +76,24 @@ Checklist recomendado antes de release:
 - [ ] Dependências externas revisadas e documentadas.
 - [ ] Mudanças registradas no changelog/documentos.
 
+
+
+## 8) Política legal e operacional de keystore (`vectras.jks`)
+
+- A chave de assinatura de release é um ativo sensível e deve permanecer fora do versionamento Git.
+- O uso permitido é restrito a:
+  - pipeline de CI de release com segredos protegidos;
+  - operadores formalmente autorizados para distribuição.
+- É obrigatório manter trilha de auditoria de quem acessa/rotaciona o segredo.
+- Rotação mandatória em janela definida (recomendado: 90 dias) e imediatamente após qualquer incidente.
+- Em incidente de exposição:
+  1. bloquear uso da chave antiga;
+  2. emitir nova chave e atualizar ambiente de CI/cofre;
+  3. registrar evento, impacto, e ações corretivas em documentação de segurança.
+
+### Exceções documentadas
+Qualquer arquivo sensível mantido no repositório exige justificativa explícita e aprovação formal, registrada em `.ci/sensitive-allowlist.txt`.
+
 ---
 
 ## Alterações e Controle de Versão

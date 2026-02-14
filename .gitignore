@@ -86,3 +86,10 @@ lint/tmp/
 
 README.html
 
+# Sensitive signing and credentials artifacts
+*.jks
+*.keystore
+*.p12
+*.pfx
+secrets.*
+credentials.*
