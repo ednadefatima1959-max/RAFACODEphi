@@ -17,5 +17,5 @@ Mapa arquivo-a-arquivo do diretório `bug/`, com função primária e status doc
 | `GUIA_TECNICO_IMPLEMENTACAO_PATCHES.md` | Procedimento técnico de implementação de patches no ciclo de manutenção. | Ativo |
 | `SIGMA_SUMMARY.txt` | Sumário textual rápido para visão consolidada do estado de bugs/correções. | Sumário auxiliar |
 | `SUMARIO_EXECUTIVO.md` | Visão executiva de impacto, direcionamento e prioridade de ações de correção. | Referência executiva |
-| `README.md` | Define escopo, objetivo e integração do diretório `bug/` com o restante do repositório. | Novo |
-| `FILES_MAP.md` | Este índice arquivo-a-arquivo com função e status dos artefatos de `bug/`. | Novo |
+| `README.md` | Define escopo, objetivo, integração e validação de nomenclatura do diretório `bug/`. | Canônico |
+| `FILES_MAP.md` | Este índice arquivo-a-arquivo com função e status dos artefatos de `bug/`. | Canônico |

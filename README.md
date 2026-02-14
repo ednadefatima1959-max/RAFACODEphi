@@ -79,10 +79,6 @@ find . -maxdepth 2 -type d | sort
 - Ajuste versões via `gradle.properties` (`COMPILE_API`, `TOOLS_VERSION`, `JAVA_LANGUAGE_VERSION`, `CMAKE_VERSION`, `NDK_VERSION`).
 - Para override pontual, use `-P` no comando Gradle.
 
-## Política de assinatura Android (`vectras.jks`)
-- O arquivo `vectras.jks` **não é mais versionado** no Git e não deve ser commitado.
-- A chave de assinatura configurada no pipeline é tratada como **chave de release** e deve ficar apenas em segredo de CI/cofre seguro.
-- Build local de desenvolvimento deve usar somente o keystore de debug padrão do Android/Gradle.
-- Para release no CI, forneça os segredos: `VECTRAS_SIGNING_STORE_FILE`, `VECTRAS_SIGNING_STORE_PASSWORD`, `VECTRAS_SIGNING_KEY_ALIAS`, `VECTRAS_SIGNING_KEY_PASSWORD`.
-- Commits com `*.jks`, `*.keystore` e padrões de credenciais são bloqueados por verificação automatizada no CI (com exceções apenas via `security/sensitive-artifacts-allowlist.txt`).
-
+## Referência rápida de bugs
+- Escopo e relação com os demais domínios: [`bug/README.md`](bug/README.md)
+- Mapa arquivo-a-arquivo do domínio de bugs: [`bug/FILES_MAP.md`](bug/FILES_MAP.md)
