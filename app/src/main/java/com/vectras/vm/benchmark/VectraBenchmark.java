@@ -663,68 +663,76 @@ public class VectraBenchmark {
         return t1 - t0 + (r0.get() & 0);
     }
     
-    // ========== LOW-LEVEL Memory Benchmarks (Matrix-based) ==========
+    // ========== LOW-LEVEL Memory Benchmarks (caller-buffer based) ==========
     
     static long benchMemSequentialRead(byte[] b0) {
-        // Low-level sequential read using matrix M4
+        // Low-level sequential read using caller-provided byte buffer
+        if (b0 == null || b0.length < M4_BYTES) {
+            throw new IllegalArgumentException("Source buffer too small for sequential read");
+        }
         long v0 = 0;
-        int n0 = M4.length;
-        int n1 = M4[0].length;
         long t0 = System.nanoTime();
-        for (int i = 0; i < n0; i++) {
-            for (int j = 0; j < n1; j++) {
-                v0 = v0 + M4[i][j];
-            }
+        for (int i = 0; i < M4_BYTES; i++) {
+            v0 = v0 + b0[i];
         }
         long t1 = System.nanoTime();
         return t1 - t0 + (v0 & 0);
     }
     
     static long benchMemSequentialWrite(byte[] b0) {
-        // Low-level sequential write using matrix M4
-        int n0 = M4.length;
-        int n1 = M4[0].length;
+        // Low-level sequential write using caller-provided byte buffer
+        if (b0 == null || b0.length < M4_BYTES) {
+            throw new IllegalArgumentException("Destination buffer too small for sequential write");
+        }
         long t0 = System.nanoTime();
-        for (int i = 0; i < n0; i++) {
-            for (int j = 0; j < n1; j++) {
-                M4[i][j] = (byte)((i + j) & 0xFF);
-            }
+        for (int i = 0; i < M4_BYTES; i++) {
+            b0[i] = (byte) (i & 0xFF);
         }
         long t1 = System.nanoTime();
-        return t1 - t0;
+        return t1 - t0 + (NativeFastPath.xorChecksum(b0, 0, M4_BYTES) & 0);
     }
     
     static long benchMemRandomRead(byte[] b0, int[] idx) {
-        // Low-level random read using pre-computed indices on matrix
+        // Low-level random read using pre-computed indices on caller-provided byte buffer
+        if (b0 == null || b0.length < M4_BYTES) {
+            throw new IllegalArgumentException("Source buffer too small for random read");
+        }
         long v0 = 0;
         int n0 = idx.length;
-        int n1 = M4.length;
-        int n2 = M4[0].length;
+        int n1 = b0.length;
         long t0 = System.nanoTime();
         for (int k = 0; k < n0; k++) {
-            int i = idx[k] & 0x3FF;  // mod 1024 (rows)
-            int j = (idx[k] >>> 10) & 0xFFF; // mod 4096 (cols)
-            if (i >= n1) i = i % n1;
-            if (j >= n2) j = j % n2;
-            v0 = v0 + M4[i][j];
+            int i = idx[k];
+            if (i >= n1) {
+                i = i % n1;
+            }
+            if (i < 0) {
+                i = (i + n1) % n1;
+            }
+            v0 = v0 + b0[i];
         }
         long t1 = System.nanoTime();
         return t1 - t0 + (v0 & 0);
     }
 
     static long benchMemRandomWrite(byte[] b0, int[] idx) {
+        if (b0 == null || b0.length < M4_BYTES) {
+            throw new IllegalArgumentException("Destination buffer too small for random write");
+        }
         int n0 = idx.length;
-        int n1 = M4.length;
-        int n2 = M4[0].length;
+        int n1 = b0.length;
         int v0 = 0;
         long t0 = System.nanoTime();
         for (int k = 0; k < n0; k++) {
-            int i = idx[k] & 0x3FF;
-            int j = (idx[k] >>> 10) & 0xFFF;
-            if (i >= n1) i = i % n1;
-            if (j >= n2) j = j % n2;
-            int nv = (i + j + k + v0) & 0xFF;
-            M4[i][j] = (byte) nv;
+            int i = idx[k];
+            if (i >= n1) {
+                i = i % n1;
+            }
+            if (i < 0) {
+                i = (i + n1) % n1;
+            }
+            int nv = (i + k + v0) & 0xFF;
+            b0[i] = (byte) nv;
             v0 ^= nv;
         }
         long t1 = System.nanoTime();
@@ -846,16 +854,40 @@ public class VectraBenchmark {
                 teardownArenaBenchmarkContext(new ArenaBenchmarkContext(src, dst, false));
                 return new ArenaBenchmarkContext(0, 0, false);
             }
-            int o0 = 0;
+
+            byte[] linearM4 = new byte[M4_BYTES];
+            int linearOffset = 0;
             for (int i = 0; i < M4_ROWS; i++) {
                 byte[] row = M4[i];
-                for (int j = 0; j < M4_COLS; j++) {
-                    if (!NativeFastPath.fillArena(src, o0, 1, row[j] & 0xFF)) {
-                        teardownArenaBenchmarkContext(new ArenaBenchmarkContext(src, dst, false));
-                        return new ArenaBenchmarkContext(0, 0, false);
+                int rowOffset = 0;
+                while (rowOffset < M4_COLS) {
+                    int chunk = M4_COLS - rowOffset;
+                    if (chunk > copyStripeBytes) {
+                        chunk = copyStripeBytes;
                     }
-                    o0++;
+                    NativeFastPath.copyBytes(row, rowOffset, linearM4, linearOffset + rowOffset, chunk);
+                    rowOffset += chunk;
                 }
+                linearOffset += M4_COLS;
+            }
+
+            int arenaOffset = 0;
+            int blockBytes = copyStripeBytes << 3;
+            if (blockBytes < 4096) {
+                blockBytes = 4096;
+            } else if (blockBytes > M4_BYTES) {
+                blockBytes = M4_BYTES;
+            }
+            while (arenaOffset < M4_BYTES) {
+                int chunk = M4_BYTES - arenaOffset;
+                if (chunk > blockBytes) {
+                    chunk = blockBytes;
+                }
+                if (!NativeFastPath.writeArena(src, arenaOffset, linearM4, arenaOffset, chunk)) {
+                    teardownArenaBenchmarkContext(new ArenaBenchmarkContext(src, dst, false));
+                    return new ArenaBenchmarkContext(0, 0, false);
+                }
+                arenaOffset += chunk;
             }
             return new ArenaBenchmarkContext(src, dst, true);
         } catch (Throwable ignored) {
@@ -888,23 +920,20 @@ public class VectraBenchmark {
             boolean filled = NativeFastPath.fillArena(arenaCtx.dstArenaHandle, 0, M4_BYTES, v0 & 0xFF);
             long t1 = System.nanoTime();
             if (filled) {
-                memFillPath = PATH_ARENA;
                 return t1 - t0 + (NativeFastPath.xorChecksumArena(arenaCtx.dstArenaHandle, 0, M4_BYTES) & 0);
             }
         }
 
-        // Low-level manual fill fallback for Java matrix M4.
-        int n0 = M4.length;
-        int n1 = M4[0].length;
+        // Fallback path: Java byte[] destination provided by caller (no hot-path allocations).
+        if (b0 == null || b0.length < M4_BYTES) {
+            throw new IllegalArgumentException("Destination buffer too small for M4 fill");
+        }
         long t0 = System.nanoTime();
-        for (int i = 0; i < n0; i++) {
-            for (int j = 0; j < n1; j++) {
-                M4[i][j] = v0;
-            }
+        for (int i = 0; i < M4_BYTES; i++) {
+            b0[i] = v0;
         }
         long t1 = System.nanoTime();
-        memFillPath = PATH_JAVA;
-        return t1 - t0;
+        return t1 - t0 + (NativeFastPath.xorChecksum(b0, 0, M4_BYTES) & 0);
     }
     
     static long benchMemAllocSpeed(int n0, int n1) {
@@ -1504,32 +1533,32 @@ public class VectraBenchmark {
         rawVal = benchMemSequentialRead(memBuffer);
         results[MEM_SEQUENTIAL_READ] = new BenchmarkResult(MEM_SEQUENTIAL_READ, "Memory Seq Read",
             rawVal, formatBandwidth(memBytes, rawVal), "MB/s", CAT_MEMORY,
-            String.format("Sequential read of %d KB", memBytes / 1024));
+            String.format("Sequential read on caller buffer (%d KB)", memBytes / 1024));
         
         rawVal = benchMemSequentialWrite(memBuffer);
         results[MEM_SEQUENTIAL_WRITE] = new BenchmarkResult(MEM_SEQUENTIAL_WRITE, "Memory Seq Write",
             rawVal, formatBandwidth(memBytes, rawVal), "MB/s", CAT_MEMORY,
-            String.format("Sequential write of %d KB", memBytes / 1024));
+            String.format("Sequential write on caller buffer (%d KB)", memBytes / 1024));
         
         rawVal = benchMemRandomRead(memBuffer, randomIndices);
         results[MEM_RANDOM_READ] = new BenchmarkResult(MEM_RANDOM_READ, "Memory Random Read",
             rawVal, formatLatency(rawVal, MEMORY_BLOCKS), "ns/access", CAT_MEMORY,
-            String.format("%d random reads", MEMORY_BLOCKS));
+            String.format("%d random reads on caller buffer", MEMORY_BLOCKS));
         
         rawVal = benchmarkMedian(() -> benchMemRandomWrite(memBuffer, randomIndices));
         results[MEM_RANDOM_WRITE] = new BenchmarkResult(MEM_RANDOM_WRITE, "Memory Random Write",
             rawVal, formatBandwidth(memBytes, rawVal), "MB/s", CAT_MEMORY,
-            "Random write pattern");
+            "Random write pattern on caller buffer");
         
         rawVal = benchMemCopyBandwidth(memBuffer, memCopyBuffer, arenaCtx);
         results[MEM_COPY_BANDWIDTH] = new BenchmarkResult(MEM_COPY_BANDWIDTH, "Memory Copy Bandwidth",
             rawVal, formatBandwidth(memBytes, rawVal), "MB/s", CAT_MEMORY,
-            describeCopyPath(memBytes));
+            String.format("Native arena copy when available, Java striped copy otherwise (%d KB)", memBytes / 1024));
         
         rawVal = benchMemFillBandwidth(memBuffer, (byte) 0xAA, arenaCtx);
         results[MEM_FILL_BANDWIDTH] = new BenchmarkResult(MEM_FILL_BANDWIDTH, "Memory Fill Bandwidth",
             rawVal, formatBandwidth(memBytes, rawVal), "MB/s", CAT_MEMORY,
-            describeFillPath(memBytes));
+            String.format("Native arena fill when available, Java fallback otherwise (%d KB)", memBytes / 1024));
         
         // Memory latency tests at different cache levels
         rawVal = benchMemRandomRead(new byte[4096], randomIndices);
