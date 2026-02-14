@@ -31,31 +31,35 @@ android {
         resValue "integer", "app_version_code", versionCode.toString()
     }
 
+    def releaseStoreFile = providers.gradleProperty("android.injected.signing.store.file").orNull ?: System.getenv("VECTRAS_RELEASE_STORE_FILE")
+    def releaseStorePassword = providers.gradleProperty("android.injected.signing.store.password").orNull ?: System.getenv("VECTRAS_RELEASE_STORE_PASSWORD")
+    def releaseKeyAlias = providers.gradleProperty("android.injected.signing.key.alias").orNull ?: System.getenv("VECTRAS_RELEASE_KEY_ALIAS")
+    def releaseKeyPassword = providers.gradleProperty("android.injected.signing.key.password").orNull ?: System.getenv("VECTRAS_RELEASE_KEY_PASSWORD")
+
     signingConfigs {
-        debug {
-            storeFile file('../vectras.jks')
-            keyAlias 'vectras'
-            storePassword '856856'
-            keyPassword '856856'
-        }
-        release {
-            storeFile file('../vectras.jks')
-            keyAlias 'vectras'
-            storePassword '856856'
-            keyPassword '856856'
+        if (releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword) {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.release
+            if (signingConfigs.findByName('release') != null) {
+                signingConfig = signingConfigs.release
+            } else {
+                logger.lifecycle("Release signing não configurado: build de release seguirá sem assinatura de produção.")
+            }
             minifyEnabled = true
             shrinkResources = true
             proguardFiles(getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro')
             buildConfigField "boolean", "VECTRA_CORE_ENABLED", "false"
         }
         debug {
-            signingConfig = signingConfigs.debug
             minifyEnabled = false
             proguardFiles(getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro')
             buildConfigField "boolean", "VECTRA_CORE_ENABLED", "true"

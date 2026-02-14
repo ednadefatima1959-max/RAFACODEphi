@@ -75,6 +75,26 @@ Checklist recomendado antes de release:
 - [ ] Política de privacidade disponível (se aplicável).
 - [ ] Dependências externas revisadas e documentadas.
 - [ ] Mudanças registradas no changelog/documentos.
+- [ ] Keystores/credenciais fora do Git; segredos de release mantidos em cofre de CI.
+- [ ] Política de rotação e resposta a incidente de chave validada para a release.
+
+
+
+## 8) Política legal e operacional de keystore (`vectras.jks`)
+
+- A chave de assinatura de release é um ativo sensível e deve permanecer fora do versionamento Git.
+- O uso permitido é restrito a:
+  - pipeline de CI de release com segredos protegidos;
+  - operadores formalmente autorizados para distribuição.
+- É obrigatório manter trilha de auditoria de quem acessa/rotaciona o segredo.
+- Rotação mandatória em janela definida (recomendado: 90 dias) e imediatamente após qualquer incidente.
+- Em incidente de exposição:
+  1. bloquear uso da chave antiga;
+  2. emitir nova chave e atualizar ambiente de CI/cofre;
+  3. registrar evento, impacto, e ações corretivas em documentação de segurança.
+
+### Exceções documentadas
+Qualquer arquivo sensível mantido no repositório exige justificativa explícita e aprovação formal, registrada em `.ci/sensitive-allowlist.txt`.
 
 ---
 
@@ -87,3 +107,11 @@ Este documento segue as normas definidas em [docs/DOCUMENTATION_STANDARDS.md](DO
 ---
 
 © 2024-2026 Vectras VM Development Team — Licensed under GPL-2.0.
+
+
+## 8) Política Legal de Chaves de Assinatura
+
+- O keystore `vectras.jks` é tratado como credencial sensível de **assinatura release** e não deve ser distribuído em repositório público.
+- A custódia deve ocorrer em cofre seguro/segredos de CI, com controle de acesso mínimo e rastreabilidade de uso.
+- Rotação periódica e por incidente é mandatória para reduzir risco de comprometimento de cadeia de supply chain.
+- Exceções para arquivos sensíveis devem ser formalmente documentadas e aprovadas antes de versionamento.

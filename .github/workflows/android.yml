@@ -1,6 +1,38 @@
 name: Android CI
 
 on:
+  push:
+    paths:
+      - 'app/**'
+      - 'terminal-emulator/**'
+      - 'terminal-view/**'
+      - 'shell-loader/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'local.properties.example'
+      - 'docs/OPERATIONS.md'
+      - 'docs/BUILD_ENV_ALIGNMENT.md'
+      - 'docs/DOCUMENTATION_STANDARDS.md'
+      - 'README.md'
+      - '.github/workflows/android.yml'
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'terminal-emulator/**'
+      - 'terminal-view/**'
+      - 'shell-loader/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'local.properties.example'
+      - 'docs/OPERATIONS.md'
+      - 'docs/BUILD_ENV_ALIGNMENT.md'
+      - 'docs/DOCUMENTATION_STANDARDS.md'
+      - 'README.md'
+      - '.github/workflows/android.yml'
   workflow_dispatch:
 
 jobs:
@@ -11,6 +43,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Block sensitive artifacts in repository
+      run: bash tools/security/block_sensitive_artifacts.sh
 
     - name: Set up JDK 21
       uses: actions/setup-java@v4
@@ -40,6 +75,48 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
+    - name: Verify repository file dependencies
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+      run: ./gradlew verifyRepoFileDependencies -PCOMPILE_API=35 -PTOOLS_VERSION=35.0.0 -PJAVA_LANGUAGE_VERSION=17 -PCMAKE_VERSION=3.22.1 -PNDK_VERSION=27.2.12479018
+
+    - name: Validate local markdown links (optional)
+      continue-on-error: true
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+        import re
+
+        md_files = [Path('README.md'), *Path('docs').rglob('*.md')]
+        link_pattern = re.compile(r'\[[^\]]+\]\(([^)]+)\)')
+        failures = []
+
+        for md_file in md_files:
+          content = md_file.read_text(encoding='utf-8')
+          for raw_target in link_pattern.findall(content):
+            target = raw_target.strip()
+            if not target or target.startswith(('http://', 'https://', 'mailto:', '#')):
+              continue
+            target = target.split('#', 1)[0]
+            if not target:
+              continue
+            if target.startswith('/'):
+              resolved = Path(target.lstrip('/'))
+            else:
+              resolved = (md_file.parent / target).resolve().relative_to(Path.cwd().resolve())
+            if not Path(resolved).exists():
+              failures.append(f"{md_file}: missing -> {raw_target}")
+
+        if failures:
+          print('Local markdown link validation failures:')
+          for failure in failures:
+            print(f' - {failure}')
+          raise SystemExit(1)
+
+        print(f'Validated local markdown links in {len(md_files)} files.')
+        PY
+
     - name: Send notification to Telegram
       run: |
         if [[ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]]; then
@@ -58,11 +135,26 @@ jobs:
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
       run: ./gradlew assembleDebug -PCOMPILE_API=35 -PTOOLS_VERSION=35.0.0 -PJAVA_LANGUAGE_VERSION=17 -PCMAKE_VERSION=3.22.1 -PNDK_VERSION=27.2.12479018
 
-    - name: Build Release APK
+    - name: Build Release APK (signed via CI secrets)
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./gradlew assembleRelease -PCOMPILE_API=35 -PTOOLS_VERSION=35.0.0 -PJAVA_LANGUAGE_VERSION=17 -PCMAKE_VERSION=3.22.1 -PNDK_VERSION=27.2.12479018
+        VECTRAS_RELEASE_STORE_FILE: ${{ runner.temp }}/vectras-release.jks
+        VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
+        VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
+        VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
+      run: |
+        if [[ -z "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}" ]]; then
+          echo "Missing VECTRAS_RELEASE_KEYSTORE_B64 secret for release signing" >&2
+          exit 1
+        fi
+        echo "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}" | base64 --decode > "$VECTRAS_RELEASE_STORE_FILE"
+        ./gradlew assembleRelease \
+          -PCOMPILE_API=35 -PTOOLS_VERSION=35.0.0 -PJAVA_LANGUAGE_VERSION=17 -PCMAKE_VERSION=3.22.1 -PNDK_VERSION=27.2.12479018 \
+          -Pandroid.injected.signing.store.file="$VECTRAS_RELEASE_STORE_FILE" \
+          -Pandroid.injected.signing.store.password="$VECTRAS_RELEASE_STORE_PASSWORD" \
+          -Pandroid.injected.signing.key.alias="$VECTRAS_RELEASE_KEY_ALIAS" \
+          -Pandroid.injected.signing.key.password="$VECTRAS_RELEASE_KEY_PASSWORD"
 
     - name: Upload Debug APK as artifact
       uses: actions/upload-artifact@v4

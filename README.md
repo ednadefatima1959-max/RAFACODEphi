@@ -5,6 +5,25 @@
 ## Abstract
 Esta revisão consolida a documentação em três camadas por diretório (propósito, estrutura e arquivo-a-arquivo), conectando documentação raiz, mapas locais e cadeia de comandos de inspeção. O objetivo é eliminar lacunas entre arquivos soltos, módulos ativos e documentação técnica, com navegação formal e auditável.
 
+
+## Governança e estado — navegação rápida
+- Estado do projeto: [`PROJECT_STATE.md`](PROJECT_STATE.md)
+- Histórico de mudanças: [`CHANGELOG.md`](CHANGELOG.md)
+- Notas de release: [`RELEASE_NOTES.md`](RELEASE_NOTES.md)
+- Índice documental: [`DOC_INDEX.md`](DOC_INDEX.md)
+- Avisos de terceiros/licenciamento: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+- Referência do runtime: [`VECTRA_CORE.md`](VECTRA_CORE.md)
+- Guia macro de documentação: [`VECTRAS_MEGAPROMPT_DOCS.md`](VECTRAS_MEGAPROMPT_DOCS.md)
+
+## Histórico arquivado (raiz)
+- [`archive/root-history/1.md`](archive/root-history/1.md)
+- [`archive/root-history/ADVANCED_OPTIMIZATIONS.md`](archive/root-history/ADVANCED_OPTIMIZATIONS.md)
+- [`archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md`](archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md)
+- [`archive/root-history/IMPLEMENTATION_COMPLETE.md`](archive/root-history/IMPLEMENTATION_COMPLETE.md)
+- [`archive/root-history/IMPLEMENTATION_SUMMARY.md`](archive/root-history/IMPLEMENTATION_SUMMARY.md)
+- [`archive/root-history/VECTRAS_ANALYSIS_COMPLETE.md`](archive/root-history/VECTRAS_ANALYSIS_COMPLETE.md)
+- [`archive/root-history/VECTRAS_DEEP_EVIDENCE.md`](archive/root-history/VECTRAS_DEEP_EVIDENCE.md)
+
 ## Dissertação analítica (modelo de 3 camadas)
 1. **Camada 1 — Diretório**: define responsabilidade técnica de cada domínio.
 2. **Camada 2 — Estrutura**: explicita subdiretórios e fronteiras de módulo.
@@ -35,6 +54,14 @@ Referências estruturais:
 | `fastlane/` | [fastlane/README.md](fastlane/README.md) | [fastlane/FILES_MAP.md](fastlane/FILES_MAP.md) |
 | `gradle/` | [gradle/README.md](gradle/README.md) | [gradle/FILES_MAP.md](gradle/FILES_MAP.md) |
 | `3dfx/` | [3dfx/README.md](3dfx/README.md) | [3dfx/FILES_MAP.md](3dfx/FILES_MAP.md) |
+
+
+## Política de assinatura (`vectras.jks`)
+- A chave `vectras.jks` **não deve permanecer versionada** no Git.
+- A assinatura de **release** deve usar segredo de CI/cofre seguro (`VECTRAS_RELEASE_*` / `android.injected.signing.*`).
+- Builds de `debug` usam apenas assinatura debug padrão do Android Gradle Plugin (não usar chave de release).
+- Rotação recomendada: a cada 90 dias (ou imediatamente após incidente), com revogação e atualização de segredos no CI.
+- Acesso mínimo: apenas mantenedores responsáveis por release e conta de automação do CI.
 
 ## Cadeia de comando recomendada
 ```bash

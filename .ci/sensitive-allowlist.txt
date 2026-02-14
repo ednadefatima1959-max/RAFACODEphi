@@ -1,0 +1,4 @@
+# Lista de exceções para arquivos sensíveis versionados.
+# Formato: caminho relativo ao repositório + justificativa em comentário na mesma linha.
+# Evite exceções; prefira secret manager/cofre.
+app/google-services.json # Configuração pública necessária para build Android (não contém chave privada de assinatura).

@@ -21,3 +21,18 @@
 ## Storage e permissões
 - Android 10+ prioriza armazenamento interno e SAF.
 - Android legado mantém fallback de `WRITE_EXTERNAL_STORAGE`.
+
+
+## Política de uso de keystore (`vectras.jks`)
+- **Classificação:** material criptográfico sensível para assinatura de **release**.
+- **Ambiente permitido:** cofre seguro e segredos de CI; proibido manter chave privada em repositório Git.
+- **Acesso mínimo:** princípio de menor privilégio; acesso somente para pipeline de release e mantenedores autorizados.
+- **Rotação:** obrigatória no máximo a cada 90 dias, ou imediata em caso de suspeita de vazamento.
+- **Resposta a incidente:**
+  1. Revogar credenciais e descontinuar uso da chave comprometida.
+  2. Gerar novo keystore/alias e atualizar segredos do CI.
+  3. Auditar histórico de artefatos assinados e publicar comunicado de segurança.
+  4. Executar varredura de repositório e histórico para remoção de segredos expostos.
+
+## Controles automatizados
+- O CI executa `tools/security/block_sensitive_artifacts.sh` para bloquear inclusão de novos `*.jks`, `*.keystore` e padrões de credenciais sem exceção documentada em `.ci/sensitive-allowlist.txt`.
