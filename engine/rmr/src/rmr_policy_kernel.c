@@ -38,20 +38,28 @@ static const char *route_target_from_id(uint8_t id) {
   }
 }
 
-static const char *decision_mode_label(uint8_t mode) {
-  return (mode == RMR_DECISION_MODE_FALLBACK) ? "fallback" : "branchless";
+static uint64_t mix_u64(uint64_t acc, uint64_t x) {
+  acc ^= x + 0x9E3779B97F4A7C15ull + (acc << 6) + (acc >> 2);
+  return acc;
 }
 
-static uint8_t resolve_decision_mode(void) {
-  const char *env = getenv("RMR_DECISION_MODE");
-  if (!env) return RMR_DECISION_MODE_BRANCHLESS;
-  if (strcmp(env, "fallback") == 0 || strcmp(env, "FALLBACK") == 0) {
-    return RMR_DECISION_MODE_FALLBACK;
-  }
-  return RMR_DECISION_MODE_BRANCHLESS;
+static uint64_t stage_signature(RmR_Stage stage,
+                                uint32_t matrix_seed,
+                                const RmR_MathFabricPlan *plan,
+                                const RmR_ChunkMeta *m) {
+  uint64_t sig = 1469598103934665603ull;
+  sig = mix_u64(sig, (uint64_t)(unsigned)stage);
+  sig = mix_u64(sig, (uint64_t)matrix_seed);
+  sig = mix_u64(sig, (uint64_t)plan->matrix_seed);
+  sig = mix_u64(sig, (uint64_t)plan->lane_count);
+  sig = mix_u64(sig, (uint64_t)m->route_id);
+  sig = mix_u64(sig, (uint64_t)m->crc32c);
+  sig = mix_u64(sig, m->hash64);
+  return sig;
 }
 
-static void choose_route_fallback(const RmR_TriadStatus *triad, uint32_t chunk_idx, RmR_ChunkMeta *m) {
+
+static void choose_route(const RmR_TriadStatus *triad, uint32_t chunk_idx, RmR_ChunkMeta *m) {
   uint8_t options[3];
   uint32_t n = 0;
   if (triad->cpu_ok) options[n++] = RMR_ROUTE_CPU;
@@ -144,7 +152,7 @@ static int vec_push(ChunkVec *vec, const RmR_ChunkMeta *m) {
 
 static int append_event(FILE *logf, uint64_t event_idx, RmR_Stage stage, const RmR_ChunkMeta *m) {
   int written = fprintf(logf,
-                        "event=%llu stage=%u off=%llu size=%u route=%u target=%s crc32c=%08x hash64=%016llx entropy_milli=%u math_sig=%08x domain=%u decision_mode=%u flags=%u:%u:%u\n",
+                        "event=%llu stage=%u off=%llu size=%u route=%u target=%s crc32c=%08x hash64=%016llx stage_sig=%016llx entropy_milli=%u math_sig=%08x domain=%u flags=%u:%u:%u\n",
                         (unsigned long long)event_idx,
                         (unsigned int)stage,
                         (unsigned long long)m->offset,
@@ -153,6 +161,7 @@ static int append_event(FILE *logf, uint64_t event_idx, RmR_Stage stage, const R
                         m->route_target,
                         m->crc32c,
                         (unsigned long long)m->hash64,
+                        (unsigned long long)m->stage_signature,
                         m->entropy_milli,
                         m->math_signature,
                         (unsigned int)m->domain_hint,
@@ -302,9 +311,10 @@ int RmR_RunPolicyPipeline(const char *input_path,
   RmR_AuditSummary local_summary;
   RmR_HW_Info hw;
   RmR_MathFabricPlan math_plan;
-  rmr_mem_set(&local_summary, 0, sizeof(local_summary));
-  rmr_mem_set(&hw, 0, sizeof(hw));
-  rmr_mem_set(&math_plan, 0, sizeof(math_plan));
+  memset(&local_summary, 0, sizeof(local_summary));
+  local_summary.exec_signature = 1469598103934665603ull;
+  memset(&hw, 0, sizeof(hw));
+  memset(&math_plan, 0, sizeof(math_plan));
   RmR_HW_Detect(&hw);
   RmR_MathFabric_AutodetectPlan(&hw, &math_plan);
   RmR_LL_ApplyTuneDefaults(&hw, &tune);
@@ -343,7 +353,9 @@ int RmR_RunPolicyPipeline(const char *input_path,
     m.entropy_milli = RmR_EntropyEstimateMilli(buf, rd);
     m.flags.temp_hint = (m.entropy_milli > 5500u) ? 1u : 0u;
     build_math_signature(&math_plan, buf, rd, offset, &m);
-    choose_route(&config->triad, local_summary.chunks_planned, decision_mode, &m);
+    choose_route(&config->triad, local_summary.chunks_planned, &m);
+    m.stage_signature = stage_signature(RMR_STAGE_PLAN, math_plan.matrix_seed, &math_plan, &m);
+    local_summary.exec_signature = mix_u64(local_summary.exec_signature, m.stage_signature);
     if (append_event(logf, event_idx++, RMR_STAGE_PLAN, &m) != 0 || vec_push(&plan, &m) != 0) goto fail;
     local_summary.chunks_planned++;
 
@@ -355,7 +367,8 @@ int RmR_RunPolicyPipeline(const char *input_path,
     am.entropy_milli = RmR_EntropyEstimateMilli(buf, rd);
     am.flags.temp_hint = (am.entropy_milli > 5500u) ? 1u : 0u;
     build_math_signature(&math_plan, buf, rd, offset, &am);
-    am.decision_mode = m.decision_mode;
+    am.stage_signature = stage_signature(RMR_STAGE_APPLY, math_plan.matrix_seed, &math_plan, &am);
+    local_summary.exec_signature = mix_u64(local_summary.exec_signature, am.stage_signature);
 
     if (append_event(logf, event_idx++, RMR_STAGE_APPLY, &am) != 0 || vec_push(&applied, &am) != 0) goto fail;
     local_summary.chunks_applied++;
@@ -373,6 +386,8 @@ int RmR_RunPolicyPipeline(const char *input_path,
   for (size_t i = 0; i < plan.n && i < applied.n; ++i) {
     RmR_ChunkMeta d = applied.v[i];
     d.flags.miss = (plan.v[i].crc32c != applied.v[i].crc32c) ? 1u : 0u;
+    d.stage_signature = stage_signature(RMR_STAGE_DIFF, math_plan.matrix_seed, &math_plan, &d);
+    local_summary.exec_signature = mix_u64(local_summary.exec_signature, d.stage_signature);
     if (append_event(logf, event_idx++, RMR_STAGE_DIFF, &d) != 0) goto fail;
     local_summary.chunks_diff++;
   }
@@ -394,6 +409,8 @@ int RmR_RunPolicyPipeline(const char *input_path,
     build_math_signature(&math_plan, buf, rd, offset, &vm);
     vm.decision_mode = applied.v[idx].decision_mode;
     vm.flags.miss = (vm.crc32c != applied.v[idx].crc32c) ? 1u : 0u;
+    vm.stage_signature = stage_signature(RMR_STAGE_VERIFY, math_plan.matrix_seed, &math_plan, &vm);
+    local_summary.exec_signature = mix_u64(local_summary.exec_signature, vm.stage_signature);
     if (vm.flags.miss) {
       vm.flags.bad_event = 1u;
       local_summary.verify_failures++;
@@ -425,9 +442,11 @@ int RmR_RunPolicyPipeline(const char *input_path,
     final_meta.domain_hint = (uint8_t)(math_plan.lane_count & 0x7u);
     final_meta.decision_mode = decision_mode;
     final_meta.flags.bad_event = (local_summary.verify_failures > 0) ? 1u : 0u;
-    final_meta.flags.temp_hint = (uint8_t)(decision_mode == RMR_DECISION_MODE_BRANCHLESS ? 1u : 0u);
-    final_meta.flags.miss = 0u;
-    fprintf(logf, "decision_mode=%s\n", decision_mode_label(decision_mode));
+    final_meta.crc32c = (uint32_t)local_summary.exec_signature;
+    final_meta.hash64 = local_summary.exec_signature ^ ((uint64_t)hw.arch << 32);
+    final_meta.stage_signature = stage_signature(RMR_STAGE_AUDIT, math_plan.matrix_seed, &math_plan, &final_meta);
+    local_summary.exec_signature = mix_u64(local_summary.exec_signature, final_meta.stage_signature);
+    final_meta.hash64 = local_summary.exec_signature;
     if (append_event(logf, event_idx++, RMR_STAGE_AUDIT, &final_meta) != 0) goto fail;
   }
 

@@ -30,9 +30,10 @@ POLICY_SELFTEST_BIN := build/demo/policy_kernel_selftest
 QEMU_BRIDGE_DEMO_BIN := build/demo/rmr_qemu_bridge_demo
 QEMU_BRIDGE_SELFTEST_BIN := build/demo/rmr_qemu_bridge_selftest
 MATH_FABRIC_SELFTEST_BIN := build/demo/math_fabric_selftest
+DETERMINISM_SIGNATURE_SELFTEST_BIN := build/demo/determinism_signature_selftest
 RMR_REQUIRED_SYMBOLS := RmR_MathFabric_AutodetectPlan RmR_MathFabric_VectorMix
 
-all: $(LIB_STATIC) verify-librmr-symbols $(LIB_BITRAF_STATIC) $(LIB_BITRAF_SHARED) $(DEMO_BIN) $(BENCH_BIN) $(BITRAF_BIN) $(SELFTEST_BIN) $(MATH_FABRIC_SELFTEST_BIN) $(APK_MODULE_BIN) $(CTI_SCAN_BIN) $(POLICY_DEMO_BIN) $(POLICY_SELFTEST_BIN) $(QEMU_BRIDGE_DEMO_BIN) $(QEMU_BRIDGE_SELFTEST_BIN)
+all: $(LIB_STATIC) verify-librmr-symbols $(LIB_BITRAF_STATIC) $(LIB_BITRAF_SHARED) $(DEMO_BIN) $(BENCH_BIN) $(BITRAF_BIN) $(SELFTEST_BIN) $(MATH_FABRIC_SELFTEST_BIN) $(DETERMINISM_SIGNATURE_SELFTEST_BIN) $(APK_MODULE_BIN) $(CTI_SCAN_BIN) $(POLICY_DEMO_BIN) $(POLICY_SELFTEST_BIN) $(QEMU_BRIDGE_DEMO_BIN) $(QEMU_BRIDGE_SELFTEST_BIN)
 
 build/%.o: %.c
 	@mkdir -p $(dir $@)
@@ -104,12 +105,17 @@ $(QEMU_BRIDGE_DEMO_BIN): demo_cli/src/rmr_qemu_bridge_demo.c $(LIB_STATIC)
 $(QEMU_BRIDGE_SELFTEST_BIN): demo_cli/src/rmr_qemu_bridge_selftest.c $(LIB_STATIC)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+
+$(DETERMINISM_SIGNATURE_SELFTEST_BIN): demo_cli/src/determinism_signature_selftest.c $(LIB_STATIC)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
 run-demo: $(DEMO_BIN)
 	./$(DEMO_BIN)
 
-run-selftest: $(SELFTEST_BIN) $(MATH_FABRIC_SELFTEST_BIN) $(POLICY_SELFTEST_BIN) $(QEMU_BRIDGE_SELFTEST_BIN)
+run-selftest: $(SELFTEST_BIN) $(MATH_FABRIC_SELFTEST_BIN) $(DETERMINISM_SIGNATURE_SELFTEST_BIN) $(POLICY_SELFTEST_BIN) $(QEMU_BRIDGE_SELFTEST_BIN)
 	./$(SELFTEST_BIN)
 	./$(MATH_FABRIC_SELFTEST_BIN)
+	./$(DETERMINISM_SIGNATURE_SELFTEST_BIN)
 	./$(POLICY_SELFTEST_BIN)
 	./$(QEMU_BRIDGE_SELFTEST_BIN)
 
