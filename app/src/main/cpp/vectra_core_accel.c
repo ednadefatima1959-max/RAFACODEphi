@@ -856,6 +856,46 @@ Java_com_vectras_vm_core_NativeFastPath_nativeArenaFill(JNIEnv* env, jclass claz
     return VECTRA_ARENA_OK;
 }
 
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_NativeFastPath_nativeArenaWrite(JNIEnv* env, jclass clazz,
+                                                          jint handle, jint offset,
+                                                          jbyteArray src,
+                                                          jint srcOffset,
+                                                          jint length) {
+    (void)clazz;
+    if (!src || offset < 0 || srcOffset < 0 || length < 0) {
+        return VECTRA_ARENA_ERR_INVALID_ARG;
+    }
+    if (length == 0) {
+        return VECTRA_ARENA_OK;
+    }
+
+    jsize src_len = (*env)->GetArrayLength(env, src);
+    if (srcOffset > src_len || length > (src_len - srcOffset)) {
+        return VECTRA_ARENA_ERR_INVALID_ARG;
+    }
+
+    pthread_mutex_lock(&g_arena_lock);
+
+    vectra_arena_slot_t* slot = NULL;
+    uint8_t* dst_ptr = NULL;
+    int rc = vectra_arena_get_slot_for_range(handle, offset, length, &slot, &dst_ptr);
+    (void)slot;
+    if (rc != VECTRA_ARENA_OK) {
+        pthread_mutex_unlock(&g_arena_lock);
+        return rc;
+    }
+
+    (*env)->GetByteArrayRegion(env, src, srcOffset, length, (jbyte*)dst_ptr);
+    if ((*env)->ExceptionCheck(env)) {
+        pthread_mutex_unlock(&g_arena_lock);
+        return VECTRA_ARENA_ERR_INVALID_ARG;
+    }
+
+    pthread_mutex_unlock(&g_arena_lock);
+    return VECTRA_ARENA_OK;
+}
+
 
 #define LOGCAT_RING_MAX_ENTRIES 1024
 #define LOGCAT_ENTRY_MAX_BYTES 1024
