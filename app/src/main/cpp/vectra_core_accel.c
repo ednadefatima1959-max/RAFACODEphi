@@ -118,8 +118,6 @@ static int vectra_arena_ensure_initialized(void) {
 
     g_arena_base = base;
     g_arena_capacity = VECTRA_ARENA_CAPACITY_BYTES;
-    memset(g_arena_slots, 0, sizeof(g_arena_slots));
-    atomic_store(&g_arena_active_slots, 0u);
     return VECTRA_ARENA_OK;
 }
 
@@ -154,7 +152,7 @@ static int vectra_arena_find_region(uint32_t bytes, uint32_t* out_offset) {
         }
 
         uint32_t end = g_arena_slots[next].offset + g_arena_slots[next].size;
-        if (end <= cursor) {
+        if (end < g_arena_slots[next].offset || end > g_arena_capacity || end <= cursor) {
             return VECTRA_ARENA_ERR_INTERNAL;
         }
         cursor = end;
@@ -761,53 +759,7 @@ Java_com_vectras_vm_core_NativeFastPath_nativeArenaCopy(JNIEnv* env, jclass claz
         return rc;
     }
 
-    if (dst_ptr > src_ptr && dst_ptr < src_ptr + length) {
-        for (jint i = length - 1; i >= 0; i--) {
-            dst_ptr[i] = src_ptr[i];
-        }
-    } else {
-        jint i = 0;
-        jint end = length & ~31;
-        while (i < end) {
-            dst_ptr[i] = src_ptr[i];
-            dst_ptr[i + 1] = src_ptr[i + 1];
-            dst_ptr[i + 2] = src_ptr[i + 2];
-            dst_ptr[i + 3] = src_ptr[i + 3];
-            dst_ptr[i + 4] = src_ptr[i + 4];
-            dst_ptr[i + 5] = src_ptr[i + 5];
-            dst_ptr[i + 6] = src_ptr[i + 6];
-            dst_ptr[i + 7] = src_ptr[i + 7];
-            dst_ptr[i + 8] = src_ptr[i + 8];
-            dst_ptr[i + 9] = src_ptr[i + 9];
-            dst_ptr[i + 10] = src_ptr[i + 10];
-            dst_ptr[i + 11] = src_ptr[i + 11];
-            dst_ptr[i + 12] = src_ptr[i + 12];
-            dst_ptr[i + 13] = src_ptr[i + 13];
-            dst_ptr[i + 14] = src_ptr[i + 14];
-            dst_ptr[i + 15] = src_ptr[i + 15];
-            dst_ptr[i + 16] = src_ptr[i + 16];
-            dst_ptr[i + 17] = src_ptr[i + 17];
-            dst_ptr[i + 18] = src_ptr[i + 18];
-            dst_ptr[i + 19] = src_ptr[i + 19];
-            dst_ptr[i + 20] = src_ptr[i + 20];
-            dst_ptr[i + 21] = src_ptr[i + 21];
-            dst_ptr[i + 22] = src_ptr[i + 22];
-            dst_ptr[i + 23] = src_ptr[i + 23];
-            dst_ptr[i + 24] = src_ptr[i + 24];
-            dst_ptr[i + 25] = src_ptr[i + 25];
-            dst_ptr[i + 26] = src_ptr[i + 26];
-            dst_ptr[i + 27] = src_ptr[i + 27];
-            dst_ptr[i + 28] = src_ptr[i + 28];
-            dst_ptr[i + 29] = src_ptr[i + 29];
-            dst_ptr[i + 30] = src_ptr[i + 30];
-            dst_ptr[i + 31] = src_ptr[i + 31];
-            i += 32;
-        }
-        while (i < length) {
-            dst_ptr[i] = src_ptr[i];
-            i++;
-        }
-    }
+    memmove(dst_ptr, src_ptr, (size_t)length);
 
     pthread_mutex_unlock(&g_arena_lock);
     return VECTRA_ARENA_OK;
@@ -902,48 +854,7 @@ Java_com_vectras_vm_core_NativeFastPath_nativeArenaFill(JNIEnv* env, jclass claz
         return rc;
     }
 
-    uint8_t b = (uint8_t)value;
-    jint i = 0;
-    jint end = length & ~31;
-    while (i < end) {
-        ptr[i] = b;
-        ptr[i + 1] = b;
-        ptr[i + 2] = b;
-        ptr[i + 3] = b;
-        ptr[i + 4] = b;
-        ptr[i + 5] = b;
-        ptr[i + 6] = b;
-        ptr[i + 7] = b;
-        ptr[i + 8] = b;
-        ptr[i + 9] = b;
-        ptr[i + 10] = b;
-        ptr[i + 11] = b;
-        ptr[i + 12] = b;
-        ptr[i + 13] = b;
-        ptr[i + 14] = b;
-        ptr[i + 15] = b;
-        ptr[i + 16] = b;
-        ptr[i + 17] = b;
-        ptr[i + 18] = b;
-        ptr[i + 19] = b;
-        ptr[i + 20] = b;
-        ptr[i + 21] = b;
-        ptr[i + 22] = b;
-        ptr[i + 23] = b;
-        ptr[i + 24] = b;
-        ptr[i + 25] = b;
-        ptr[i + 26] = b;
-        ptr[i + 27] = b;
-        ptr[i + 28] = b;
-        ptr[i + 29] = b;
-        ptr[i + 30] = b;
-        ptr[i + 31] = b;
-        i += 32;
-    }
-    while (i < length) {
-        ptr[i] = b;
-        i++;
-    }
+    memset(ptr, value & 0xFF, (size_t)length);
 
     pthread_mutex_unlock(&g_arena_lock);
     return VECTRA_ARENA_OK;
