@@ -51,3 +51,7 @@ find . -maxdepth 2 -type d | sort
 - Copie `local.properties.example` para `local.properties` e ajuste `sdk.dir`.
 - Ajuste versões via `gradle.properties` (`COMPILE_API`, `TOOLS_VERSION`, `JAVA_LANGUAGE_VERSION`, `CMAKE_VERSION`, `NDK_VERSION`).
 - Para override pontual, use `-P` no comando Gradle.
+
+## Referência rápida de bugs
+- Escopo e relação com os demais domínios: [`bug/README.md`](bug/README.md)
+- Mapa arquivo-a-arquivo do domínio de bugs: [`bug/FILES_MAP.md`](bug/FILES_MAP.md)

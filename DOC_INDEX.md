@@ -15,6 +15,12 @@ Cada diretório tem:
 
 - `bug/`: [`bug/README.md`](bug/README.md) e [`bug/FILES_MAP.md`](bug/FILES_MAP.md).
 
+
+## Domínio de bugs (`bug/`)
+- Escopo, objetivo e relação com `docs/`, `reports/` e raiz: [`bug/README.md`](bug/README.md).
+- Mapa arquivo-a-arquivo com função e status: [`bug/FILES_MAP.md`](bug/FILES_MAP.md).
+- Nomenclatura alinhada ao padrão (`README.md` + `FILES_MAP.md`) usado em `engine/`, `tools/` e `docs/`.
+
 ## Documentos técnicos especializados
 - Arquitetura: `docs/ARCHITECTURE.md`
 - Operação: `docs/OPERATIONS.md`

@@ -17,5 +17,12 @@ Repositório de diagnósticos, enumeração de falhas, propostas de correção e
 - **Com `reports/`**: `reports/` agrega relatórios executivos/operacionais mais amplos; `bug/` mantém foco em defeitos, correções e guias de implementação.
 - **Com a raiz**: a raiz (`README.md`, `DOC_INDEX.md`) funciona como camada de navegação global e indexa `bug/` junto aos demais diretórios padronizados.
 
+## Consistência de nomenclatura
+Validação alinhada ao padrão aplicado em `engine/`, `tools/` e `docs/`:
+- Presença do par obrigatório `README.md` + `FILES_MAP.md` no diretório.
+- Arquivos centrais de documentação em `UPPER_SNAKE_CASE.md` (ex.: `BUGS_ENUMERATION.md`, `BUG_FIXES.md`, `SUMARIO_EXECUTIVO.md`).
+- Arquivo de síntese rápida fora do padrão Markdown mantido explicitamente (`SIGMA_SUMMARY.txt`) e descrito no mapa local.
+
 ## Navegação local
+- [README.md](README.md)
 - [FILES_MAP.md](FILES_MAP.md)
