@@ -1,6 +1,7 @@
 package com.vectras.vm.vectra
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import com.vectras.vm.BuildConfig
 import com.vectras.vm.core.NativeFastPath
@@ -810,7 +811,7 @@ class VectraBitStackLog(logFile: File) {
     companion object {
         private const val MAGIC = 0x56454354L // "VECT"
         private const val VERSION = 1
-        private const val RECORD_HEADER_SIZE = 16 // magic(4) + len(4) + meta(4) + crc(4)
+        private const val RECORD_HEADER_SIZE = 32 // magic(4) + len(4) + meta(4) + tick(8) + wall(8) + crc(4) + reserved(4)
         private const val MAX_LOG_SIZE = 10 * 1024 * 1024 // 10 MB
         private const val FLUSH_INTERVAL_MS = 1000L
         private const val FLUSH_RECORDS = 32
@@ -840,7 +841,7 @@ class VectraBitStackLog(logFile: File) {
     }
 
     /**
-     * Appends a record: [u32 magic, u32 len, u32 meta, u32 crc, payload]
+     * Appends a record: [u32 magic, u32 len, u32 meta, i64 deterministic_tick, i64 wall_clock_ms, u32 crc, u32 reserved, payload]
      */
     fun append(payload: ByteArray, meta: Int = 0) {
         append(payload, payload.size, meta)
@@ -921,9 +922,11 @@ object VectraCore {
     private var cycle: VectraCycle? = null
     private var logger: VectraBitStackLog? = null
     private val initialized = AtomicBoolean(false)
+    private val timerTickCounter = java.util.concurrent.atomic.AtomicLong(0L)
 
+    @JvmOverloads
     @JvmStatic
-    fun init(context: Context) {
+    fun init(context: Context, configuredSeed: Int? = null) {
         if (!BuildConfig.VECTRA_CORE_ENABLED) {
             Log.d(TAG, "VectraCore disabled by BuildConfig")
             return
@@ -934,7 +937,7 @@ object VectraCore {
             return
         }
 
-        state.seed = (System.nanoTime() and 0x7FFFFFFF).toInt()
+        state.seed = resolveSeed(context, configuredSeed)
         val header = VectraBlock.createHeader(index = 0, payloadLen = 0, seed = state.seed)
         state.crc32c = CRC32C.update(0, header)
         state.entropyHint = state.crc32c xor state.seed
@@ -1007,7 +1010,7 @@ object VectraCore {
         result.putInt(crcMutated)
         result.putInt(syndrome)
         result.putInt(packed)
-        logger?.append(result.array(), 0xFFFF) // meta=0xFFFF for self-test
+        logger?.append(result.array(), 0xFFFF, deterministicTick = 0L, wallClockMs = System.currentTimeMillis()) // meta=0xFFFF for self-test
         
         Log.d(TAG, "selftest_ok=$allOk headerOk=$headerOk detectsChange=$detectsChange parityOk=$parityOk detectsBitFlip=$detectsBitFlip syndromeOk=$syndromeOk syndrome=$syndrome")
     }
@@ -1034,6 +1037,27 @@ object VectraCore {
         }
     }
 
+
+    private fun resolveSeed(context: Context, configuredSeed: Int?): Int {
+        if (configuredSeed != null) {
+            return configuredSeed and 0x7FFFFFFF
+        }
+
+        val stableFingerprint = buildString {
+            append(context.packageName)
+            append('|').append(BuildConfig.VERSION_NAME)
+            append('|').append(BuildConfig.VERSION_CODE)
+            append('|').append(Build.BOARD)
+            append('|').append(Build.BRAND)
+            append('|').append(Build.DEVICE)
+            append('|').append(Build.HARDWARE)
+            append('|').append(Build.PRODUCT)
+            append('|').append(Build.FINGERPRINT)
+            append('|').append(Build.SUPPORTED_ABIS.joinToString(","))
+        }
+        return CRC32C.update(0, stableFingerprint.toByteArray(Charsets.UTF_8)) and 0x7FFFFFFF
+    }
+
     /**
      * Shutdown hook for cleanup.
      */
@@ -1052,10 +1076,13 @@ object VectraCore {
      * Noise is data (ρ = information not decoded yet).
      */
     fun psi(payload: ByteArray): Int {
-        val crc = CRC32C.update(state.crc32c, payload)
-        state.crc32c = crc
-        state.stageCounters[0]++
-        return crc
+        val crc = NativeFastPath.coreIngest(payload)
+        if (crc != Int.MIN_VALUE) {
+            state.crc32c = crc
+            state.stageCounters[0]++
+            return crc
+        }
+        return state.crc32c
     }
 
     /**
@@ -1063,36 +1090,51 @@ object VectraCore {
      * Do not treat noise as simple bug - it's information not decoded yet.
      */
     fun rho(noise: ByteArray, eventWeight: Int = 1): Int {
-        val entropy = CRC32C.update(state.entropyHint, noise)
-        state.entropyHint = entropy + eventWeight
-        state.stageCounters[1]++
-        return entropy
+        val entropy = NativeFastPath.coreIngest(noise)
+        if (entropy != Int.MIN_VALUE) {
+            state.entropyHint = entropy + eventWeight
+            state.stageCounters[1]++
+            return entropy
+        }
+        return state.entropyHint
     }
 
     /**
      * DELTA stage: branchless select between two ints using a mask.
      */
     fun deltaBranchless(a: Int, b: Int, mask: Int): Int {
-        val res = (a and mask.inv()) or (b and mask)
-        state.stageCounters[2]++
-        return res
+        val res = NativeFastPath.coreProcess(a, b, mask)
+        if (res != Int.MIN_VALUE) {
+            state.stageCounters[2]++
+            return res
+        }
+        return 0
     }
 
     /**
      * SIGMA stage: combine two ints with xor and rotate mix (linear pass).
      */
     fun sigmaCombine(a: Int, b: Int): Int {
-        val mix = a xor ((b shl 1) or (b ushr 31))
-        state.stageCounters[3]++
-        return mix
+        val mix = NativeFastPath.coreProcess(a, b, 1)
+        if (mix != Int.MIN_VALUE) {
+            state.stageCounters[3]++
+            return mix
+        }
+        return 0
     }
 
     /**
      * OMEGA stage: finalize digest from crc and entropy hints.
      */
     fun omegaFinalize(): Int {
-        state.stageCounters[4]++
-        return state.crc32c xor state.entropyHint
+        val audit = NativeFastPath.coreAudit()
+        if (audit != null && audit.size >= 2) {
+            state.stageCounters[4]++
+            state.crc32c = audit[0].toInt()
+            state.entropyHint = audit[1].toInt()
+            return state.crc32c xor state.entropyHint
+        }
+        return 0
     }
 
     /**
