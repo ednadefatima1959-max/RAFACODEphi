@@ -55,4 +55,13 @@ Recursos do módulo:
 Recursos:
 - autotuning determinístico de preset (balanced/performance/compatibility) com base em `RmR_HW_Detect`.
 - builder de argumentos QEMU para CPU/Memória/IO (`-smp`, `-drive cache/aio`, `iothread`, `virtio`).
+- lógica condicional de dispositivos: quando `use_virtio=1` usa `-drive if=virtio` e `-device virtio-net-pci`.
+- fallback explícito quando `use_virtio=0`: usa `-drive if=ide` e NIC compatível por guest (`e1000` padrão, `rtl8139` para PPC, `virtio-net-device` para ARM64/virt).
+- coerência de plano/preset: autotune para `RMR_GUEST_ARCH_PPC` força preset de compatibilidade e desativa caminhos `virtio/iothread` no comando final.
 - parser low-level de telemetria QMP (`status`, `query-cpus-fast`) sem dependências externas.
+
+
+Exemplos de linha de comando gerada:
+- `use_virtio=1` (x86_64): `-drive if=virtio,cache=...,aio=... -netdev user,id=n0 -device virtio-net-pci,netdev=n0`
+- `use_virtio=0` (fallback compat): `-drive if=ide,cache=...,aio=... -netdev user,id=n0 -device e1000,netdev=n0`
+- `RMR_GUEST_ARCH_PPC` (autotune): força compatibilidade com `-drive if=ide ... -device rtl8139,netdev=n0`
