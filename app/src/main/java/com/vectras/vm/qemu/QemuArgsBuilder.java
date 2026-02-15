@@ -68,12 +68,15 @@ public final class QemuArgsBuilder {
                 params.add("cpu-pm=on");
                 break;
             case THROUGHPUT:
-                params.add("-smp");
-                params.add("cpus=" + Math.max(2, Runtime.getRuntime().availableProcessors() - 1));
-                break;
             case BALANCED:
             default:
                 break;
+        }
+
+        int cpus = ExecutionBudgetPolicy.cpusFor(profile);
+        if (ExecutionBudgetPolicy.requiresSmp(profile)) {
+            params.add("-smp");
+            params.add("cpus=" + cpus);
         }
     }
 
