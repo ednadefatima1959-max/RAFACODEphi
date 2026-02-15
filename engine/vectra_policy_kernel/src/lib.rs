@@ -90,31 +90,19 @@ fn resolve_op(op: Op) -> &'static dyn DeterministicOp {
 fn canon_anchor(anchor: Option<AnchorAddr>) -> String {
     match anchor {
         Some(anchor) => format!("{}:{}:{}", anchor.dev, anchor.block, anchor.page),
-        None => "none".to_string(),
+        None => "-".to_string(),
     }
 }
 
 fn build_canon(op_code: &str, canonical_args: &[String], anchor: Option<AnchorAddr>) -> String {
-    let mut canon = String::new();
-    canon.push_str(op_code);
-    canon.push('|');
-
-    for arg in canonical_args {
-        canon.push_str(&arg.len().to_string());
-        canon.push(':');
-        canon.push_str(arg);
-        canon.push('|');
-    }
-
-    canon.push_str("anchor=");
-    canon.push_str(&canon_anchor(anchor));
-    canon
+    let anchor_repr = canon_anchor(anchor);
+    format!("{op_code}|{}|{anchor_repr}", canonical_args.join("\u{1F}"))
 }
 
 pub fn canonize(op: Op, args: &[String], anchor: Option<AnchorAddr>) -> Key {
     let plugin = resolve_op(op);
     let canonical_args = plugin.canonize(args);
-    let canon = build_canon(plugin.op_code(), &canonical_args, anchor);
+    let canon = build_canon(op_code, &canonical_args, anchor);
     Key {
         op,
         args: canonical_args,
@@ -138,16 +126,7 @@ pub fn commit_tick(tick: u64, events: &[Event]) -> Vec<(u64, Output)> {
             a.id.cmp(&b.id).then_with(|| a_hash.cmp(&b_hash))
         });
     }
-    ordered.sort_by(|(a_key, _), (b_key, _)| {
-        a_key
-            .canon
-            .cmp(&b_key.canon)
-            .then_with(|| a_key.anchor.cmp(&b_key.anchor))
-            .then_with(|| a_key.args.cmp(&b_key.args))
-            .then_with(|| a_key.op.cmp(&b_key.op))
-            .then_with(|| a_key.anchor.cmp(&b_key.anchor))
-            .then_with(|| a_key.canon.cmp(&b_key.canon))
-    });
+    ordered.sort_by(|(a_key, _), (b_key, _)| a_key.cmp(b_key));
 
     let mut committed = Vec::new();
     for (key, bucket) in ordered {
