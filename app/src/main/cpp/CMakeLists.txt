@@ -1,15 +1,11 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(vectra_core_accel C)
 
-option(RMR_ENABLE_POLICY_MODULE "Build and link rmr_policy_static extension module" OFF)
-option(RMR_ENABLE_BITRAF_MODULE "Build and link bitraf_static support module" ON)
+set(VECTRA_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../../)
+set(VECTRA_RMR_INCLUDE_DIR ${VECTRA_REPO_ROOT}/engine/rmr/include)
 
-if(NOT RMR_ENABLE_BITRAF_MODULE)
-    message(WARNING "RMR_ENABLE_BITRAF_MODULE=OFF breaks required symbols from rmr_unified_kernel.c; forcing ON for JNI-safe minimal profile")
-    set(RMR_ENABLE_BITRAF_MODULE ON CACHE BOOL "Build and link bitraf_static support module" FORCE)
-endif()
-
-add_library(rmr_core_static STATIC
+add_library(vectra_core_accel SHARED
+    vectra_core_accel.c
     ../../../../engine/rmr/src/rmr_unified_kernel.c
     ../../../../engine/rmr/src/rmr_hw_detect.c
     ../../../../engine/rmr/src/rmr_corelib.c
@@ -26,7 +22,8 @@ endif()
 add_library(bitraf_static STATIC
     ../../../../engine/rmr/src/bitraf.c)
 
-add_library(vectra_core_accel SHARED vectra_core_accel.c)
+find_library(log-lib log)
+find_package(JNI REQUIRED)
 
 if(ANDROID)
     find_library(log-lib log)
@@ -51,9 +48,12 @@ if(RMR_ENABLE_BITRAF_MODULE)
     target_link_libraries(vectra_core_accel PRIVATE bitraf_static)
 endif()
 
-target_include_directories(rmr_core_static PRIVATE ../../../../ ../../../../engine/rmr/include)
-if(TARGET rmr_policy_static)
-    target_include_directories(rmr_policy_static PRIVATE ../../../../ ../../../../engine/rmr/include)
+target_include_directories(vectra_core_accel PRIVATE
+    ${VECTRA_RMR_INCLUDE_DIR}
+    ${JNI_INCLUDE_DIRS})
+
+if(CMAKE_ANDROID_NDK)
+    target_include_directories(vectra_core_accel PRIVATE
+        ${CMAKE_ANDROID_NDK}/sysroot/usr/include
+        ${CMAKE_ANDROID_NDK}/sysroot/usr/include/${CMAKE_ANDROID_ARCH_TRIPLE})
 endif()
-target_include_directories(bitraf_static PRIVATE ../../../../ ../../../../engine/rmr/include)
-target_include_directories(vectra_core_accel PRIVATE ../../../../ ../../../../engine/rmr/include)
