@@ -147,11 +147,14 @@ Este catálogo documenta **todos os arquivos soltos no diretório raiz** do repo
 
 ## 15) `vectras.jks`
 
-**Papel**: Keystore Java (arquivo binário) usado para assinatura de builds **debug** e **release**.  
+**Papel**: Entrada histórica de keystore Java; atualmente documentada apenas para contexto de migração e governança de assinatura.  
 **Conexões**:
-- Referenciado diretamente em `app/build.gradle` como `storeFile` nas configurações de assinatura (`debug` e `release`).  
-- Implica necessidade de controle rigoroso de acesso, por conter material de assinatura.  
-**Evidência**: arquivo binário (conteúdo ASN.1/PKCS-like) com tamanho ~2,7 KB, e referência explícita nas configurações de signing do módulo `app`.  
+- A assinatura de **release** é injetada em tempo de build via `android.injected.signing.*` ou variáveis `VECTRAS_RELEASE_*` (segredos de CI/cofre).  
+- Builds de **debug** usam a keystore padrão de debug do Android Gradle Plugin (AGP), sem reutilizar credenciais de release.  
+- `vectras.jks` não deve ser tratado como fluxo ativo de assinatura no repositório versionado.  
+**Evidência**: `app/build.gradle` resolve parâmetros de release a partir de propriedades/variáveis de ambiente e aplica signing apenas quando esses segredos são fornecidos; o build `debug` não define `signingConfig` customizado.  
+
+**Nota de migração histórica**: versões antigas da documentação mencionavam uso direto de keystore no repositório. O fluxo vigente migrou para injeção de segredos no CI para reduzir exposição de material criptográfico e evitar regressão documental.  
 
 ---
 
@@ -161,7 +164,7 @@ Este catálogo documenta **todos os arquivos soltos no diretório raiz** do repo
 2. **Documentação técnica**: `README.md` aponta para `VECTRA_CORE.md` e `docs/`, enquanto `archive/root-history/ADVANCED_OPTIMIZATIONS.md`, `archive/root-history/IMPLEMENTATION_SUMMARY.md`, `archive/root-history/IMPLEMENTATION_COMPLETE.md` e `archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md` formam o conjunto de documentação especializada e status de implementação.  
 3. **Build e módulos**: `settings.gradle` lista módulos; `build.gradle` define plugins e versões; `gradle.properties` controla flags globais; `gradlew/gradlew.bat` garantem execução consistente.  
 4. **Integrações externas**: `.firebaserc` define o projeto Firebase; `.gitignore` evita versionamento de `google-services.json`.  
-5. **Assinatura**: `vectras.jks` é o artefato de signing referenciado por `app/build.gradle`.  
+5. **Assinatura**: release assinado via `android.injected.signing.*`/`VECTRAS_RELEASE_*` e debug assinado com keystore padrão do AGP; `vectras.jks` permanece apenas como referência histórica/documental.  
 
 ---
 
