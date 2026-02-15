@@ -1,6 +1,7 @@
 package com.vectras.vm.rafaelia;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import java.io.File;
 import java.io.RandomAccessFile;
@@ -9,6 +10,51 @@ import java.nio.file.Files;
 import org.junit.Test;
 
 public class RafaeliaMvpTest {
+
+  @Test
+  public void resolveSeedUsesFixedDefaultForBenchmark() {
+    long seed = RafaeliaMvp.resolveSeed(RafaeliaMvp.MODE_BENCHMARK, null);
+    assertEquals(RafaeliaMvp.BENCHMARK_DEFAULT_SEED, seed);
+  }
+
+  @Test
+  public void resolveSeedUsesProvidedSeedForAnyMode() {
+    long expected = 0x1234ABCDL;
+    assertEquals(expected, RafaeliaMvp.resolveSeed(RafaeliaMvp.MODE_BENCHMARK, expected));
+    assertEquals(expected, RafaeliaMvp.resolveSeed(RafaeliaMvp.MODE_FUZZ, expected));
+  }
+
+  @Test
+  public void parseMainConfigSupportsModeSeedAndPath() {
+    RafaeliaMvp.RuntimeConfig config = RafaeliaMvp.parseMainConfig(
+        new String[] {"mode=benchmark", "seed=0x10", "./custom.bin"});
+
+    assertEquals(RafaeliaMvp.MODE_BENCHMARK, config.mode());
+    assertEquals(Long.valueOf(16L), config.providedSeed());
+    assertEquals(16L, config.resolvedSeed());
+    assertEquals("./custom.bin", config.path().getPath());
+  }
+
+  @Test
+  public void parseMainConfigDefaultsToFuzzAndVariableSeed() {
+    RafaeliaMvp.RuntimeConfig configA = RafaeliaMvp.parseMainConfig(new String[] {});
+    RafaeliaMvp.RuntimeConfig configB = RafaeliaMvp.parseMainConfig(new String[] {});
+
+    assertEquals(RafaeliaMvp.MODE_FUZZ, configA.mode());
+    assertNotEquals(RafaeliaMvp.BENCHMARK_DEFAULT_SEED, configA.resolvedSeed());
+    assertNotEquals(configA.resolvedSeed(), configB.resolvedSeed());
+  }
+
+  @Test
+  public void parseMainConfigSupportsConfigObjectInput() {
+    RafaeliaMvp.ConfigInput input = new RafaeliaMvp.ConfigInput(
+        new File("./cfg.bin"), RafaeliaMvp.MODE_BENCHMARK, null);
+
+    RafaeliaMvp.RuntimeConfig config = RafaeliaMvp.parseMainConfig(input);
+    assertEquals(RafaeliaMvp.MODE_BENCHMARK, config.mode());
+    assertEquals(RafaeliaMvp.BENCHMARK_DEFAULT_SEED, config.resolvedSeed());
+    assertEquals("./cfg.bin", config.path().getPath());
+  }
 
   @Test
   public void parityForSingleBitSetsRowAndColumn() {
