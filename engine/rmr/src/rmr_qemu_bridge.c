@@ -82,6 +82,10 @@ void RmR_QemuPlan_Autotune(const RmR_HW_Info *hw,
       plan->use_multifd = 0u;
       break;
   }
+
+  if (!plan->use_virtio) {
+    plan->use_iothread = 0u;
+  }
 }
 
 int RmR_QemuPlan_BuildArgs(const RmR_QemuPlan *plan, char *out, size_t out_len) {
