@@ -280,6 +280,10 @@ public class ProcessSupervisor {
         return ExecutionBudgetPolicy.defaults().processSupervisorQmp().maxThreads;
     }
 
+    public static ExecutionExecutors.DomainSnapshot getQmpExecutorSnapshot() {
+        return ExecutionExecutors.get().processSupervisorQmpSnapshot();
+    }
+
     static boolean isQmpExecutorCallerRunsPolicyForTests() {
         return false;
     }

@@ -19,6 +19,7 @@ public class ShellExecutor {
     private static final int OUTPUT_MAX_LINES = 512;
     private static final int OUTPUT_MAX_BYTES = 256 * 1024;
     private final ThreadPoolExecutor executorService;
+    private final boolean ownsExecutorService;
     private volatile Process shellExecutorProcess;
     private volatile Future<?> processFuture;
 
@@ -41,7 +42,12 @@ public class ShellExecutor {
     }
 
     ShellExecutor(ThreadPoolExecutor executorService) {
+        this(executorService, true);
+    }
+
+    private ShellExecutor(ThreadPoolExecutor executorService, boolean ownsExecutorService) {
         this.executorService = executorService;
+        this.ownsExecutorService = ownsExecutorService;
     }
 
     public void exec(String command) {
@@ -90,7 +96,9 @@ public class ShellExecutor {
 
     public void shutdown() {
         cancel();
-        executorService.shutdownNow();
+        if (ownsExecutorService) {
+            executorService.shutdownNow();
+        }
     }
 
     int getPoolSizeLimitForTests() {

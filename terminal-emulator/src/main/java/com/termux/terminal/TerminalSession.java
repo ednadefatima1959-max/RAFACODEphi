@@ -152,6 +152,10 @@ public final class TerminalSession extends TerminalOutput {
     private volatile Future<?> mOutputWriterTask;
     private volatile Future<?> mWaiterTask;
 
+    private volatile Future<?> mInputReaderFuture;
+    private volatile Future<?> mOutputWriterFuture;
+    private volatile Future<?> mWaiterFuture;
+
     public TerminalSession(String shellPath, String cwd, String[] args, String[] env, SessionChangedCallback changeCallback) {
         mChangeCallback = changeCallback;
 
