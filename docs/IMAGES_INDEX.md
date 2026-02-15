@@ -35,8 +35,8 @@ This document provides a comprehensive mapping of architecture, UI, and system i
 | 5 | `ziprafa-integrity-architecture.png` | [97010343-3677-4766-b070-9fece88ba754](https://github.com/user-attachments/assets/97010343-3677-4766-b070-9fece88ba754) | ⏳ Pending |
 | 6 | `additional-image-01.png` | [2123ec50-7240-490a-8975-bd675ca1fa92](https://github.com/user-attachments/assets/2123ec50-7240-490a-8975-bd675ca1fa92) | ⏳ Pending |
 | 7-90 | `additional-image-XX.png` | (Various URLs from issue) | ⏳ Pending |
-| 91 | `rafaelia-core-eye-toroid.png` | (Provided via chat prompt) | ⏳ Pending |
-| 92 | `rafaelia-coherence-layers.png` | (Provided via chat prompt) | ⏳ Pending |
+| 91 | `rafaelia-core-eye-toroid.png` | (Provided via chat prompt) | 📨 Received in session / asset file pending |
+| 92 | `rafaelia-coherence-layers.png` | (Provided via chat prompt) | 📨 Received in session / asset file pending |
 
 **To add images:**
 ```bash
@@ -189,6 +189,19 @@ app/src/main/java/com/vectras/vm/
 ---
 
 ## 4. Actionable Improvements
+
+### 4.0 Coherence Upgrade (Enterprise Full-Stack)
+
+The two images received in-session (`rafaelia-core-eye-toroid.png`, `rafaelia-coherence-layers.png`) reinforce the same architectural axis already implemented in code:
+
+- **Product/UI axis**: operational clarity and safe navigation.
+- **Runtime axis**: deterministic cycle (`Input → Process → Output → Next`) with append-only evidence.
+- **Platform/Governance axis**: reproducible build and source traceability.
+
+Documentation linkage for this enterprise cohesion pass:
+- `docs/navigation/ENTERPRISE_COMPANIES.md`
+- `docs/SOURCE_TRACEABILITY_MATRIX.md`
+- `VECTRA_CORE.md`
 
 ### 4.1 UI/UX Patches
 
