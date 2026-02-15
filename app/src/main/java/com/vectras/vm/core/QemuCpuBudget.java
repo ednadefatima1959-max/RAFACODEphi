@@ -1,48 +1,50 @@
 package com.vectras.vm.core;
 
 /**
- * QEMU vCPU budget resolved from profile + hardware capacity.
+ * Orçamento de CPU para mapear em argumento {@code -smp} do QEMU.
  */
 public final class QemuCpuBudget {
 
-    private final int totalVcpus;
     private final int sockets;
     private final int cores;
     private final int threads;
+    private final int maxVcpus;
 
-    public QemuCpuBudget(int totalVcpus, int sockets, int cores, int threads) {
-        if (totalVcpus <= 0) {
-            throw new IllegalArgumentException("totalVcpus must be > 0");
+    public QemuCpuBudget(int sockets, int cores, int threads, int maxVcpus) {
+        if (sockets < 1 || cores < 1 || threads < 1 || maxVcpus < 1) {
+            throw new IllegalArgumentException("all cpu dimensions must be >= 1");
         }
-        if (sockets <= 0 || cores <= 0 || threads <= 0) {
-            throw new IllegalArgumentException("sockets/cores/threads must be > 0");
+        int logicalCpus = sockets * cores * threads;
+        if (maxVcpus > logicalCpus) {
+            throw new IllegalArgumentException("maxVcpus cannot exceed sockets*cores*threads");
         }
-        this.totalVcpus = totalVcpus;
         this.sockets = sockets;
         this.cores = cores;
         this.threads = threads;
+        this.maxVcpus = maxVcpus;
     }
 
-    public int totalVcpus() {
-        return totalVcpus;
-    }
-
-    public int sockets() {
+    public int getSockets() {
         return sockets;
     }
 
-    public int cores() {
+    public int getCores() {
         return cores;
     }
 
-    public int threads() {
+    public int getThreads() {
         return threads;
     }
 
+    public int getMaxVcpus() {
+        return maxVcpus;
+    }
+
     public String toSmpArgument() {
-        return "cpus=" + totalVcpus
+        return "cpus=" + maxVcpus
                 + ",sockets=" + sockets
                 + ",cores=" + cores
-                + ",threads=" + threads;
+                + ",threads=" + threads
+                + ",maxcpus=" + maxVcpus;
     }
 }

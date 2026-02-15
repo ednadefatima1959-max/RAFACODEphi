@@ -1,50 +1,50 @@
 package com.vectras.vm.core;
 
 /**
- * Unified execution budget for VM orchestration.
+ * Limites de execução consolidados para um perfil de VM.
  */
 public final class ExecutionBudget {
 
-    private final int processLimit;
-    private final int threadLimit;
-    private final ThreadPoolBudget threadPoolBudget;
+    private final int maxProcesses;
+    private final int maxThreads;
     private final QemuCpuBudget qemuCpuBudget;
+    private final ThreadPoolBudget threadPoolBudget;
 
-    public ExecutionBudget(int processLimit,
-                           int threadLimit,
-                           ThreadPoolBudget threadPoolBudget,
-                           QemuCpuBudget qemuCpuBudget) {
-        if (processLimit <= 0) {
-            throw new IllegalArgumentException("processLimit must be > 0");
+    public ExecutionBudget(int maxProcesses,
+                           int maxThreads,
+                           QemuCpuBudget qemuCpuBudget,
+                           ThreadPoolBudget threadPoolBudget) {
+        if (maxProcesses < 1) {
+            throw new IllegalArgumentException("maxProcesses must be >= 1");
         }
-        if (threadLimit <= 0) {
-            throw new IllegalArgumentException("threadLimit must be > 0");
-        }
-        if (threadPoolBudget == null) {
-            throw new IllegalArgumentException("threadPoolBudget == null");
+        if (maxThreads < 1) {
+            throw new IllegalArgumentException("maxThreads must be >= 1");
         }
         if (qemuCpuBudget == null) {
             throw new IllegalArgumentException("qemuCpuBudget == null");
         }
-        this.processLimit = processLimit;
-        this.threadLimit = threadLimit;
-        this.threadPoolBudget = threadPoolBudget;
+        if (threadPoolBudget == null) {
+            throw new IllegalArgumentException("threadPoolBudget == null");
+        }
+        this.maxProcesses = maxProcesses;
+        this.maxThreads = maxThreads;
         this.qemuCpuBudget = qemuCpuBudget;
+        this.threadPoolBudget = threadPoolBudget;
     }
 
-    public int processLimit() {
-        return processLimit;
+    public int getMaxProcesses() {
+        return maxProcesses;
     }
 
-    public int threadLimit() {
-        return threadLimit;
+    public int getMaxThreads() {
+        return maxThreads;
     }
 
-    public ThreadPoolBudget threadPoolBudget() {
-        return threadPoolBudget;
-    }
-
-    public QemuCpuBudget qemuCpuBudget() {
+    public QemuCpuBudget getQemuCpuBudget() {
         return qemuCpuBudget;
+    }
+
+    public ThreadPoolBudget getThreadPoolBudget() {
+        return threadPoolBudget;
     }
 }

@@ -2,158 +2,174 @@ package com.vectras.vm.core;
 
 import com.vectras.vm.qemu.VmProfile;
 
-import java.util.Locale;
-
 /**
- * Deterministic budget policy for process/thread envelopes, QEMU -smp and executors.
+ * Resolve orçamento determinístico para execução da VM e pools auxiliares.
  */
 public final class ExecutionBudgetPolicy {
+
+    private static final int MIN_CPU = 1;
+    private static final int MAX_CPU = 64;
 
     private ExecutionBudgetPolicy() {
         throw new AssertionError("ExecutionBudgetPolicy is a utility class and cannot be instantiated");
     }
 
     public static ExecutionBudget resolve(VmProfile profile, int availableProcessors, String architecture) {
-        VmProfile vmProfile = profile == null ? VmProfile.BALANCED : profile;
-        int hostCores = sanitizeProcessors(availableProcessors);
-        int archTier = architectureTier(architecture);
+        VmProfile safeProfile = profile == null ? VmProfile.BALANCED : profile;
+        String arch = architecture == null ? "UNKNOWN" : architecture;
+        int normalizedCpu = clamp(availableProcessors, MIN_CPU, MAX_CPU);
 
-        int processLimit = baseProcessLimit(vmProfile);
-        int threadLimit = baseThreadLimit(vmProfile, hostCores, archTier);
+        boolean lowCapacity = normalizedCpu <= 2;
+        boolean legacyArch = "PPC".equals(arch) || "I386".equals(arch);
+        boolean modernArch = "X86_64".equals(arch) || "ARM64".equals(arch);
 
-        int qemuVcpus = resolveQemuVcpus(vmProfile, hostCores, archTier);
-        QemuCpuBudget qemuCpuBudget = new QemuCpuBudget(qemuVcpus, 1, qemuVcpus, 1);
+        int processLimit = resolveProcessLimit(safeProfile, normalizedCpu, lowCapacity, legacyArch);
+        int threadLimit = resolveThreadLimit(safeProfile, normalizedCpu, lowCapacity, modernArch);
 
-        int executorCorePool = clamp(Math.min(threadLimit, Math.max(1, qemuVcpus / 2 + 1)), 1, threadLimit);
-        int executorMaxPool = clamp(Math.max(executorCorePool, Math.min(threadLimit, qemuVcpus + 1)), 1, threadLimit);
-        int queueCapacity = resolveQueueCapacity(vmProfile, hostCores, archTier);
+        QemuCpuBudget qemuCpuBudget = resolveQemuCpuBudget(safeProfile, normalizedCpu, arch, lowCapacity);
+        ThreadPoolBudget threadPoolBudget = resolveThreadPoolBudget(safeProfile, normalizedCpu, lowCapacity);
 
-        ThreadPoolBudget.RejectionPolicy rejectionPolicy =
-                vmProfile == VmProfile.LOW_LATENCY
-                        ? ThreadPoolBudget.RejectionPolicy.DISCARD_OLDEST
-                        : ThreadPoolBudget.RejectionPolicy.CALLER_RUNS;
-
-        ThreadPoolBudget poolBudget = new ThreadPoolBudget(
-                executorCorePool,
-                executorMaxPool,
-                queueCapacity,
-                rejectionPolicy,
-                "vm-" + vmProfile.name().toLowerCase(Locale.US) + "-"
-        );
-
-        return new ExecutionBudget(processLimit, threadLimit, poolBudget, qemuCpuBudget);
+        return new ExecutionBudget(processLimit, threadLimit, qemuCpuBudget, threadPoolBudget);
     }
 
-    private static int baseProcessLimit(VmProfile profile) {
-        switch (profile) {
-            case FAST_BOOT:
-                return 32;
-            case LOW_LATENCY:
-                return 40;
-            case THROUGHPUT:
-                return 56;
-            case BALANCED:
-            default:
-                return 48;
-        }
-    }
-
-    private static int baseThreadLimit(VmProfile profile, int hostCores, int archTier) {
-        int multiplier;
-        switch (profile) {
-            case FAST_BOOT:
-                multiplier = 4;
-                break;
-            case LOW_LATENCY:
-                multiplier = 3;
-                break;
-            case THROUGHPUT:
-                multiplier = 6;
-                break;
-            case BALANCED:
-            default:
-                multiplier = 5;
-                break;
-        }
-        int tierAdjust = (archTier - 1) * 2;
-        return clamp((hostCores * multiplier) + tierAdjust, 8, 96);
-    }
-
-    private static int resolveQemuVcpus(VmProfile profile, int hostCores, int archTier) {
-        int reserve = hostCores <= 2 ? 1 : 2;
-        int maxAlloc = Math.max(1, hostCores - reserve);
-
-        int target;
-        switch (profile) {
-            case FAST_BOOT:
-                target = Math.min(2, maxAlloc);
-                break;
-            case LOW_LATENCY:
-                target = Math.min(3, maxAlloc);
-                break;
-            case THROUGHPUT:
-                target = maxAlloc;
-                break;
-            case BALANCED:
-            default:
-                target = Math.min(Math.max(2, hostCores - 1), maxAlloc);
-                break;
-        }
-
-        if (archTier == 0) {
-            target = Math.min(target, 2);
-        } else if (archTier == 1) {
-            target = Math.min(target, 4);
-        }
-
-        return clamp(target, 1, 8);
-    }
-
-    private static int resolveQueueCapacity(VmProfile profile, int hostCores, int archTier) {
-        int base;
-        switch (profile) {
-            case LOW_LATENCY:
-                base = 12;
-                break;
-            case THROUGHPUT:
-                base = 32;
-                break;
-            case FAST_BOOT:
-                base = 8;
-                break;
-            case BALANCED:
-            default:
-                base = 20;
-                break;
-        }
-        int capacity = base + (hostCores * 2) + (archTier * 2);
-        return clamp(capacity, 8, 64);
-    }
-
-    private static int sanitizeProcessors(int availableProcessors) {
-        if (availableProcessors <= 0) {
-            return 1;
-        }
-        return availableProcessors;
-    }
-
-    private static int architectureTier(String architecture) {
-        if (architecture == null) {
-            return 0;
-        }
-        String arch = architecture.trim().toUpperCase();
-        if ("X86_64".equals(arch) || "ARM64".equals(arch)) {
+    private static int resolveProcessLimit(VmProfile profile, int cpus, boolean lowCapacity, boolean legacyArch) {
+        if (lowCapacity) {
             return 2;
         }
-        if ("I386".equals(arch) || "PPC".equals(arch)) {
-            return 1;
+
+        int budget;
+        switch (profile) {
+            case FAST_BOOT:
+                budget = 3;
+                break;
+            case LOW_LATENCY:
+                budget = Math.max(3, cpus / 2);
+                break;
+            case THROUGHPUT:
+                budget = Math.max(4, (cpus / 2) + 1);
+                break;
+            case BALANCED:
+            default:
+                budget = Math.max(3, (cpus / 2));
+                break;
         }
-        return 0;
+
+        if (legacyArch) {
+            budget = Math.max(2, budget - 1);
+        }
+        return clamp(budget, 2, 16);
+    }
+
+    private static int resolveThreadLimit(VmProfile profile, int cpus, boolean lowCapacity, boolean modernArch) {
+        if (lowCapacity) {
+            return 6;
+        }
+
+        int budget;
+        switch (profile) {
+            case FAST_BOOT:
+                budget = cpus + 1;
+                break;
+            case LOW_LATENCY:
+                budget = (cpus * 2) + 2;
+                break;
+            case THROUGHPUT:
+                budget = (cpus * 2) + 4;
+                break;
+            case BALANCED:
+            default:
+                budget = (cpus * 2);
+                break;
+        }
+
+        if (!modernArch) {
+            budget -= 1;
+        }
+        return clamp(budget, 6, 64);
+    }
+
+    private static QemuCpuBudget resolveQemuCpuBudget(VmProfile profile, int cpus, String arch, boolean lowCapacity) {
+        if (lowCapacity) {
+            return new QemuCpuBudget(1, 1, 1, 1);
+        }
+
+        int maxVcpus;
+        switch (profile) {
+            case FAST_BOOT:
+                maxVcpus = Math.min(2, cpus);
+                break;
+            case LOW_LATENCY:
+                maxVcpus = Math.min(Math.max(2, cpus - 1), 4);
+                break;
+            case THROUGHPUT:
+                maxVcpus = Math.min(Math.max(2, cpus - 1), 8);
+                break;
+            case BALANCED:
+            default:
+                maxVcpus = Math.min(Math.max(2, cpus - 1), 6);
+                break;
+        }
+
+        int sockets = "PPC".equals(arch) ? 1 : 1;
+        int cores = Math.max(1, maxVcpus / sockets);
+        int threads = 1;
+
+        return new QemuCpuBudget(sockets, cores, threads, maxVcpus);
+    }
+
+    private static ThreadPoolBudget resolveThreadPoolBudget(VmProfile profile, int cpus, boolean lowCapacity) {
+        if (lowCapacity) {
+            return new ThreadPoolBudget(
+                    1,
+                    16,
+                    ThreadPoolBudget.RejectionPolicy.CALLER_RUNS,
+                    "vectras-lowcap"
+            );
+        }
+
+        int poolSize;
+        int queueCapacity;
+        ThreadPoolBudget.RejectionPolicy rejectionPolicy;
+        String threadPrefix;
+
+        switch (profile) {
+            case FAST_BOOT:
+                poolSize = Math.min(2, cpus);
+                queueCapacity = 24;
+                rejectionPolicy = ThreadPoolBudget.RejectionPolicy.DISCARD_OLDEST;
+                threadPrefix = "vectras-fastboot";
+                break;
+            case LOW_LATENCY:
+                poolSize = Math.min(4, Math.max(2, cpus - 1));
+                queueCapacity = 32;
+                rejectionPolicy = ThreadPoolBudget.RejectionPolicy.CALLER_RUNS;
+                threadPrefix = "vectras-latency";
+                break;
+            case THROUGHPUT:
+                poolSize = Math.min(6, Math.max(2, cpus));
+                queueCapacity = 96;
+                rejectionPolicy = ThreadPoolBudget.RejectionPolicy.DISCARD_OLDEST;
+                threadPrefix = "vectras-throughput";
+                break;
+            case BALANCED:
+            default:
+                poolSize = Math.min(4, Math.max(2, cpus - 1));
+                queueCapacity = 64;
+                rejectionPolicy = ThreadPoolBudget.RejectionPolicy.CALLER_RUNS;
+                threadPrefix = "vectras-balanced";
+                break;
+        }
+
+        return new ThreadPoolBudget(poolSize, queueCapacity, rejectionPolicy, threadPrefix);
     }
 
     private static int clamp(int value, int min, int max) {
-        if (value < min) return min;
-        if (value > max) return max;
+        if (value < min) {
+            return min;
+        }
+        if (value > max) {
+            return max;
+        }
         return value;
     }
 }
