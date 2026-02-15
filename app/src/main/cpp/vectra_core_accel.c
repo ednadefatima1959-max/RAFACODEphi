@@ -648,6 +648,85 @@ Java_com_vectras_vm_core_NativeFastPath_nativeRotateRight32(JNIEnv* env, jclass 
 #endif
 }
 
+static inline int32_t vectra_clamp16(int32_t value) {
+    if (value < -32768) {
+        return -32768;
+    }
+    if (value > 32767) {
+        return 32767;
+    }
+    return value;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_NativeFastPath_nativeVec2Pack(JNIEnv* env, jclass clazz, jint x, jint y) {
+    (void)env;
+    (void)clazz;
+    return (jint)((((uint32_t)y & 0xFFFFu) << 16) | ((uint32_t)x & 0xFFFFu));
+}
+
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_NativeFastPath_nativeVec2X(JNIEnv* env, jclass clazz, jint vec) {
+    (void)env;
+    (void)clazz;
+    return (jint)(int16_t)((uint32_t)vec & 0xFFFFu);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_NativeFastPath_nativeVec2Y(JNIEnv* env, jclass clazz, jint vec) {
+    (void)env;
+    (void)clazz;
+    return (jint)(int16_t)(((uint32_t)vec >> 16) & 0xFFFFu);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_NativeFastPath_nativeVec2AddSat(JNIEnv* env, jclass clazz, jint a, jint b) {
+    (void)env;
+    (void)clazz;
+
+    int32_t ax = (int16_t)((uint32_t)a & 0xFFFFu);
+    int32_t ay = (int16_t)(((uint32_t)a >> 16) & 0xFFFFu);
+    int32_t bx = (int16_t)((uint32_t)b & 0xFFFFu);
+    int32_t by = (int16_t)(((uint32_t)b >> 16) & 0xFFFFu);
+
+    int32_t sx = vectra_clamp16(ax + bx);
+    int32_t sy = vectra_clamp16(ay + by);
+
+    return (jint)((((uint32_t)sy & 0xFFFFu) << 16) | ((uint32_t)sx & 0xFFFFu));
+}
+
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_NativeFastPath_nativeVec2Dot(JNIEnv* env, jclass clazz, jint a, jint b) {
+    (void)env;
+    (void)clazz;
+
+    int32_t ax = (int16_t)((uint32_t)a & 0xFFFFu);
+    int32_t ay = (int16_t)(((uint32_t)a >> 16) & 0xFFFFu);
+    int32_t bx = (int16_t)((uint32_t)b & 0xFFFFu);
+    int32_t by = (int16_t)(((uint32_t)b >> 16) & 0xFFFFu);
+
+#if defined(__aarch64__)
+    int32_t result;
+    __asm__ volatile(
+            "smull x8, %w1, %w3\n\t"
+            "smaddl x8, %w2, %w4, x8\n\t"
+            "mov %w0, w8\n\t"
+            : "=r"(result)
+            : "r"(ax), "r"(ay), "r"(bx), "r"(by)
+            : "x8");
+    return (jint)result;
+#else
+    return (jint)(ax * bx + ay * by);
+#endif
+}
+
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_NativeFastPath_nativeVec2Mag2(JNIEnv* env, jclass clazz, jint vec) {
+    (void)env;
+    (void)clazz;
+    return Java_com_vectras_vm_core_NativeFastPath_nativeVec2Dot(env, clazz, vec, vec);
+}
+
 JNIEXPORT jintArray JNICALL
 Java_com_vectras_vm_core_NativeFastPath_nativeReadHardwareContract(JNIEnv* env, jclass clazz) {
     (void)clazz;

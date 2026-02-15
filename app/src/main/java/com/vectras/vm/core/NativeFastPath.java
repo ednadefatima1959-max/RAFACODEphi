@@ -419,6 +419,66 @@ public final class NativeFastPath {
         return v & 0x3F;
     }
 
+    public static int vec2Pack(int x, int y) {
+        if (NATIVE_AVAILABLE) {
+            return nativeVec2Pack(x, y);
+        }
+        return ((y & 0xFFFF) << 16) | (x & 0xFFFF);
+    }
+
+    public static int vec2X(int vec) {
+        if (NATIVE_AVAILABLE) {
+            return nativeVec2X(vec);
+        }
+        return (short) (vec & 0xFFFF);
+    }
+
+    public static int vec2Y(int vec) {
+        if (NATIVE_AVAILABLE) {
+            return nativeVec2Y(vec);
+        }
+        return (short) (vec >>> 16);
+    }
+
+    public static int vec2AddSat(int a, int b) {
+        if (NATIVE_AVAILABLE) {
+            return nativeVec2AddSat(a, b);
+        }
+        int ax = vec2X(a);
+        int ay = vec2Y(a);
+        int bx = vec2X(b);
+        int by = vec2Y(b);
+        return vec2Pack(clamp16(ax + bx), clamp16(ay + by));
+    }
+
+    public static int vec2Dot(int a, int b) {
+        if (NATIVE_AVAILABLE) {
+            return nativeVec2Dot(a, b);
+        }
+        int ax = vec2X(a);
+        int ay = vec2Y(a);
+        int bx = vec2X(b);
+        int by = vec2Y(b);
+        return ax * bx + ay * by;
+    }
+
+    public static int vec2Mag2(int vec) {
+        if (NATIVE_AVAILABLE) {
+            return nativeVec2Mag2(vec);
+        }
+        return vec2Dot(vec, vec);
+    }
+
+    private static int clamp16(int value) {
+        if (value < Short.MIN_VALUE) {
+            return Short.MIN_VALUE;
+        }
+        if (value > Short.MAX_VALUE) {
+            return Short.MAX_VALUE;
+        }
+        return value;
+    }
+
     static final class HardwareProfile {
         final int signature;
         final int pointerBits;
@@ -450,6 +510,18 @@ public final class NativeFastPath {
     private static native int nativeRotateLeft32(int value, int distance);
 
     private static native int nativeRotateRight32(int value, int distance);
+
+    private static native int nativeVec2Pack(int x, int y);
+
+    private static native int nativeVec2X(int vec);
+
+    private static native int nativeVec2Y(int vec);
+
+    private static native int nativeVec2AddSat(int a, int b);
+
+    private static native int nativeVec2Dot(int a, int b);
+
+    private static native int nativeVec2Mag2(int vec);
 
     private static native int nativeAllocArena(int bytes);
 
