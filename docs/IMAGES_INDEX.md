@@ -1,6 +1,6 @@
 # Images Index / Índice de Imagens
 
-> **Documentation Version**: 1.0.0 | **Last Updated**: January 2026
+> **Documentation Version**: 1.1.0 | **Last Updated**: 2026-02-15
 
 This document provides a comprehensive mapping of architecture, UI, and system images to their corresponding code implementations in the Vectras VM Android application.
 
@@ -22,45 +22,36 @@ This document provides a comprehensive mapping of architecture, UI, and system i
 
 ## 1. Image Checklist (Status Real)
 
-> **📋 Status auditado**: A tabela abaixo reflete o estado real dos assets em `docs/assets/` (presente/ausente).
+> **✅ Maintainer Status**: Este índice referencia apenas imagens com metadados completos no manifesto único: [`docs/assets/MANIFEST.md`](assets/MANIFEST.md).
 
-### Status real dos arquivos (docs/assets)
+### Tracked Images (metadata complete)
 
-| # | Filename canônico | Origem | Path local | Status real |
-|---|-------------------|--------|------------|-------------|
-| 1 | `rafaelia-fractal-architecture.png` | [3c9e94f2-fc94-4782-80e8-b884bc4c6d3e](https://github.com/user-attachments/assets/3c9e94f2-fc94-4782-80e8-b884bc4c6d3e) | `docs/assets/rafaelia-fractal-architecture.png` | ❌ Ausente |
-| 2 | `rafaelia-system-pipeline.png` | [aafce52f-c83b-480b-b1d4-d579256c2363](https://github.com/user-attachments/assets/aafce52f-c83b-480b-b1d4-d579256c2363) | `docs/assets/rafaelia-system-pipeline.png` | ❌ Ausente |
-| 3 | `rafaelia-mathematical.png` | [d69640be-83f6-413b-b3b1-2ebbfc1e7cd4](https://github.com/user-attachments/assets/d69640be-83f6-413b-b3b1-2ebbfc1e7cd4) | `docs/assets/rafaelia-mathematical.png` | ❌ Ausente |
-| 4 | `vectra-mystical-ui-concept.png` | [aa58501e-263c-47fe-91b6-406b373cb3f6](https://github.com/user-attachments/assets/aa58501e-263c-47fe-91b6-406b373cb3f6) | `docs/assets/vectra-mystical-ui-concept.png` | ❌ Ausente |
-| 5 | `ziprafa-integrity-architecture.png` | [97010343-3677-4766-b070-9fece88ba754](https://github.com/user-attachments/assets/97010343-3677-4766-b070-9fece88ba754) | `docs/assets/ziprafa-integrity-architecture.png` | ❌ Ausente |
-| 6 | `additional-image-01.png` | [2123ec50-7240-490a-8975-bd675ca1fa92](https://github.com/user-attachments/assets/2123ec50-7240-490a-8975-bd675ca1fa92) | `docs/assets/additional-image-01.png` | ❌ Ausente |
-| 91 | `rafaelia-core-eye-toroid.png` | (Provided via chat prompt) | `docs/assets/rafaelia-core-eye-toroid.png` | ❌ Ausente |
-| 92 | `rafaelia-coherence-layers.png` | (Provided via chat prompt) | `docs/assets/rafaelia-coherence-layers.png` | ❌ Ausente |
+| # | Filename | Source URL | Manifest Status |
+|---|----------|------------|-----------------|
+| 1 | `ascii/rafaelia-fractal-architecture.ascii.md` | [3c9e94f2-fc94-4782-80e8-b884bc4c6d3e](https://github.com/user-attachments/assets/3c9e94f2-fc94-4782-80e8-b884bc4c6d3e) | ✅ Complete |
+| 2 | `ascii/rafaelia-system-pipeline.ascii.md` | [aafce52f-c83b-480b-b1d4-d579256c2363](https://github.com/user-attachments/assets/aafce52f-c83b-480b-b1d4-d579256c2363) | ✅ Complete |
+| 3 | `ascii/rafaelia-mathematical.ascii.md` | [d69640be-83f6-413b-b3b1-2ebbfc1e7cd4](https://github.com/user-attachments/assets/d69640be-83f6-413b-b3b1-2ebbfc1e7cd4) | ✅ Complete |
+| 4 | `ascii/vectra-mystical-ui-concept.ascii.md` | [aa58501e-263c-47fe-91b6-406b373cb3f6](https://github.com/user-attachments/assets/aa58501e-263c-47fe-91b6-406b373cb3f6) | ✅ Complete |
+| 5 | `ascii/ziprafa-integrity-architecture.ascii.md` | [97010343-3677-4766-b070-9fece88ba754](https://github.com/user-attachments/assets/97010343-3677-4766-b070-9fece88ba754) | ✅ Complete |
+| 6 | `ascii/additional-image-01.ascii.md` | [2123ec50-7240-490a-8975-bd675ca1fa92](https://github.com/user-attachments/assets/2123ec50-7240-490a-8975-bd675ca1fa92) | ✅ Complete |
 
-**Notas de atualização:**
-```bash
-# Revalidar status local (repositório sem binários)
-ls -la docs/assets
+### Pending provenance regularization
 
-# Buscar referências canônicas nos docs
-rg -n "docs/assets/.*\.png|user-attachments/assets" docs
-```
+Entradas que anteriormente estavam como “Provided via chat prompt” foram movidas para o artefato versionado [`docs/assets/CHAT_PROMPT_PROVENANCE.md`](assets/CHAT_PROMPT_PROVENANCE.md), onde devem receber vínculo de issue/PR/artefato e artefato ASCII correspondente antes de voltar ao índice.
 
 ---
 
 ## 2. Image Index Table
 
-Based on the visible images, here is the comprehensive mapping:
+Based on images with complete metadata in `docs/assets/MANIFEST.md`, here is the mapping:
 
-| Image File | Local Path | Status | Description | System Layer | Code Paths | Expected Behavior | Gaps/Bugs | Actions |
-|------------|------------|--------|-------------|--------------|------------|-------------------|-----------|---------|
-| `rafaelia-fractal-architecture.png` | `docs/assets/rafaelia-fractal-architecture.png` | ❌ Ausente | RAFAELIA fractal symbiosis architecture diagram. Shows MANDALA 10x10 Hybrid V6, RAFCODE-Φ pipeline (VAZIO→VERBO→HYPERFORMAS→RETROALIMENTAÇÃO) | **Vectra Core / Architecture** | `VectraCore.kt`, `VectraCycle`, `RafaeliaMvp.java` | Deterministic event loop processing with entropy tracking | No visual feedback of cycle state in UI | Add optional debug overlay showing Vectra cycle state |
-| `rafaelia-system-pipeline.png` | `docs/assets/rafaelia-system-pipeline.png` | ❌ Ausente | Data processing pipeline: Drive→Termux→Hash/Entropia/Heatmap with ÍNDICE, FAILSAFE, ZIPRAF outputs | **Storage / Integrity** | `VectraCore.kt` (CRC32C), `VectraBitStackLog`, `FileUtils.java` | Hash verification, entropy analysis, indexed storage | No file hash verification exposed to user | Add file integrity indicator in DataExplorerActivity |
-| `rafaelia-mathematical.png` | `docs/assets/rafaelia-mathematical.png` | ❌ Ausente | Geometric/mathematical model with Traceçilda/ICAZC formulas | **QEMU / Engine** | `QemuParamsEditorActivity.java`, `Config.java` | Mathematical parameter optimization | Complex config not user-friendly | Add preset profiles for common configurations |
-| `vectra-mystical-ui-concept.png` | `docs/assets/vectra-mystical-ui-concept.png` | ❌ Ausente | Vertical layered visualization concept (1008 Hz, FIAT DEI/FIAT VIAT LUX) | **UI/UX Concept** | `MainActivity.java`, layouts in `res/layout/` | Visual representation of system layers | N/A - Conceptual only | Consider animated splash/about screen |
-| `ziprafa-integrity-architecture.png` | `docs/assets/ziprafa-integrity-architecture.png` | ❌ Ausente | ZIPRAFA integrity framework: Data Recovery, Blake3 Hashing, Ed25519 Signing, Modular Core (Core/Crypto/FEC), CLI & API | **Integrity / Logging** | `VectraCore.kt` (CRC32C parity), `VectraBitStackLog`, `RafaeliaMvp.java` | Data integrity verification, error recovery, secure identity | Blake3/Ed25519 not implemented (CRC32C used instead) | Document roadmap for advanced crypto; current CRC32C is sufficient for MVP |
-| `rafaelia-core-eye-toroid.png` | `docs/assets/rafaelia-core-eye-toroid.png` | ❌ Ausente | Diagram of the core axis (IA/eye/toroid) expressing pipeline hierarchy and orchestration | **Vectra Core / Architecture** | `VectraCore.kt`, `RafaeliaMvp.java`, `VectraCycle` | Unified pipeline view and orchestration | Asset source file not committed yet | Add file and keep mapping in `docs/INTEGRACAO_RM_QEMU_ANDROIDX.md` |
-| `rafaelia-coherence-layers.png` | `docs/assets/rafaelia-coherence-layers.png` | ❌ Ausente | Coherence and stability layers defining balanced integration (stable, low dissipation, between cycles) | **System Integration** | `Config.java`, `QemuParamsEditorActivity.java`, AndroidX UI flows | Integration stability and quality checks | Asset source file not committed yet | Add image and map checklist/presets to its labels |
+| Image File | Description | System Layer | Code Paths | Expected Behavior | Gaps/Bugs | Actions |
+|------------|-------------|--------------|------------|-------------------|-----------|---------|
+| `ascii/rafaelia-fractal-architecture.ascii.md` | RAFAELIA fractal symbiosis architecture diagram. Shows MANDALA 10x10 Hybrid V6, RAFCODE-Φ pipeline (VAZIO→VERBO→HYPERFORMAS→RETROALIMENTAÇÃO) | **Vectra Core / Architecture** | `VectraCore.kt`, `VectraCycle`, `RafaeliaMvp.java` | Deterministic event loop processing with entropy tracking | No visual feedback of cycle state in UI | Add optional debug overlay showing Vectra cycle state |
+| `ascii/rafaelia-system-pipeline.ascii.md` | Data processing pipeline: Drive→Termux→Hash/Entropia/Heatmap with ÍNDICE, FAILSAFE, ZIPRAF outputs | **Storage / Integrity** | `VectraCore.kt` (CRC32C), `VectraBitStackLog`, `FileUtils.java` | Hash verification, entropy analysis, indexed storage | No file hash verification exposed to user | Add file integrity indicator in DataExplorerActivity |
+| `ascii/rafaelia-mathematical.ascii.md` | Geometric/mathematical model with Traceçilda/ICAZC formulas | **QEMU / Engine** | `QemuParamsEditorActivity.java`, `Config.java` | Mathematical parameter optimization | Complex config not user-friendly | Add preset profiles for common configurations |
+| `ascii/vectra-mystical-ui-concept.ascii.md` | Vertical layered visualization concept (1008 Hz, FIAT DEI/FIAT VIAT LUX) | **UI/UX Concept** | `MainActivity.java`, layouts in `res/layout/` | Visual representation of system layers | N/A - Conceptual only | Consider animated splash/about screen |
+| `ascii/ziprafa-integrity-architecture.ascii.md` | ZIPRAFA integrity framework: Data Recovery, Blake3 Hashing, Ed25519 Signing, Modular Core (Core/Crypto/FEC), CLI & API | **Integrity / Logging** | `VectraCore.kt` (CRC32C parity), `VectraBitStackLog`, `RafaeliaMvp.java` | Data integrity verification, error recovery, secure identity | Blake3/Ed25519 not implemented (CRC32C used instead) | Document roadmap for advanced crypto; current CRC32C is sufficient for MVP |
 
 ---
 
@@ -68,7 +59,7 @@ Based on the visible images, here is the comprehensive mapping:
 
 ### 3.1 UI/UX Layer
 
-**Relevant Images**: `vectra-mystical-ui-concept.png`
+**Relevant Images**: `ascii/vectra-mystical-ui-concept.ascii.md`
 
 **Current Implementation Files**:
 ```
@@ -97,7 +88,7 @@ app/src/main/java/com/vectras/vm/
 
 ### 3.2 QEMU/Emulation Layer
 
-**Relevant Images**: `rafaelia-mathematical.png`, architecture diagrams
+**Relevant Images**: `ascii/rafaelia-mathematical.ascii.md`, architecture diagrams
 
 **Current Implementation Files**:
 ```
@@ -128,7 +119,7 @@ app/src/main/java/com/vectras/
 
 ### 3.3 Vectra Core / Integrity Layer
 
-**Relevant Images**: `rafaelia-fractal-architecture.png`, `rafaelia-system-pipeline.png`, `ziprafa-integrity-architecture.png`
+**Relevant Images**: `ascii/rafaelia-fractal-architecture.ascii.md`, `ascii/rafaelia-system-pipeline.ascii.md`, `ascii/ziprafa-integrity-architecture.ascii.md`
 
 **Current Implementation Files**:
 ```
@@ -159,7 +150,7 @@ app/src/main/java/com/vectras/vm/
 
 ### 3.4 Storage/Android Layer
 
-**Relevant Images**: `rafaelia-system-pipeline.png` (Drive→Termux flow)
+**Relevant Images**: `ascii/rafaelia-system-pipeline.ascii.md` (Drive→Termux flow)
 
 **Current Implementation Files**:
 ```
@@ -190,7 +181,7 @@ app/src/main/java/com/vectras/vm/
 
 ### 4.0 Coherence Upgrade (Enterprise Full-Stack)
 
-The two images received in-session (`rafaelia-core-eye-toroid.png`, `rafaelia-coherence-layers.png`) reinforce the same architectural axis already implemented in code:
+The indexed architecture images with complete metadata reinforce the same architectural axis already implemented in code:
 
 - **Product/UI axis**: operational clarity and safe navigation.
 - **Runtime axis**: deterministic cycle (`Input → Process → Output → Next`) with append-only evidence.
@@ -401,20 +392,17 @@ Mathematical Models     ████████     20%
 Other/Misc             ██           5%
 ```
 
-### Recommended Image Organization
+### Recommended ASCII Diagram Organization
 
 ```
 docs/assets/
-├── architecture/
-│   ├── rafaelia-fractal-architecture.png
-│   ├── rafaelia-mathematical.png
-│   └── rafaelia-system-pipeline.png
-├── ui-concepts/
-│   └── vectra-mystical-ui-concept.png
-├── integrity/
-│   └── ziprafa-integrity-architecture.png
-└── misc/
-    └── (additional images)
+└── ascii/
+    ├── rafaelia-fractal-architecture.ascii.md
+    ├── rafaelia-system-pipeline.ascii.md
+    ├── rafaelia-mathematical.ascii.md
+    ├── vectra-mystical-ui-concept.ascii.md
+    ├── ziprafa-integrity-architecture.ascii.md
+    └── additional-image-01.ascii.md
 ```
 
 ---
