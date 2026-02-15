@@ -431,36 +431,42 @@ public class FileUtils {
 
 
 	public String LoadFile(Activity activity, String fileName, boolean loadFromRawFolder) throws IOException {
+		// Create a InputStream to read the file into
 		InputStream iS;
 		if (loadFromRawFolder) {
+			// get the resource id from the file name
 			int rID = activity.getResources().getIdentifier(getClass().getPackage().getName() + ":raw/" + fileName,
 					null, null);
+			// get the file as a stream
 			iS = activity.getResources().openRawResource(rID);
 		} else {
+			// get the file as a stream
 			iS = activity.getResources().getAssets().open(fileName);
 		}
 
-		try (InputStream inputStream = iS; ByteArrayOutputStream oS = new ByteArrayOutputStream()) {
-			byte[] buffer = new byte[8192];
-			int bytesRead;
-			while ((bytesRead = inputStream.read(buffer)) != -1) {
-				oS.write(buffer, 0, bytesRead);
-			}
-
-			return oS.toString(StandardCharsets.UTF_8.name());
+		ByteArrayOutputStream oS = new ByteArrayOutputStream();
+		byte[] buffer = new byte[iS.available()];
+		int bytesRead = 0;
+		while ((bytesRead = iS.read(buffer)) > 0) {
+			oS.write(buffer);
 		}
+		oS.close();
+		iS.close();
+
+		// return the output stream as a String
+		return oS.toString();
 	}
 
 	public static void saveFileContents(String dBFile, String machinesToExport) throws IOException {
-		byteArrayToFile(machinesToExport.getBytes(StandardCharsets.UTF_8), new File(dBFile));
+		byteArrayToFile(machinesToExport.getBytes(), new File(dBFile));
 	}
 
 	public static void byteArrayToFile(byte[] byteData, File filePath) throws IOException {
 		try (FileOutputStream fos = new FileOutputStream(filePath)) {
 			fos.write(byteData);
-		} catch (IOException ioe) {
-			Log.e(TAG, "Failed to persist byte array into file: " + filePath, ioe);
-			throw ioe;
+		} catch (IOException ex) {
+			Log.e(TAG, "Failed to write byte array to file: " + filePath, ex);
+			throw ex;
 		}
 	}
 
