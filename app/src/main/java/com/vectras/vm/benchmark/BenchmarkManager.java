@@ -154,6 +154,10 @@ public class BenchmarkManager {
             this.isValid = isValid;
         }
 
+        public BenchmarkResult withGovernanceTelemetry(ExecutionGovernance.PolicyTelemetry telemetry) {
+            return new BenchmarkResult(metrics, validation, environment, diagnostics, telemetry, durationMs, isValid);
+        }
+
         public DiagnosticMetricsView getDiagnosticsView() {
             return diagnostics == null ? null : diagnostics.view();
         }

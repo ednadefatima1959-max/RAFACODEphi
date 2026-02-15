@@ -706,6 +706,26 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
         sb.append(String.format("║  Android Version:      %-55s║\n", report.androidVersion));
         sb.append(String.format("║  CPU ABI:              %-55s║\n", report.cpuAbi));
         sb.append("╠════════════════════════════════════════════════════════════════════════════════╣\n");
+
+        // Section G: Execution governance telemetry
+        sb.append("║ G. EXECUTION GOVERNANCE / POLICY TELEMETRY                                    ║\n");
+        sb.append("╠════════════════════════════════════════════════════════════════════════════════╣\n");
+        if (report.governanceTelemetry != null) {
+            sb.append(String.format("║  Profile:              %-55s║\n", truncateStr(report.governanceTelemetry.profileLabel, 55)));
+            sb.append(String.format("║  Effective SMP:        %-55s║\n", report.governanceTelemetry.effectiveSmp));
+            sb.append(String.format("║  Thread Limit:         %-55s║\n", report.governanceTelemetry.maxThreads));
+            sb.append(String.format("║  Process Limit:        %-55s║\n", report.governanceTelemetry.maxProcesses));
+            sb.append(String.format("║  Queue Depth (obs/max): %-54s║\n", report.governanceTelemetry.maxObservedQueueDepth + "/" + report.governanceTelemetry.maxQueueDepth));
+            sb.append(String.format("║  Rejections:           %-55s║\n", report.governanceTelemetry.rejectionCount));
+            sb.append(String.format("║  CallerRuns Uses:      %-55s║\n", report.governanceTelemetry.callerRunsCount));
+            sb.append(String.format("║  Policy:               %-55s║\n", report.governanceTelemetry.rejectionPolicy));
+            sb.append(String.format("║  Tasks submitted/done: %-55s║\n", report.governanceTelemetry.submittedTasks + "/" + report.governanceTelemetry.completedTasks));
+            sb.append(String.format("║  Confidence/Interference: %-50s║\n", report.validationConfidencePercent + "% / " + report.validationInterferenceCount));
+            sb.append("║  Evidence: counters captured from real executor runtime behavior.             ║\n");
+        } else {
+            sb.append("║  Telemetry unavailable for this execution.                                    ║\n");
+        }
+        sb.append("╠════════════════════════════════════════════════════════════════════════════════╣\n");
         
         // Section 1: Executive Summary
         sb.append("║ 1. EXECUTIVE TECHNICAL SUMMARY                                                ║\n");
