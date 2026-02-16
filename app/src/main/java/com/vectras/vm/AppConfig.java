@@ -90,44 +90,7 @@ public class AppConfig {
     public static boolean engineHeadlessMode = false;
     public static String lastCrashLogPath = internalDataDirPath + "logs/lastcrash.txt";
 
-    public static synchronized void ensureStoragePaths(Context context) {
-        if (context == null) {
-            if (maindirpath == null || maindirpath.isEmpty()) {
-                maindirpath = LEGACY_FALLBACK_MAIN_DIR;
-                recalculateStorageDerivedPaths();
-            }
-            return;
-        }
-
-        File externalFilesDir = context.getExternalFilesDir(null);
-        if (externalFilesDir != null) {
-            maindirpath = ensureTrailingSlash(externalFilesDir.getPath());
-        } else if (maindirpath == null || maindirpath.isEmpty()) {
-            maindirpath = LEGACY_FALLBACK_MAIN_DIR;
-        }
-
-        recalculateStorageDerivedPaths();
-    }
-
-    public static synchronized void recalculateStorageDerivedPaths() {
-        maindirpath = ensureTrailingSlash(maindirpath);
-        sharedFolder = maindirpath + "SharedFolder/";
-        downloadsFolder = maindirpath + "Downloads/";
-        romsdatajson = maindirpath + "roms-data.json";
-        vmFolder = maindirpath + "roms/";
-        importedDriveFolder = maindirpath + "drive/";
-        recyclebin = maindirpath + "recyclebin/";
-        cvbiFolder = maindirpath + "cvbi/";
-    }
-
-    private static String ensureTrailingSlash(String path) {
-        if (path == null || path.isEmpty()) {
-            return LEGACY_FALLBACK_MAIN_DIR;
-        }
-        return path.endsWith("/") ? path : path + "/";
-    }
-
-    public static String neededPkgs() {
+    public static String neededPkgsAlpine() {
         if (DeviceUtils.isArm()) {
             return "bash aria2 tar dwm xterm libslirp libslirp-dev pulseaudio-dev glib-dev pixman-dev zlib-dev spice-dev" +
                     " libusbredirparser usbredir-dev sdl2 sdl2-dev sdl2_image-dev libepoxy-dev virglrenderer-dev rdma-core fluxbox" +
@@ -143,7 +106,7 @@ public class AppConfig {
         }
     }
 
-    public static String neededPkgs32bit() {
+    public static String neededPkgs32bitAlpine() {
         if (DeviceUtils.isArm()) {
             return "bash aria2 tar dwm xterm libslirp libslirp-dev pulseaudio-dev glib-dev pixman-dev zlib-dev spice-dev" +
                     " libusbredirparser usbredir-dev sdl2 sdl2-dev sdl2_image-dev libepoxy-dev virglrenderer-dev rdma-core fluxbox" +
@@ -159,6 +122,18 @@ public class AppConfig {
         }
     }
 
+    public static String neededPkgsDebianUbuntu() {
+        return "bash aria2 tar dwm xterm libslirp0 libslirp-dev libpulse-dev libglib2.0-dev libpixman-1-dev zlib1g-dev libspice-server-dev" +
+                " libusbredirparser1 libusbredirparser-dev libsdl2-2.0-0 libsdl2-dev libsdl2-image-dev libepoxy-dev libvirglrenderer-dev rdma-core fluxbox" +
+                " libusb-1.0-0 libaio1 libncurses6 curl libnfs-utils libgtk-3-0 libgtk-3-dev fuse3 libpulse0 libseccomp2 jackd2 pipewire liburing2 pulseaudio" +
+                " mesa-vulkan-drivers vulkan-tools libegl1 libgbm1 qemu-system-gui libcapstone4 libcbor0.8 libsnappy1v5 liblzo2-2 ndctl keyutils" +
+                " libdw1 libbpf1 libpam0g libssh-4 libvte-2.91-0";
+    }
+
+    public static String neededPkgs32bitDebianUbuntu() {
+        return neededPkgsDebianUbuntu();
+    }
+
     public static String neededPkgsTermux() {
         if (DeviceUtils.isArm()) {
             return "bash aria2 tar xterm proot pulseaudio";
@@ -170,12 +145,13 @@ public class AppConfig {
         return neededPkgsTermux();
     }
 
-    public static String neededPkgsDebian() {
-        return "bash aria2 tar xterm proot pulseaudio fluxbox";
+    // Backward-compatible aliases.
+    public static String neededPkgs() {
+        return neededPkgsAlpine();
     }
 
-    public static String neededPkgs32bitDebian() {
-        return neededPkgsDebian();
+    public static String neededPkgs32bit() {
+        return neededPkgs32bitAlpine();
     }
 
     public static boolean needreinstallsystem = false;
