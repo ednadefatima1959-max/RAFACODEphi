@@ -211,9 +211,11 @@ public class FileUtils {
         return true;
     }
 
-    //TODO: we should pass the modes from the backend and translate them
-    // instead of blindly using "rw". ie ISOs should be read only.
     public static int get_fd(final Context context, String path) {
+        return get_fd(context, path, null);
+    }
+
+    public static int get_fd(final Context context, String path, String backendMode) {
         synchronized (fds) {
             int fd = 0;
             if (path == null)
@@ -236,9 +238,7 @@ public class FileUtils {
 //                Log.d(TAG, "Opening unconverted: " + npath);
                 try {
                     Uri uri = Uri.parse(npath);
-                    String mode = "rw";
-                    if (path.toLowerCase().endsWith(".iso"))
-                        mode = "r";
+                    String mode = resolveContentOpenMode(path, backendMode);
                     ParcelFileDescriptor pfd = context.getContentResolver().openFileDescriptor(uri, mode);
                     fd = pfd.getFd();
 //                    Log.d(TAG, "Opening DocumentFile: " + npath + ", FD: " + fd);
@@ -260,9 +260,7 @@ public class FileUtils {
 //                }
 
                 try {
-                    int mode = ParcelFileDescriptor.MODE_READ_WRITE;
-                    if (path.toLowerCase().endsWith(".iso"))
-                        mode = ParcelFileDescriptor.MODE_READ_ONLY;
+                    int mode = resolveParcelOpenMode(path, backendMode);
 
                     File file = new File(path);
                     if (!file.exists())
@@ -280,6 +278,42 @@ public class FileUtils {
             }
             return fd;
         }
+    }
+
+    static String resolveContentOpenMode(String path, String backendMode) {
+        if (isIsoPath(path)) {
+            return "r";
+        }
+
+        String normalizedBackendMode = normalizeBackendMode(backendMode);
+        if ("r".equals(normalizedBackendMode) || "w".equals(normalizedBackendMode)
+                || "rw".equals(normalizedBackendMode) || "wt".equals(normalizedBackendMode)
+                || "wa".equals(normalizedBackendMode)) {
+            return normalizedBackendMode;
+        }
+
+        return "rw";
+    }
+
+    static int resolveParcelOpenMode(String path, String backendMode) {
+        if (isIsoPath(path)) {
+            return ParcelFileDescriptor.MODE_READ_ONLY;
+        }
+
+        String normalizedBackendMode = normalizeBackendMode(backendMode);
+        if ("r".equals(normalizedBackendMode)) {
+            return ParcelFileDescriptor.MODE_READ_ONLY;
+        }
+
+        return ParcelFileDescriptor.MODE_READ_WRITE;
+    }
+
+    private static String normalizeBackendMode(String backendMode) {
+        return backendMode == null ? "" : backendMode.trim().toLowerCase();
+    }
+
+    private static boolean isIsoPath(String path) {
+        return path != null && path.toLowerCase().endsWith(".iso");
     }
 
     private static FileInfo getExistingFd(String npath) {

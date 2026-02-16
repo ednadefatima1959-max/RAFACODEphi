@@ -10,6 +10,7 @@ import java.util.Arrays;
 public final class TerminalRow {
 
     private static final float SPARE_CAPACITY_FACTOR = 1.5f;
+    private static final int MAX_COMBINING_CODE_POINTS_PER_CELL = 5;
 
     /** The number of columns in this terminal row. */
     private final int mColumns;
@@ -135,7 +136,7 @@ public final class TerminalRow {
     public void setChar(int columnToSet, int codePoint, long style) {
         mStyle[columnToSet] = style;
 
-        final int newCodePointDisplayWidth = WcWidth.width(codePoint);
+        final int newCodePointDisplayWidth = getDisplayWidthForCodePoint(codePoint);
 
         // Fast path when we don't have any chars with width != 1
         if (!mHasNonOneWidthOrSurrogateChars) {
@@ -147,7 +148,7 @@ public final class TerminalRow {
             }
         }
 
-        final boolean newIsCombining = newCodePointDisplayWidth <= 0;
+        final boolean newIsCombining = isCombiningCodePoint(codePoint);
 
         boolean wasExtraColForWideChar = (columnToSet > 0) && wideDisplayCharacterStartingAt(columnToSet - 1);
 
@@ -180,8 +181,10 @@ public final class TerminalRow {
         if (newIsCombining) {
             // Combining characters are added to the contents of the column instead of overwriting them, so that they
             // modify the existing contents.
-            // FIXME: Put a limit of combining characters.
-            // FIXME: Unassigned characters also get width=0.
+            final int existingCombiningCodePoints = getCombiningCodePointCountInColumn(oldStartOfColumnIndex, oldCharactersUsedForColumn);
+            if (existingCombiningCodePoints >= MAX_COMBINING_CODE_POINTS_PER_CELL) {
+                return;
+            }
             newCharactersUsedForColumn += oldCharactersUsedForColumn;
         }
 
@@ -241,6 +244,34 @@ public final class TerminalRow {
                 mSpaceUsed -= nextLen;
             }
         }
+    }
+
+    private int getCombiningCodePointCountInColumn(int startIndex, int javaCharsInColumn) {
+        int endIndex = startIndex + javaCharsInColumn;
+        if (startIndex >= endIndex) return 0;
+
+        int codePointCount = 0;
+        int firstCodePointLength = Character.charCount(Character.codePointAt(mText, startIndex, endIndex));
+        for (int index = startIndex + firstCodePointLength; index < endIndex; ) {
+            int codePoint = Character.codePointAt(mText, index, endIndex);
+            if (isCombiningCodePoint(codePoint)) {
+                codePointCount++;
+            }
+            index += Character.charCount(codePoint);
+        }
+        return codePointCount;
+    }
+
+    static int getDisplayWidthForCodePoint(int codePoint) {
+        int width = WcWidth.width(codePoint);
+        if (width == 0 && Character.getType(codePoint) == Character.UNASSIGNED) {
+            return 1;
+        }
+        return width;
+    }
+
+    private static boolean isCombiningCodePoint(int codePoint) {
+        return getDisplayWidthForCodePoint(codePoint) <= 0;
     }
 
     boolean isBlank() {

@@ -429,4 +429,25 @@ public class TerminalRowTest extends TestCase {
 		// assertEquals(' ', line.mText[line.findStartOfColumn(COLUMNS - 1)]);
 	}
 
+	public void testCombiningCharacterCountIsCappedPerCell() {
+		row.setChar(0, 'a', 0);
+		for (int i = 0; i < 20; i++) {
+			row.setChar(0, DIARESIS_CODEPOINT, 0);
+		}
+		assertEquals(85, row.getSpaceUsed());
+	}
+
+	public void testUnassignedWidthZeroCodePointDoesNotBehaveAsCombining() {
+		int unassigned = 0x0378;
+		assertEquals(Character.UNASSIGNED, Character.getType(unassigned));
+		assertEquals(0, WcWidth.width(unassigned));
+
+		row.setChar(0, 'a', 0);
+		row.setChar(0, unassigned, 0);
+
+		assertEquals(80, row.getSpaceUsed());
+		assertEquals(unassigned, row.mText[0]);
+		assertEquals(' ', row.mText[1]);
+	}
+
 }

@@ -31,6 +31,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Display;
+import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -661,21 +662,42 @@ public class MainVNCActivity extends VncCanvasActivity {
 
     }
 
-    // FIXME: We need this to able to catch complex characters strings like
-    // grave and send it as text
+    // Handles composed/IME text events so accents and combining input are forwarded as text.
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        if (event.getAction() == KeyEvent.ACTION_MULTIPLE && event.getKeyCode() == KeyEvent.KEYCODE_UNKNOWN) {
-            vncCanvas.sendText(event.getCharacters());
+        String composedText = extractComposedText(event.getAction(), event.getKeyCode(), event.getCharacters(), event.getUnicodeChar());
+        if (composedText != null) {
+            vncCanvas.sendText(composedText);
             return true;
-        } else {
-            try {
-                return super.dispatchKeyEvent(event);
-            } catch (Exception e) {
-                return true;
-            }
         }
 
+        try {
+            return super.dispatchKeyEvent(event);
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    static String extractComposedText(int action, int keyCode, String characters, int unicodeChar) {
+        if (action == KeyEvent.ACTION_MULTIPLE && keyCode == KeyEvent.KEYCODE_UNKNOWN
+                && characters != null && !characters.isEmpty()) {
+            return characters;
+        }
+
+        if (action != KeyEvent.ACTION_DOWN || keyCode == KeyEvent.KEYCODE_UNKNOWN || unicodeChar == 0) {
+            return null;
+        }
+
+        if ((unicodeChar & KeyCharacterMap.COMBINING_ACCENT) != 0) {
+            return null;
+        }
+
+        int codePoint = unicodeChar & KeyCharacterMap.COMBINING_ACCENT_MASK;
+        if (codePoint <= 0) {
+            return null;
+        }
+
+        return new String(Character.toChars(codePoint));
     }
 
     public void onStart() {
