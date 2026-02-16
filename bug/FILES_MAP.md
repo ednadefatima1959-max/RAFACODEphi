@@ -17,5 +17,8 @@ Mapa arquivo-a-arquivo do diretório `bug/`, com função primária e status doc
 | `GUIA_TECNICO_IMPLEMENTACAO_PATCHES.md` | Procedimento técnico de implementação de patches no ciclo de manutenção. | Ativo |
 | `SIGMA_SUMMARY.txt` | Sumário textual rápido para visão consolidada do estado de bugs/correções. | Sumário auxiliar |
 | `SUMARIO_EXECUTIVO.md` | Visão executiva de impacto, direcionamento e prioridade de ações de correção. | Referência executiva |
+| `issues/ISSUE_TERMINALROW_COMBINING_LIMIT_AND_UNASSIGNED_WIDTH.md` | Issue de rastreio para limite de combining marks e width de UNASSIGNED em `TerminalRow`. | Novo |
+| `issues/ISSUE_MAINVNCACTIVITY_DISPATCHKEYEVENT_IME_COMPOSITION.md` | Issue de rastreio para revisão de IME/composição em `dispatchKeyEvent`. | Novo |
+| `issues/ISSUE_FILEUTILS_BACKEND_MODE_AND_ISO_READONLY.md` | Issue de rastreio para modo do backend e read-only efetivo em ISO. | Novo |
 | `README.md` | Define escopo, objetivo, integração e validação de nomenclatura do diretório `bug/`. | Canônico |
 | `FILES_MAP.md` | Este índice arquivo-a-arquivo com função e status dos artefatos de `bug/`. | Canônico |
