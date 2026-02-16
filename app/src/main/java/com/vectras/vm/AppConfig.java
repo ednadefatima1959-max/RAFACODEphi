@@ -15,6 +15,12 @@ import java.util.Objects;
  */
 public class AppConfig {
 
+    private static final String LEGACY_FALLBACK_MAIN_DIR = "/sdcard/Documents/VectrasVM/";
+
+    static {
+        ensureStoragePaths(null);
+    }
+
     // App Config
     public static String vectrasVersion = BuildConfig.VERSION_NAME;
     public static int vectrasVersionCode = BuildConfig.VERSION_CODE;
@@ -61,13 +67,16 @@ public class AppConfig {
 
     // App config
     public static String datadirpath(Context activity) {
-        File f = new File(activity.getExternalFilesDir("data") + "/Vectras");
-        return activity.getExternalFilesDir("data") + "/Vectras";
+        File externalDataDir = activity.getExternalFilesDir("data");
+        if (externalDataDir != null) {
+            return new File(externalDataDir, "Vectras").getPath();
+        }
+        return new File(activity.getFilesDir(), "data/Vectras").getPath();
         //return FileUtils.getExternalFilesDirectory(activity).getPath();
     }
     public static String internalDataDirPath = "/data/data/com.vectras.vm/files/";
     public static String basefiledir = "";
-    public static String maindirpath = "/sdcard/Documents/VectrasVM";
+    public static String maindirpath = "";
     public static String recyclebin = "";
     //public static String basefiledir = datadirpath(SplashActivity.activity) + "/.qemu/";
     //public static String maindirpath = FileUtils.getExternalFilesDirectory(SplashActivity.activity).getPath() + "/";

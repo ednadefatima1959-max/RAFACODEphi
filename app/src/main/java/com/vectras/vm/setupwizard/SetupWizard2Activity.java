@@ -49,6 +49,7 @@ import com.vectras.vm.utils.ListUtils;
 import com.vectras.vm.utils.PermissionUtils;
 import com.vectras.vm.utils.TarUtils;
 import com.vectras.vm.utils.UIUtils;
+import com.vectras.vterm.Terminal;
 import com.vectras.vterm.TerminalBottomSheetDialog;
 
 import java.io.BufferedReader;
@@ -478,6 +479,11 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 String requiredPackages = resolveRequiredPackages(managerType);
                 String updateCommand = resolveUpdateCommand(managerType);
                 String installCommand = LibraryChecker.buildInstallCommand(managerType, requiredPackages);
+
+                PackageManagerType packageManagerType = detectPackageManagerType();
+                String updateCommand = resolveUpdateCommand(packageManagerType);
+                String installCommand = resolveInstallCommand(packageManagerType);
+                String requiredPackages = resolveRequiredPackages(packageManagerType);
 
                 String cmd = selectedMirrorCommand + ";" +
                         " set -e;" +
