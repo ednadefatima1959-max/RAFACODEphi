@@ -16,7 +16,6 @@ import com.termux.app.TermuxService;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -62,7 +61,8 @@ public class TermuxFileReceiverActivity extends Activity {
                     String subject = intent.getStringExtra(Intent.EXTRA_SUBJECT);
                     if (subject == null) subject = intent.getStringExtra(Intent.EXTRA_TITLE);
                     if (subject != null) subject += ".txt";
-                    promptNameAndSave(new ByteArrayInputStream(sharedText.getBytes(StandardCharsets.UTF_8)), subject);
+                    final String textToShare = sharedText;
+                    promptNameAndSave(new ByteArrayInputStream(textToShare.getBytes(StandardCharsets.UTF_8)), subject);
                 }
             } else if (sharedUri != null) {
                 handleContentUri(sharedUri, intent.getStringExtra(Intent.EXTRA_TITLE));
@@ -73,13 +73,18 @@ public class TermuxFileReceiverActivity extends Activity {
             handleContentUri(intent.getData(), intent.getStringExtra(Intent.EXTRA_TITLE));
         } else if ("file".equals(scheme)) {
             // When e.g. clicking on a downloaded apk:
-            String path = intent.getData().getPath();
-            File file = new File(path);
+            final Uri dataUri = intent.getData();
+            final String path = dataUri == null ? null : dataUri.getPath();
+            if (path == null) {
+                showErrorDialogAndQuit("Cannot open file: missing path.");
+                return;
+            }
+            final File file = new File(path);
             try {
-                FileInputStream in = new FileInputStream(file);
-                promptNameAndSave(in, file.getName());
-            } catch (FileNotFoundException e) {
-                showErrorDialogAndQuit("Cannot open file: " + e.getMessage() + ".");
+                promptNameAndSave(new FileInputStream(file), file.getName());
+            } catch (IOException e) {
+                showErrorDialogAndQuit("Cannot open file:\n\n" + e.getMessage());
+                Log.e("termux", "Failed to open file from file:// URI", e);
             }
         } else {
             showErrorDialogAndQuit("Unable to receive any file or URL.");
@@ -92,6 +97,7 @@ public class TermuxFileReceiverActivity extends Activity {
     }
 
     void handleContentUri(final Uri uri, String subjectFromIntent) {
+        InputStream in = null;
         try {
             String attachmentFileName = null;
 
@@ -105,7 +111,14 @@ public class TermuxFileReceiverActivity extends Activity {
 
             if (attachmentFileName == null) attachmentFileName = subjectFromIntent;
 
-            InputStream in = getContentResolver().openInputStream(uri);
+            in = getContentResolver().openInputStream(uri);
+            if (in == null) {
+                final IOException e = new IOException("Content resolver returned null stream.");
+                showErrorDialogAndQuit("Unable to handle shared content:\n\nCannot open input stream.");
+                Log.e("termux", "handleContentUri(uri=" + uri + ") failed", e);
+                return;
+            }
+
             promptNameAndSave(in, attachmentFileName);
         } catch (Exception e) {
             showErrorDialogAndQuit("Unable to handle shared content:\n\n" + e.getMessage());
@@ -114,16 +127,37 @@ public class TermuxFileReceiverActivity extends Activity {
     }
 
     void promptNameAndSave(final InputStream in, final String attachmentFileName) {
-        DialogUtils.textInput(this, R.string.file_received_title, attachmentFileName, R.string.file_received_edit_button, text -> {
-            File outFile = saveStreamWithName(in, text);
-            if (outFile == null) return;
+        final Object streamLock = new Object();
+        final boolean[] streamConsumed = {false};
 
+        Runnable closeStreamIfNeeded = () -> {
+            synchronized (streamLock) {
+                if (streamConsumed[0]) return;
+                streamConsumed[0] = true;
+                try {
+                    in.close();
+                } catch (IOException e) {
+                    Log.w("termux", "Failed to close input stream", e);
+                }
+            }
+        };
+
+        DialogUtils.textInput(this, R.string.file_received_title, attachmentFileName, R.string.file_received_edit_button, text -> {
             final File editorProgramFile = new File(EDITOR_PROGRAM);
             if (!editorProgramFile.isFile()) {
+                closeStreamIfNeeded.run();
                 showErrorDialogAndQuit("The following file does not exist:\n$HOME/bin/termux-file-editor\n\n"
                     + "Create this file as a script or a symlink - it will be called with the received file as only argument.");
                 return;
             }
+
+            File outFile;
+            synchronized (streamLock) {
+                if (streamConsumed[0]) return;
+                streamConsumed[0] = true;
+                outFile = saveStreamWithName(in, text);
+            }
+            if (outFile == null) return;
 
             // Do this for the user if necessary:
             //noinspection ResultOfMethodCallIgnored
@@ -138,7 +172,11 @@ public class TermuxFileReceiverActivity extends Activity {
             finish();
         },
             R.string.file_received_open_folder_button, text -> {
-                if (saveStreamWithName(in, text) == null) return;
+                synchronized (streamLock) {
+                    if (streamConsumed[0]) return;
+                    streamConsumed[0] = true;
+                    if (saveStreamWithName(in, text) == null) return;
+                }
 
                 Intent executeIntent = new Intent(TermuxService.ACTION_EXECUTE);
                 executeIntent.putExtra(TermuxService.EXTRA_CURRENT_WORKING_DIRECTORY, TERMUX_RECEIVEDIR);
@@ -146,29 +184,34 @@ public class TermuxFileReceiverActivity extends Activity {
                 startService(executeIntent);
                 finish();
             },
-            android.R.string.cancel, text -> finish(), dialog -> {
+            android.R.string.cancel, text -> {
+                closeStreamIfNeeded.run();
+                finish();
+            }, dialog -> {
+                closeStreamIfNeeded.run();
                 if (mFinishOnDismissNameDialog) finish();
             });
     }
 
     public File saveStreamWithName(InputStream in, String attachmentFileName) {
-        File receiveDir = new File(TERMUX_RECEIVEDIR);
-        if (!receiveDir.isDirectory() && !receiveDir.mkdirs()) {
-            showErrorDialogAndQuit("Cannot create directory: " + receiveDir.getAbsolutePath());
-            return null;
-        }
-        try {
+        try (InputStream autoCloseIn = in) {
+            File receiveDir = new File(TERMUX_RECEIVEDIR);
+            if (!receiveDir.isDirectory() && !receiveDir.mkdirs()) {
+                showErrorDialogAndQuit("Cannot create directory: " + receiveDir.getAbsolutePath());
+                return null;
+            }
+
             final File outFile = new File(receiveDir, attachmentFileName);
             try (FileOutputStream f = new FileOutputStream(outFile)) {
                 byte[] buffer = new byte[4096];
                 int readBytes;
-                while ((readBytes = in.read(buffer)) > 0) {
+                while ((readBytes = autoCloseIn.read(buffer)) > 0) {
                     f.write(buffer, 0, readBytes);
                 }
             }
             return outFile;
         } catch (IOException e) {
-            showErrorDialogAndQuit("Error saving file:\n\n" + e);
+            showErrorDialogAndQuit("Error saving file '" + attachmentFileName + "':\n\n" + e);
             Log.e("termux", "Error saving file", e);
             return null;
         }
