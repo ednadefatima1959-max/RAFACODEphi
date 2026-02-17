@@ -23,9 +23,9 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Enumeration;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -39,6 +39,8 @@ import com.vectras.vm.utils.NotificationUtils;
 import com.vectras.vm.core.BoundedStringRingBuffer;
 import com.vectras.vm.core.ProcessOutputDrainer;
 import com.vectras.vm.core.ProcessRuntimeOps;
+import com.vectras.vm.core.ProcessRuntimeOps.ExecutionCategory;
+import com.vectras.vm.core.ProcessRuntimeOps.TimeoutExecutionResult;
 import com.vectras.vm.core.ProotCommandBuilder;
 import com.vectras.vm.core.TokenBucketRateLimiter;
 import com.vectras.vm.audit.AuditEvent;
@@ -228,7 +230,7 @@ public class Terminal {
                 Terminal.resetStreamingStopToken();
                 safeRegisterVmProcess(getContext(), vmId, launchedProcess, errors);
 
-                output.set(streamLog(userCommand, launchedProcess, false));
+                output.set(streamLog(userCommand, launchedProcess, false, null));
             } catch (IOException e) {
                 VMManager.clearVmStarting(vmId);
                 rotateTransientVmIdAfterBootstrapFailure(vmId);
@@ -285,7 +287,7 @@ public class Terminal {
                 Terminal.resetStreamingStopToken();
                 safeRegisterVmProcess(getContext(), vmId, launchedProcess, errors);
 
-                output.set(streamLog(userCommand, launchedProcess, false));
+                output.set(streamLog(userCommand, launchedProcess, false, null));
             } catch (IOException e) {
                 VMManager.clearVmStarting(vmId);
                 rotateTransientVmIdAfterBootstrapFailure(vmId);
@@ -341,7 +343,7 @@ public class Terminal {
             Terminal.resetStreamingStopToken();
             safeRegisterVmProcess(context, vmId, launchedProcess, errors);
 
-            output = streamLog(userCommand, launchedProcess, false);
+            output = streamLog(userCommand, launchedProcess, false, null);
         } catch (IOException e) {
             VMManager.clearVmStarting(vmId);
             rotateTransientVmIdAfterBootstrapFailure(vmId);
@@ -402,7 +404,7 @@ public class Terminal {
                 Terminal.resetStreamingStopToken();
                 safeRegisterVmProcess(getContext(), vmId, launchedProcess, errors);
 
-                output.set(streamLog(userCommand, launchedProcess, !ProcessRuntimeOps.isLikelyInteractiveCommand(userCommand)));
+                output.set(streamLog(userCommand, launchedProcess, !ProcessRuntimeOps.isLikelyInteractiveCommand(userCommand), null));
 
             } catch (IOException e) {
                 VMManager.clearVmStarting(vmId);
@@ -436,7 +438,7 @@ public class Terminal {
 
         try {
             Process process = new ProcessBuilder("pkg", "list-installed", packageName).start();
-            StringBuilder output = streamLog("", process, true);
+            StringBuilder output = streamLog("", process, true, ExecutionCategory.QUICK_QUERY);
             return output.toString().contains(packageName);
         } catch (Exception e) {
             Log.e(TAG, "Termux fallback package check failed: " + packageName, e);
@@ -452,7 +454,7 @@ public class Terminal {
         STREAM_STOP_TOKEN.set(false);
     }
 
-    public static StringBuilder streamLog(String command, Process process, boolean isShortProcess) {
+    public static StringBuilder streamLog(String command, Process process, boolean isShortProcess, ExecutionCategory shortProcessCategory) {
         BoundedStringRingBuffer ringBuffer = new BoundedStringRingBuffer(MAX_LOG_LINES, MAX_LOG_BYTES);
         TokenBucketRateLimiter limiter = new TokenBucketRateLimiter(RATE_LINES_PER_SEC, RATE_BURST);
         ProcessOutputDrainer drainer = new ProcessOutputDrainer();
@@ -500,21 +502,25 @@ public class Terminal {
             drainThread.start();
 
             if (isShortProcess) {
-                if (!process.waitFor(30, TimeUnit.SECONDS)) {
-                    ringBuffer.addLine("Execution timed out after 30 seconds.");
-                    stopProcessWithTimeout(process, 2_000, 1_000);
-                } else {
-                    int exitCode = process.exitValue();
+                ExecutionCategory category = shortProcessCategory != null ? shortProcessCategory : ExecutionCategory.QUICK_QUERY;
+                TimeoutExecutionResult result = ProcessRuntimeOps.waitForByCategory(process, category);
+                if (result.status == TimeoutExecutionResult.Status.TIMEOUT) {
+                    ringBuffer.addLine("Execution timed out for category " + category.name() + ".");
+                    ProcessRuntimeOps.stopProcessWithTimeout(process, 2_000, 1_000);
+                } else if (result.status == TimeoutExecutionResult.Status.SUCCESS) {
+                    int exitCode = result.exitCode;
                     ringBuffer.addLine(exitCode == 0
                             ? "Execution finished successfully."
                             : "Execution finished with exit code: " + exitCode);
+                } else {
+                    ringBuffer.addLine("Execution failed: " + result.message);
                 }
             } else {
                 while (!STREAM_STOP_TOKEN.get() && process.isAlive()) {
                     Thread.sleep(150);
                 }
                 if (STREAM_STOP_TOKEN.get() && process.isAlive()) {
-                    stopProcessWithTimeout(process, 2_000, 1_000);
+                    ProcessRuntimeOps.stopProcessWithTimeout(process, 2_000, 1_000);
                 }
             }
 
@@ -546,21 +552,7 @@ public class Terminal {
 
 
     static boolean stopProcessWithTimeout(Process process, long gracefulTimeoutMs, long forcedTimeoutMs) {
-        if (process == null || !process.isAlive()) {
-            return true;
-        }
-        process.destroy();
-        try {
-            if (process.waitFor(Math.max(1L, gracefulTimeoutMs), TimeUnit.MILLISECONDS)) {
-                return true;
-            }
-            process.destroyForcibly();
-            return process.waitFor(Math.max(1L, forcedTimeoutMs), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            process.destroyForcibly();
-            return false;
-        }
+        return ProcessRuntimeOps.stopProcessWithTimeout(process, gracefulTimeoutMs, forcedTimeoutMs);
     }
 
     private Context getContext() {

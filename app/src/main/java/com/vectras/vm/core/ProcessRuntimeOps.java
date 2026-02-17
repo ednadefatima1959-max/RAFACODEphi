@@ -165,6 +165,20 @@ public final class ProcessRuntimeOps {
         }
     }
 
+    public static boolean stopProcessWithTimeout(Process process,
+                                                 long gracefulTimeoutMs,
+                                                 long forcedTimeoutMs) {
+        if (process == null || !process.isAlive()) {
+            return true;
+        }
+        process.destroy();
+        if (waitForExit(process, Math.max(1L, gracefulTimeoutMs), TimeUnit.MILLISECONDS) != Integer.MIN_VALUE) {
+            return true;
+        }
+        process.destroyForcibly();
+        return waitForExit(process, Math.max(1L, forcedTimeoutMs), TimeUnit.MILLISECONDS) != Integer.MIN_VALUE;
+    }
+
     private static TimeoutExecutionResult terminateAfterTimeout(Process process, String label) {
         process.destroy();
         int exitCodeAfterDestroy = waitForExit(process, DESTROY_GRACE_PERIOD_MS, TimeUnit.MILLISECONDS);
