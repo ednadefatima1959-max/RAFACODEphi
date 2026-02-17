@@ -34,6 +34,7 @@ Testes de regressão associados:
 ## Navegação
 - [FILES_MAP.md](FILES_MAP.md)
 - [SOURCE_CODE_TRACEABILITY.md](SOURCE_CODE_TRACEABILITY.md)
+- [STATUS_CORRECOES_VERIFICADAS.md](STATUS_CORRECOES_VERIFICADAS.md)
 - [issues/README.md](issues/README.md)
 - [prioridade/readme.md](prioridade/readme.md)
 - [fazer hotfix/readme.md](fazer hotfix/readme.md)

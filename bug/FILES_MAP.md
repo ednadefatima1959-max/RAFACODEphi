@@ -9,6 +9,7 @@ Inventário do diretório `bug/` e subdiretórios operacionais.
 | `README.md` | Escopo, fluxo e integração da gestão de bugs. | Canônico |
 | `FILES_MAP.md` | Inventário do diretório e subdiretórios. | Canônico |
 | `SOURCE_CODE_TRACEABILITY.md` | Matriz documentação ↔ código-fonte ↔ testes. | Canônico |
+| `STATUS_CORRECOES_VERIFICADAS.md` | Verificação consolidada do que já está corrigido. | Canônico |
 
 ## Base técnica de análise e correção
 
