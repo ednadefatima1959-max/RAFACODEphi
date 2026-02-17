@@ -88,6 +88,12 @@ jobs:
         java -version
         ./gradlew --version
 
+    - name: Run ProotCommandBuilder unit tests
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+      run: ./gradlew :app:testDebugUnitTest --tests com.vectras.vm.core.ProotCommandBuilderTest -PCOMPILE_API=35 -PTOOLS_VERSION=35.0.0 -PJAVA_LANGUAGE_VERSION=17 -PCMAKE_VERSION=3.22.1 -PNDK_VERSION=27.2.12479018
+
     - name: Verify repository file dependencies
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
