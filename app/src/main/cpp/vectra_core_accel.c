@@ -348,13 +348,15 @@ Java_com_vectras_vm_core_NativeFastPath_nativeCoreVerify(JNIEnv* env, jclass cla
     int rc = rmr_jni_kernel_verify(&g_unified_state, (const uint8_t*)ptr, (uint32_t)len, (uint32_t)expected, &out);
     pthread_mutex_unlock(&g_unified_lock);
     (*env)->ReleasePrimitiveArrayCritical(env, payload, ptr, JNI_ABORT);
+    // Contrato JNI coreVerify: em RMR_KERNEL_OK retorna apenas resultado de verificação (0/1);
+    // em erro retorna RMR_KERNEL_ERR_* (negativo); códigos não documentados viram ERR_STATE.
     if (rc == RMR_KERNEL_OK) {
-        return 1;
+        return (jint)((out != 0u) ? 1 : 0);
     }
-    if (rc == 1) {
-        return 0;
+    if (rc < 0) {
+        return (jint)rc;
     }
-    return (jint)rc;
+    return (jint)RMR_KERNEL_ERR_STATE;
 }
 
 JNIEXPORT jlongArray JNICALL
