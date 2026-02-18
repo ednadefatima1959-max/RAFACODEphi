@@ -12,7 +12,7 @@
   		android:layout_width="wrap_content"
   		android:layout_height="wrap_content"
   		android:text="@string/import_settings_file_url"
-		android:gravity="right|center_vertical"
+		android:gravity="end|center_vertical"
   		/>
   	<EditText
   		android:id="@+id/textImportUrl"
@@ -34,7 +34,7 @@
   		android:layout_width="wrap_content"
   		android:layout_height="wrap_content"
   		android:text="@string/export_settings_path"
-		android:gravity="right|center_vertical"
+		android:gravity="end|center_vertical"
   		/>
   	<EditText
   		android:id="@+id/textExportPath"

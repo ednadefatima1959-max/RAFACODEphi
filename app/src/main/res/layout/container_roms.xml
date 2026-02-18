@@ -17,14 +17,14 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:paddingRight="8dp"
+    android:paddingEnd="8dp"
     android:paddingTop="2dp"
     android:paddingBottom="2dp"
     android:gravity="center_vertical"
     android:background="?android:attr/selectableItemBackground"
     android:layout_marginTop="2dp"
-    android:layout_marginLeft="8dp"
-    android:layout_marginRight="8dp">
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp">
 
     <com.google.android.material.card.MaterialCardView
         android:layout_height="wrap_content"
@@ -45,7 +45,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1.0"
                 android:orientation="vertical"
-                android:paddingLeft="2dp">
+                android:paddingStart="2dp">
 
                 <TextView
                     android:id="@+id/textName"

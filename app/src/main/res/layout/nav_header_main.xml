@@ -36,7 +36,7 @@
             android:id="@+id/appVersionTxt"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingLeft="8dp"
+            android:paddingStart="8dp"
             android:singleLine="true"
             android:text="@string/app_version"
             android:textSize="14sp" />

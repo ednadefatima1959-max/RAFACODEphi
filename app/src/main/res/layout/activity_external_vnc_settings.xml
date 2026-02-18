@@ -127,7 +127,7 @@
                 <ImageView
                     android:layout_width="32dp"
                     android:layout_height="32dp"
-                    android:layout_marginRight="8dp"
+                    android:layout_marginEnd="8dp"
                     android:padding="4dp"
                     android:scaleType="fitXY"
                     android:src="@drawable/info_24px" />
@@ -163,8 +163,8 @@
             android:background="?attr/selectableItemBackground"
             android:gravity="center_vertical"
             android:paddingVertical="16dp"
-            android:paddingLeft="32dp"
-            android:paddingRight="20dp" >
+            android:paddingStart="32dp"
+            android:paddingEnd="20dp" >
 
             <TextView
                 android:layout_width="0dp"

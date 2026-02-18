@@ -13,8 +13,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/round_keyboard_24"
-        android:paddingLeft="16sp"
-        android:paddingRight="16sp"
+        android:paddingStart="16sp"
+        android:paddingEnd="16sp"
         android:paddingTop="14sp"
         android:paddingBottom="14sp"
         app:tint="@android:color/black"/>

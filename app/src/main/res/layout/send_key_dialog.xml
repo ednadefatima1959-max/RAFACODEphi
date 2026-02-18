@@ -12,8 +12,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8sp"
-        android:layout_marginLeft="16sp"
-        android:layout_marginRight="16sp"
+        android:layout_marginStart="16sp"
+        android:layout_marginEnd="16sp"
         android:layout_marginBottom="16sp"
         android:background="@drawable/backgroud_round_dialog"
         android:orientation="vertical">
@@ -37,7 +37,7 @@
                 android:animateLayoutChanges="true"
                 android:background="@drawable/backgroud_round_edittext_50"
                 android:layout_marginTop="1sp"
-                android:layout_marginLeft="1sp"
+                android:layout_marginStart="1sp"
                 android:orientation="horizontal">
 
                 <EditText

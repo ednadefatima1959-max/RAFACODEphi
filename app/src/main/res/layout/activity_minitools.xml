@@ -46,9 +46,9 @@
                 android:layout_height="wrap_content"
                 android:background="@drawable/object_shape_top_high"
                 android:gravity="center_vertical"
-                android:paddingLeft="16dp"
+                android:paddingStart="16dp"
                 android:paddingTop="2dp"
-                android:paddingRight="2dp"
+                android:paddingEnd="2dp"
                 android:paddingBottom="2dp">
 
                 <ImageView
@@ -59,7 +59,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="8dp"
+                    android:layout_marginStart="8dp"
                     android:layout_weight="1"
                     android:text="@string/mirror" />
 
@@ -94,7 +94,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="8dp"
+                    android:layout_marginStart="8dp"
                     android:text="@string/setup_sound" />
             </LinearLayout>
 
@@ -115,7 +115,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="8dp"
+                    android:layout_marginStart="8dp"
                     android:text="@string/clean_up" />
             </LinearLayout>
 
@@ -136,7 +136,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="8dp"
+                    android:layout_marginStart="8dp"
                     android:text="@string/restore" />
             </LinearLayout>
 
@@ -157,7 +157,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="8dp"
+                    android:layout_marginStart="8dp"
                     android:text="@string/delete_all_vm" />
             </LinearLayout>
 
@@ -178,7 +178,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="8dp"
+                    android:layout_marginStart="8dp"
                     android:text="@string/delete_all" />
             </LinearLayout>
 
@@ -199,7 +199,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="8dp"
+                    android:layout_marginStart="8dp"
                     android:text="@string/reinstall_system" />
             </LinearLayout>
         </LinearLayout>

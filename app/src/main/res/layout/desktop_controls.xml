@@ -10,8 +10,8 @@
         android:id="@+id/functions"
         android:layout_width="56dp"
         android:layout_height="150dp"
-        android:layout_marginLeft="8dp"
-        android:layout_marginRight="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
         android:layout_marginBottom="8dp"
         android:background="@drawable/background1"
         android:backgroundTint="?attr/colorPrimary"
@@ -21,6 +21,7 @@
         app:layout_constraintLeft_toLeftOf="parent"
         tools:listitem="@layout/container_function" />
 
+    <!-- Direção fixa: mantém a geometria dos controles. -->
     <LinearLayout
         android:id="@+id/dpad"
         android:layout_width="wrap_content"
@@ -32,6 +33,7 @@
         app:layout_constraintLeft_toLeftOf="parent"
         android:layoutDirection="ltr">
 
+        <!-- Direção fixa: mantém a geometria dos controles. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -172,6 +174,7 @@
             app:tint="?attr/colorPrimary" />
     </LinearLayout>
 
+    <!-- Direção fixa: mantém a geometria dos controles. -->
     <LinearLayout
         android:id="@+id/clickBtns"
         android:layout_width="wrap_content"

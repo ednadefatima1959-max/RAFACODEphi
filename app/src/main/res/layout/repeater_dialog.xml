@@ -24,14 +24,14 @@
 	    android:layout_width="wrap_content"
 	    android:layout_height="wrap_content"
 	    android:text="@string/repeater_save"
-	    android:gravity="left|center_vertical"
+	    android:gravity="start|center_vertical"
 	    />
 	  <Button
 	    android:id="@+id/buttonClearRepeater"
 	    android:layout_width="wrap_content"
 	    android:layout_height="wrap_content"
 	    android:text="@string/repeater_clear"
-	    android:gravity="right|center_vertical"
+	    android:gravity="end|center_vertical"
 	    />
 	</LinearLayout>
 </LinearLayout>
