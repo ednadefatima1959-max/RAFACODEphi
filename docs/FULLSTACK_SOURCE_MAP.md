@@ -2,7 +2,7 @@
 
 Este documento aplica a visão **fullstack** sobre o código real do projeto, conectando ponta a ponta:
 
-`UI Android → Runtime VM/QEMU → Native/JNI (C) → Integridade/Coerência → Segurança → Governança`
+`UI Android → Runtime VM/QEMU → Integridade/Coerência → Segurança → Governança`
 
 ---
 
@@ -14,8 +14,6 @@ Usuário (UI)
 MainActivity / SetupQemuActivity
   ↓
 QEMU orchestration (MainVNCActivity + QmpClient + ShellExecutor)
-  ↓
-NativeFastPath JNI + vectra_core_accel.c (contratos hardware/kernel + aceleração determinística)
   ↓
 VectraCore (ciclo determinístico, paridade/hash, índice append-only)
   ↓
@@ -63,27 +61,7 @@ Invariante:
 
 ---
 
-
-## 4) Camada Native/JNI (Low-level C)
-
-Arquivos principais:
-- `app/src/main/cpp/vectra_core_accel.c`
-- `app/src/main/jniLibs/arm64-v8a/libXlorie.so`
-- `app/src/main/jniLibs/armeabi-v7a/libXlorie.so`
-- `app/src/main/jniLibs/x86/libXlorie.so`
-- `app/src/main/jniLibs/x86_64/libXlorie.so`
-
-Responsabilidade:
-- ponte Java↔C via JNI para hotpaths determinísticos,
-- leitura de contrato de hardware/kernel (`nativeReadHardwareContract`, `nativeReadKernelUnitContract`),
-- operações de checksum/auditoria com baixa sobrecarga (`nativeXorChecksum`, `nativeAudit`).
-
-Invariante:
-- toda otimização nativa deve preservar contrato de retorno (`RMR_KERNEL_OK`/`RMR_KERNEL_ERR_*`) e trilha observável para camadas superiores.
-
----
-
-## 5) Camada Integridade/Coerência
+## 4) Camada Integridade/Coerência
 
 Arquivos principais:
 - `app/src/main/java/com/vectras/vm/vectra/VectraCore.kt`
@@ -100,7 +78,7 @@ Invariante:
 
 ---
 
-## 6) Camada Segurança
+## 5) Camada Segurança
 
 Arquivos principais:
 - `app/src/main/java/com/vectras/vm/utils/PermissionUtils.java`
@@ -117,7 +95,7 @@ Invariante:
 
 ---
 
-## 7) Camada Governança
+## 6) Camada Governança
 
 Arquivos principais:
 - `docs/SOURCE_TRACEABILITY_MATRIX.md`
@@ -136,38 +114,12 @@ Invariante:
 
 ---
 
-## 8) Matriz rápida de handoff (Fullstack)
+## 7) Matriz rápida de handoff (Fullstack)
 
 | Eixo | Entrada | Processamento | Saída | Evidência |
 |---|---|---|---|---|
 | UI → Runtime | ação do operador | QMP/shell/orquestração VM | estado da VM | `LoggerFragment`, `VMStatus` |
-| Runtime → Native | evento técnico da VM | JNI encaminha hotpath para `vectra_core_accel.c` | contrato kernel/hardware consistente | `nativeReadHardwareContract`, `nativeAudit` |
-| Native → Integridade | resultado low-level | `VectraCore` consolida validação/paridade | estado coerente | índice/log append-only |
+| Runtime → Integridade | evento técnico | `VectraCore` valida ciclo/dados | estado coerente | índice/log append-only |
 | Integridade → Segurança | artefato/caminho | checagem permissão/origem | artefato autorizado | `PermissionUtils`, `FileUtils` |
 | Segurança → Governança | release/doc update | registro canônico | trilha auditável | `MANIFEST`, `TRACEABILITY` |
 
-
-
----
-
-## 9) Resposta de revisão (inline comments/questions)
-
-- Contexto recebido: não houve comentários inline textuais específicos anexados no payload além de “sim”.
-- Ação aplicada: fortalecimento fullstack com camada **Native/JNI (C)** explícita, cobrindo ponte Java↔C e contratos de kernel/hardware para coerência ponta a ponta.
-- Resultado: mapa fullstack agora inclui caminho operacional completo até baixo nível (`app/src/main/cpp/vectra_core_accel.c`).
-
-
-## 10) Native bridge enterprise observability (Java↔JNI)
-
-Implementação aplicada no código-fonte para coerência fullstack operacional:
-
-- Telemetria thread-safe no `NativeFastPath` (calls/bytes/hits/fallbacks) com snapshot canônico.
-- Linha de contrato explícita (`formatHardwareKernelContractLine`) para hardware/kernel.
-- Linha de telemetria canônica (`formatNativeBridgeTelemetryLine`) com score determinístico e features decodificadas.
-- Emissão no app:
-  - `MainActivity#onCreate`: boot + contrato + telemetria com throttle.
-  - `LoggerFragment#onCreateView`: telemetria com throttle.
-
-Invariantes:
-- fallback Java preservado para hotpaths sem JNI válido;
-- emissão de telemetria controlada para reduzir ruído de log e manter rastreabilidade.
