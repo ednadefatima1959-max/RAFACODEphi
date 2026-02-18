@@ -93,10 +93,13 @@ Java_com_vectras_vm_core_NativeFastPath_nativeCopyBytes(JNIEnv* env, jclass claz
     if (length > dstLen - dstOffset) return RMR_KERNEL_ERR_ARG;
 
     jbyte* s = (*env)->GetPrimitiveArrayCritical(env, src, NULL);
+    if (!s) {
+        return RMR_KERNEL_ERR_STATE;
+    }
+
     jbyte* d = (*env)->GetPrimitiveArrayCritical(env, dst, NULL);
-    if (!s || !d) {
-        if (s) (*env)->ReleasePrimitiveArrayCritical(env, src, s, JNI_ABORT);
-        if (d) (*env)->ReleasePrimitiveArrayCritical(env, dst, d, 0);
+    if (!d) {
+        (*env)->ReleasePrimitiveArrayCritical(env, src, s, JNI_ABORT);
         return RMR_KERNEL_ERR_STATE;
     }
 
