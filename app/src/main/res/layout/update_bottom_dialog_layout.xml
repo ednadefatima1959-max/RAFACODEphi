@@ -37,7 +37,7 @@
             style="@style/Widget.Material3Expressive.Button.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginRight="4dp"
+            android:layout_marginEnd="4dp"
             android:text="@string/skip_this_version"/>
 
         <View

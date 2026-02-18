@@ -167,8 +167,8 @@
             android:background="?attr/selectableItemBackground"
             android:gravity="center_vertical"
             android:paddingVertical="16dp"
-            android:paddingLeft="32dp"
-            android:paddingRight="20dp" >
+            android:paddingStart="32dp"
+            android:paddingEnd="20dp" >
 
             <TextView
                 android:layout_width="0dp"

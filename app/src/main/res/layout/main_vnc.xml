@@ -20,8 +20,8 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="right|center_vertical"
-                android:paddingRight="10dip"
+                android:gravity="end|center_vertical"
+                android:paddingEnd="10dip"
                 android:text="@string/connection_caption"
                 android:textAppearance="?android:attr/textAppearanceMedium" />
 
@@ -66,9 +66,8 @@
                         android:id="@+id/labelNickname"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:gravity="right|center_vertical"
-                        android:labelFor="@id/textNickname"
-                        android:paddingRight="10dip"
+                        android:gravity="end|center_vertical"
+                        android:paddingEnd="10dip"
                         android:text="@string/nickname_caption"
                         android:textAppearance="?android:attr/textAppearanceMedium" />
 
@@ -86,9 +85,8 @@
                         android:id="@+id/labelPassword"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:gravity="right|center_vertical"
-                        android:labelFor="@id/textPASSWORD"
-                        android:paddingRight="10dip"
+                        android:gravity="end|center_vertical"
+                        android:paddingEnd="10dip"
                         android:text="@string/password_caption"
                         android:textAppearance="?android:attr/textAppearanceMedium" />
 
@@ -128,9 +126,9 @@
                         android:id="@+id/labelAddress"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:gravity="right|center_vertical"
-                        android:hint="@string/vnc_address_hint"
-                        android:paddingRight="10dip"
+                        android:gravity="end|center_vertical"
+                        android:hint="localhost"
+                        android:paddingEnd="10dip"
                         android:text="@string/address_caption"
                         android:textAppearance="?android:attr/textAppearanceMedium" />
                     <com.google.android.material.textfield.TextInputLayout
@@ -155,9 +153,8 @@
                         android:id="@+id/labelPort"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:gravity="right|center_vertical"
-                        android:labelFor="@id/textPORT"
-                        android:paddingRight="10dip"
+                        android:gravity="end|center_vertical"
+                        android:paddingEnd="10dip"
                         android:text="@string/port_caption"
                         android:textAppearance="?android:attr/textAppearanceMedium" />
                     <com.google.android.material.textfield.TextInputLayout
@@ -174,9 +171,8 @@
                         android:id="@+id/labelUsername"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:gravity="right|center_vertical"
-                        android:labelFor="@id/textUsername"
-                        android:paddingRight="10dip"
+                        android:gravity="end|center_vertical"
+                        android:paddingEnd="10dip"
                         android:text="@string/username_caption"
                         android:textAppearance="?android:attr/textAppearanceMedium" />
                     <com.google.android.material.textfield.TextInputLayout
@@ -200,7 +196,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="left|center_vertical"
+                android:layout_gravity="start|center_vertical"
                 android:text="@string/color_format_caption"
                 android:textAppearance="?android:attr/textAppearanceMedium" />
 
@@ -213,7 +209,7 @@
                 android:id="@+id/checkboxUseLocalCursor"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="left|center_vertical"
+                android:gravity="start|center_vertical"
                 android:text="@string/local_mouse_check" />
 
             <LinearLayout
@@ -268,7 +264,7 @@
                     android:id="@+id/textRepeaterId"
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="left|center_vertical"
+                    android:gravity="start|center_vertical"
                     android:text="@string/repeater_empty_text" />
             </LinearLayout>
 
