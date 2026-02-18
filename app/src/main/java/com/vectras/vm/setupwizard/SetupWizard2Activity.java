@@ -70,6 +70,12 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private static final String TAG = "SetupWizard2Activity";
     private static final String BOOTSTRAP_PREFIX_ARIA2 = " aria2c -x 4 --async-dns=false --disable-ipv6 --check-certificate=false -o setup.tar.gz ";
     private static final String BOOTSTRAP_PREFIX_CURL = " curl -o setup.tar.gz -L ";
+
+    private enum SetupSource {
+        REMOTE,
+        OFFLINE_FALLBACK,
+        MANUAL_FILE
+    }
     ActivitySetupWizard2Binding binding;
     SetupQemuDoneBinding bindingFinalSteps;
     public static final int ACTION_SYSTEM_UPDATE = 1;
@@ -90,6 +96,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     String downloadBootstrapsCommand = "";
     String tarPath = "";
     String progressText ="0%";
+    SetupSource setupSource = SetupSource.REMOTE;
     boolean isSystemUpdateMode = false;
     boolean isExecutingCommand = false;
     boolean isLibProotError = false;
@@ -413,7 +420,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                         if (result) {
                             getDataForStandardSetup();
                         } else {
-                            uiController(STEP_ERROR, getString(R.string.system_files_installation_failed_content) + (!SetupFeatureCore.lastErrorLog.isEmpty() ? "\n\n" + SetupFeatureCore.lastErrorLog : ""));
+                            uiController(STEP_ERROR, withSetupSourceDiagnostic(getString(R.string.system_files_installation_failed_content) + (!SetupFeatureCore.lastErrorLog.isEmpty() ? "\n\n" + SetupFeatureCore.lastErrorLog : "")));
                         }
                     }, 1000));
                 }).start();
@@ -423,22 +430,30 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
     private void getDataForStandardSetup() {
         uiController(STEP_GETTING_DATA);
+        setSetupSource(SetupSource.REMOTE, "Requesting setup metadata from remote endpoint.");
 
         RequestNetwork net = new RequestNetwork(this);
         RequestNetwork.RequestListener _net_request_listener = new RequestNetwork.RequestListener() {
             @Override
             public void onResponse(String tag, String response, HashMap<String, Object> responseHeaders) {
-                boolean hasResolvedBootstrap = false;
+                boolean hasResolvedBootstrap;
                 if (JSONUtils.isValidFromString(response)) {
                     HashMap<String, Object> mmap = new Gson().fromJson(response, new TypeToken<HashMap<String, Object>>() {
                     }.getType());
                     hasResolvedBootstrap = updateBootstrapForCurrentArchitecture(mmap);
+                    if (hasResolvedBootstrap) {
+                        setSetupSource(SetupSource.REMOTE, "Remote bootstrap URL resolved successfully.");
+                    }
+                } else {
+                    hasResolvedBootstrap = false;
                 }
 
                 if (!hasResolvedBootstrap) {
                     applyOfflineBootstrapFallback();
                     hasResolvedBootstrap = !downloadBootstrapsCommand.isEmpty();
                 }
+
+                Log.d(TAG, "getDataForStandardSetup resolved=" + hasResolvedBootstrap + ", source=" + setupSource);
 
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     if (isSystemUpdateMode && hasResolvedBootstrap) {
@@ -456,6 +471,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
             @Override
             public void onErrorResponse(String tag, String message) {
+                Log.d(TAG, "getDataForStandardSetup onErrorResponse message=" + message + ", source=" + setupSource);
                 applyOfflineBootstrapFallback();
                 pendingStandardSetupStart = false;
                 new Handler(Looper.getMainLooper()).postDelayed(() -> uiController(STEP_SETUP_OPTIONS), 1000);
@@ -474,11 +490,11 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
                 try {
                     if (!TarUtils.isAllowExtract(tarPath)) {
-                        runOnUiThread(() -> uiController(STEP_ERROR, getString(R.string.this_bootstrap_file_is_invalid)));
+                        runOnUiThread(() -> uiController(STEP_ERROR, withSetupSourceDiagnostic(getString(R.string.this_bootstrap_file_is_invalid))));
                         return;
                     }
                 } catch (Exception e) {
-                    runOnUiThread(() -> uiController(STEP_ERROR, e.toString()));
+                    runOnUiThread(() -> uiController(STEP_ERROR, withSetupSourceDiagnostic(e.toString())));
                     return;
                 }
             }
@@ -577,10 +593,11 @@ public class SetupWizard2Activity extends AppCompatActivity {
                                 FileUtils.copyFileFromUri(this, uri, tarPath);
                                 runOnUiThread(() -> {
                                     isCustomSetupMode = true;
+                                    setSetupSource(SetupSource.MANUAL_FILE, "Custom setup tar selected by user.");
                                     startSetup();
                                 });
                             } catch (Exception e) {
-                                runOnUiThread(() -> uiController(STEP_ERROR, getString(R.string.the_file_could_not_be_processed_content)));
+                                runOnUiThread(() -> uiController(STEP_ERROR, withSetupSourceDiagnostic(getString(R.string.the_file_could_not_be_processed_content))));
                             }
                         }).start();
                     } else {
@@ -644,9 +661,9 @@ public class SetupWizard2Activity extends AppCompatActivity {
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
                             + "]: "
                             + result.message;
-                    Log.e(TAG, timeoutMessage);
+                    Log.e(TAG, withSetupSourceDiagnostic(timeoutMessage));
                     runOnUiThread(() -> {
-                        appendTextAndScroll("Error: " + timeoutMessage + "\n");
+                        appendTextAndScroll("Error: " + withSetupSourceDiagnostic(timeoutMessage) + "\n");
                         uiController(STEP_ERROR, logs);
                     });
                     return;
@@ -658,9 +675,9 @@ public class SetupWizard2Activity extends AppCompatActivity {
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
                             + "]: "
                             + result.message;
-                    Log.e(TAG, operationErrorMessage);
+                    Log.e(TAG, withSetupSourceDiagnostic(operationErrorMessage));
                     runOnUiThread(() -> {
-                        appendTextAndScroll("Error: " + operationErrorMessage + "\n");
+                        appendTextAndScroll("Error: " + withSetupSourceDiagnostic(operationErrorMessage) + "\n");
                         uiController(STEP_ERROR, logs);
                     });
                     return;
@@ -677,7 +694,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                     } else {
                         runOnUiThread(() -> {
                             String toastMessage = "Command failed with exit code: " + exitValue;
-                            appendTextAndScroll("Error: " + toastMessage + "\n");
+                            appendTextAndScroll("Error: " + withSetupSourceDiagnostic(toastMessage) + "\n");
                             uiController(STEP_ERROR, logs);
                         });
                     }
@@ -686,9 +703,9 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 isExecutingCommand = false;
                 // Handle exceptions by printing the stack trace in the terminal output
                 final String errorMessage = e.getMessage();
-                Log.e(TAG, "executeShellCommand IO error: " + errorMessage, e);
+                Log.e(TAG, withSetupSourceDiagnostic("executeShellCommand IO error: " + errorMessage), e);
                 runOnUiThread(() -> {
-                    appendTextAndScroll("Error: " + errorMessage + "\n");
+                    appendTextAndScroll("Error: " + withSetupSourceDiagnostic(errorMessage) + "\n");
                     uiController(STEP_ERROR, logs);
                 });
             }
@@ -751,7 +768,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
             progressText = "95% | ";
         }
 
-        binding.tvLastestCommandResult.setText(progressText + newLog);
+        binding.tvLastestCommandResult.setText(progressText + "[" + setupSource + "] " + newLog);
     }
 
 
@@ -773,6 +790,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
             if (downloadBootstrapsCommand.isEmpty()) {
                 downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, false);
             }
+            setSetupSource(SetupSource.OFFLINE_FALLBACK, "Using cached bootstrap link already loaded in memory.");
             return;
         }
 
@@ -780,8 +798,21 @@ public class SetupWizard2Activity extends AppCompatActivity {
         if (isBootstrapLinkValid(persistedBootstrapLink)) {
             bootstrapFileLink = persistedBootstrapLink;
             downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, false);
+            setSetupSource(SetupSource.OFFLINE_FALLBACK, "Using persisted bootstrap URL as offline fallback.");
             runOnUiThread(() -> UIUtils.toastShort(this, getString(R.string.this_option_is_temporarily_unavailable_because_the_server_cannot_be_connected)));
+            return;
         }
+
+        Log.d(TAG, "Offline fallback unavailable, source remains=" + setupSource);
+    }
+
+    private void setSetupSource(SetupSource source, String reason) {
+        setupSource = source;
+        Log.d(TAG, "Setup source set to " + setupSource + " | " + reason);
+    }
+
+    private String withSetupSourceDiagnostic(String message) {
+        return "[setupSource=" + setupSource + "] " + message;
     }
 
     private boolean updateBootstrapForCurrentArchitecture(HashMap<String, Object> bootstrapMap) {
