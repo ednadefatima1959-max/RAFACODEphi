@@ -83,24 +83,6 @@ public class SetupWizard2Activity extends AppCompatActivity {
         MANUAL_FILE
     }
 
-    private static class PostInstallValidationResult {
-        final boolean success;
-        final String technicalReason;
-
-        private PostInstallValidationResult(boolean success, String technicalReason) {
-            this.success = success;
-            this.technicalReason = technicalReason;
-        }
-
-        static PostInstallValidationResult ok() {
-            return new PostInstallValidationResult(true, "");
-        }
-
-        static PostInstallValidationResult fail(String technicalReason) {
-            return new PostInstallValidationResult(false, technicalReason);
-        }
-    }
-
     ActivitySetupWizard2Binding binding;
     SetupQemuDoneBinding bindingFinalSteps;
     public static final int ACTION_SYSTEM_UPDATE = 1;
@@ -813,14 +795,15 @@ public class SetupWizard2Activity extends AppCompatActivity {
                     return;
                 }
 
-                PostInstallValidationResult validationResult = validatePostInstallSynchronously(setupTimestamp);
-                if (!validationResult.success) {
+                String validationFailureReason = validatePostInstallSynchronously(setupTimestamp);
+                if (validationFailureReason != null) {
                     isExecutingCommand = false;
-                    final String technicalReason = withSetupSourceDiagnostic("post-install validation failed: " + validationResult.technicalReason);
+                    executeBestEffortRollback(setupTimestamp, "post-install validation failed");
+                    final String technicalReason = withSetupSourceDiagnostic("post-install validation failed: " + validationFailureReason);
                     Log.e(TAG, technicalReason);
                     runOnUiThread(() -> {
                         appendTextAndScroll("Error: " + technicalReason + "\n");
-                        uiController(STEP_ERROR, logs + technicalReason);
+                        uiController(STEP_ERROR, logs + "\n" + technicalReason);
                     });
                     return;
                 }
@@ -850,14 +833,17 @@ public class SetupWizard2Activity extends AppCompatActivity {
         }).start(); // Execute the command in a separate thread to prevent blocking the UI thread
     }
 
-    private PostInstallValidationResult validatePostInstallSynchronously(String setupTimestamp) {
-        String expectedTimestamp = setupTimestamp == null ? "" : setupTimestamp;
+    private String validatePostInstallSynchronously(String setupTimestamp) {
+        if (setupTimestamp == null || setupTimestamp.isEmpty()) {
+            return "missing setup timestamp";
+        }
+
         String validationCommand = "set -e; " +
                 "STATE_FILE='/root/.vectras-setup/setup_state.json'; " +
                 "test -f /usr/local/bin/qemu-system-x86_64 -o -f /usr/local/bin/qemu-system-aarch64 || exit 61; " +
                 "test -f \"$STATE_FILE\" || exit 62; " +
                 "grep -q '\"phase\":\"PROMOTED\"' \"$STATE_FILE\" || exit 63; " +
-                "grep -q '\"timestamp\":\"" + expectedTimestamp + "\"' \"$STATE_FILE\" || exit 64;";
+                "grep -q '\"timestamp\":\"" + setupTimestamp + "\"' \"$STATE_FILE\" || exit 64;";
 
         try {
             ProcessBuilder processBuilder = new ProcessBuilder();
@@ -893,21 +879,21 @@ public class SetupWizard2Activity extends AppCompatActivity {
             );
 
             if (validationWaitResult.status == ProcessRuntimeOps.TimeoutExecutionResult.Status.TIMEOUT) {
-                return PostInstallValidationResult.fail("validation timeout: " + validationWaitResult.message);
+                return "validation timeout: " + validationWaitResult.message;
             }
 
             if (validationWaitResult.status == ProcessRuntimeOps.TimeoutExecutionResult.Status.ERROR) {
-                return PostInstallValidationResult.fail("validation execution error: " + validationWaitResult.message);
+                return "validation execution error: " + validationWaitResult.message;
             }
 
             if (validationWaitResult.exitCode != 0) {
                 String processOutput = output.length() == 0 ? "no validation output" : output.toString();
-                return PostInstallValidationResult.fail("validation exit code " + validationWaitResult.exitCode + " | " + processOutput);
+                return "validation exit code " + validationWaitResult.exitCode + " | " + processOutput;
             }
 
-            return PostInstallValidationResult.ok();
+            return null;
         } catch (Exception e) {
-            return PostInstallValidationResult.fail("validation exception: " + e.getMessage());
+            return "validation exception: " + e.getMessage();
         }
     }
 
@@ -953,9 +939,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private void appendTextAndScroll(String newLog) {
         logs += newLog;
 
-        if (newLog.contains("xssFjnj58Id")) {
-            Log.d(TAG, "Setup completion marker observed: xssFjnj58Id");
-        } else if (newLog.contains("libproot.so --help") || newLog.contains("/bin/sh: can't fork:")) {
+        if (newLog.contains("libproot.so --help") || newLog.contains("/bin/sh: can't fork:")) {
             isLibProotError = true;
         } else if (newLog.contains("not complete: /root/setup.tar.gz")) {
             aria2Error = true;
