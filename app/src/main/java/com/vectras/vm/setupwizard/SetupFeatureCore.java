@@ -43,6 +43,7 @@ import java.util.StringJoiner;
 public class SetupFeatureCore {
     public static String TAG = "SetupFeatureCore";
     public static String lastErrorLog = "";
+    public static final String POST_CHECK_FAIL_PREFIX = "POST_CHECK_FAIL:";
 
     public static boolean isInstalledSystemFiles(Context context) {
         return isInstalledProot(context) && isInstalledDistro(context);
@@ -137,44 +138,48 @@ public class SetupFeatureCore {
         }
     }
 
-    public static final class PostInstallCheckResult {
+    public static final class SetupPostCheckResult {
         public final boolean ok;
-        public final String summary;
-        public final ArrayList<String> failures;
+        public final ArrayList<String> failedItems;
 
-        private PostInstallCheckResult(boolean ok, String summary, ArrayList<String> failures) {
+        SetupPostCheckResult(boolean ok, ArrayList<String> failedItems) {
             this.ok = ok;
-            this.summary = summary;
-            this.failures = failures;
+            this.failedItems = failedItems;
         }
 
-        public String technicalMessage() {
-            if (failures.isEmpty()) {
-                return summary;
-            }
-            StringJoiner joiner = new StringJoiner("\n");
-            for (String failure : failures) {
-                joiner.add("- " + failure);
-            }
-            return summary + "\n" + joiner;
+        public String technicalReason() {
+            return formatPostCheckFailure(failedItems);
         }
     }
 
-    public static PostInstallCheckResult runPostInstallCheck(Context context) {
-        ArrayList<String> failures = new ArrayList<>();
+    public static String formatPostCheckFailure(List<String> failedItems) {
+        StringJoiner joiner = new StringJoiner(",");
+        if (failedItems != null) {
+            for (String item : failedItems) {
+                if (item != null && !item.trim().isEmpty()) {
+                    joiner.add(item.trim());
+                }
+            }
+        }
+        String compactItems = joiner.toString();
+        if (compactItems.isEmpty()) {
+            compactItems = "unknown";
+        }
+        return POST_CHECK_FAIL_PREFIX + compactItems;
+    }
+
+    public static SetupPostCheckResult runSetupPostCheck(Context context) {
+        ArrayList<String> failedItems = new ArrayList<>();
         if (!isInstalledProot(context)) {
-            failures.add("missing required binary: proot");
+            failedItems.add("missing-proot");
         }
         if (!isInstalledDistro(context)) {
-            failures.add("missing required distro busybox");
+            failedItems.add("missing-distro-busybox");
         }
         if (!isInstalledQemu(context)) {
-            failures.add("missing required qemu-system-x86_64 binary");
+            failedItems.add("missing-qemu-binary");
         }
-
-        boolean ok = failures.isEmpty();
-        String summary = ok ? "Post-install check passed." : "Post-install check failed.";
-        return new PostInstallCheckResult(ok, summary, failures);
+        return new SetupPostCheckResult(failedItems.isEmpty(), failedItems);
     }
 
     public static PreflightResult runVmStartPreflight(
@@ -464,6 +469,22 @@ public class SetupFeatureCore {
 
                 if (fromAsset.contains("alpine")) {
                     setDNS(context);
+                }
+
+                ArrayList<String> extractionPostCheckFailedItems = new ArrayList<>();
+                if (!extractTargetPath.toFile().exists()) {
+                    extractionPostCheckFailedItems.add("missing-extract-target");
+                }
+                if ("bootstrap".equals(fromAsset) && !isInstalledProot(context)) {
+                    extractionPostCheckFailedItems.add("missing-proot-after-bootstrap-extract");
+                }
+                if (fromAsset.contains("alpine") && !isInstalledDistro(context)) {
+                    extractionPostCheckFailedItems.add("missing-distro-after-alpine-extract");
+                }
+                if (!extractionPostCheckFailedItems.isEmpty()) {
+                    lastErrorLog = formatPostCheckFailure(extractionPostCheckFailedItems);
+                    Log.e(TAG, lastErrorLog);
+                    return false;
                 }
 
                 return true;
