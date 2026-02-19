@@ -92,24 +92,30 @@ public class NativeFastPathTest {
 
 
     @Test
-    public void platformSignatureHasKnownBitLayout() {
+    public void platformSignatureUsesStableArchitectureContract() {
         int signature = NativeFastPath.getPlatformSignature();
         int arch = signature & 0xFF00;
-        int os = signature & 0x00F0;
 
-        assertEquals(signature, arch | os);
-        assertTrue(
-                arch == NativeFastPath.ARCH_UNKNOWN
-                        || arch == NativeFastPath.ARCH_ARM64
-                        || arch == NativeFastPath.ARCH_ARM32
-                        || arch == NativeFastPath.ARCH_X64
-                        || arch == NativeFastPath.ARCH_X86
-                        || arch == NativeFastPath.ARCH_RISCV64
-                        || arch == NativeFastPath.ARCH_RISCV32);
-        assertTrue(
-                os == NativeFastPath.OS_UNKNOWN
-                        || os == NativeFastPath.OS_ANDROID
-                        || os == NativeFastPath.OS_LINUX);
+        assertEquals(signature, arch);
+        assertTrue(NativeFastPath.isStableArchCode(arch));
+    }
+
+    @Test
+    public void stableArchitectureCodesMatchNativeContract() {
+        assertEquals(0x0000, NativeFastPath.ARCH_UNKNOWN);
+        assertEquals(0x0100, NativeFastPath.ARCH_ARM64);
+        assertEquals(0x0200, NativeFastPath.ARCH_ARM32);
+        assertEquals(0x0300, NativeFastPath.ARCH_X64);
+        assertEquals(0x0400, NativeFastPath.ARCH_X86);
+        assertEquals(0x0500, NativeFastPath.ARCH_RISCV64);
+
+        assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_UNKNOWN));
+        assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_ARM64));
+        assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_ARM32));
+        assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_X64));
+        assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_X86));
+        assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_RISCV64));
+        assertTrue(!NativeFastPath.isStableArchCode(NativeFastPath.ARCH_RISCV32));
     }
 
     @Test
