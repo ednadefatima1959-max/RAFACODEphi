@@ -346,7 +346,7 @@ public final class NativeFastPath {
         if (data == null || length <= 0) return 0;
         TELEMETRY_XOR_CALLS.incrementAndGet();
         int value = LowLevelBridge.xorChecksumCompat(data, offset, length);
-        if (LowLevelBridge.isLoaded()) {
+        if (LowLevelBridge.wasLastCallNative()) {
             telemetryNativeHit();
         } else {
             telemetryFallbackHit();
@@ -761,7 +761,7 @@ public final class NativeFastPath {
         }
         TELEMETRY_CRC_CALLS.incrementAndGet();
         int crc = LowLevelBridge.crc32cCompat(initial, data, offset, length);
-        if (LowLevelBridge.isLoaded()) {
+        if (LowLevelBridge.wasLastCallNative()) {
             telemetryNativeHit();
         } else {
             telemetryFallbackHit();
