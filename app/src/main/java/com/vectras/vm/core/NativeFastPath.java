@@ -43,6 +43,15 @@ public final class NativeFastPath {
     public static final int ARCH_RISCV64 = 0x0500;
     public static final int ARCH_RISCV32 = 0x0600;
 
+    public static boolean isStableArchCode(int archCode) {
+        return archCode == ARCH_UNKNOWN
+                || archCode == ARCH_ARM64
+                || archCode == ARCH_ARM32
+                || archCode == ARCH_X64
+                || archCode == ARCH_X86
+                || archCode == ARCH_RISCV64;
+    }
+
     public static final int OS_UNKNOWN = 0x0000;
     public static final int OS_ANDROID = 0x0010;
     public static final int OS_LINUX = 0x0020;
@@ -697,9 +706,17 @@ public final class NativeFastPath {
             this.gpioPinStride = gpioPinStride;
         }
 
+        private static int normalizeStableSignature(int signature) {
+            int archCode = signature & 0xFF00;
+            if (isStableArchCode(archCode)) {
+                return archCode;
+            }
+            return ARCH_UNKNOWN;
+        }
+
         private static HardwareProfile fromHardwareContract(int[] contract) {
             return new HardwareProfile(
-                    contract[HW_CONTRACT_SIGNATURE],
+                    normalizeStableSignature(contract[HW_CONTRACT_SIGNATURE]),
                     contract[HW_CONTRACT_POINTER_BITS],
                     contract[HW_CONTRACT_CACHE_LINE],
                     contract[HW_CONTRACT_PAGE_SIZE],
@@ -721,7 +738,7 @@ public final class NativeFastPath {
                 hardwareFallbackLogged = true;
                 System.err.println("NativeFastPath compatibility fallback (hardware): " + reason);
             }
-            return new HardwareProfile(ARCH_UNKNOWN | OS_UNKNOWN, 32, 64, 4096, 0, 0, 0, 0, 0, 0);
+            return new HardwareProfile(ARCH_UNKNOWN, 32, 64, 4096, 0, 0, 0, 0, 0, 0);
         }
 
         static KernelUnitProfile kernelUnitProfile(String reason) {
