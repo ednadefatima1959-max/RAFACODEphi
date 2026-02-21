@@ -12,7 +12,7 @@ extern "C" {
 #define RMR_KERNEL_OK 0
 #define RMR_KERNEL_ERR_ARG -1
 #define RMR_KERNEL_ERR_STATE -2
-#define RMR_UK_NATIVE_OK_MAGIC 0x524D5255
+#define RMR_UK_NATIVE_OK_MAGIC 0x56414343u  /* "VACC" — MUST match NativeFastPath.NATIVE_OK_MAGIC */
 
 #if defined(__cplusplus)
 static_assert(RMR_UK_OK == RMR_KERNEL_OK, "status contract mismatch: RMR_UK_OK != RMR_KERNEL_OK");

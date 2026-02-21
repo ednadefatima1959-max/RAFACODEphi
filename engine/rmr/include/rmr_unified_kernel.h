@@ -186,6 +186,23 @@ int rmr_jni_kernel_verify(rmr_jni_kernel_state_t *state,
                           uint32_t *out_verify_ok);
 int rmr_jni_kernel_audit(rmr_jni_kernel_state_t *state, uint64_t *counters, uint32_t counter_count);
 
+/* ── Arena API (JNI bridge) ── */
+int RmR_UnifiedKernel_ArenaAlloc(rmr_jni_kernel_state_t *kernel, uint32_t bytes, uint32_t *out_handle);
+int RmR_UnifiedKernel_ArenaFree(rmr_jni_kernel_state_t *kernel, uint32_t handle);
+int RmR_UnifiedKernel_ArenaCopy(rmr_jni_kernel_state_t *kernel,
+                                uint32_t src_handle, uint32_t src_offset,
+                                uint32_t dst_handle, uint32_t dst_offset,
+                                uint32_t len);
+int RmR_UnifiedKernel_ArenaXorChecksum(rmr_jni_kernel_state_t *kernel,
+                                       uint32_t handle, uint32_t offset,
+                                       uint32_t len, uint32_t *out);
+int RmR_UnifiedKernel_ArenaFill(rmr_jni_kernel_state_t *kernel,
+                                uint32_t handle, uint32_t offset,
+                                uint32_t len, uint8_t value);
+int RmR_UnifiedKernel_ArenaWrite(rmr_jni_kernel_state_t *kernel,
+                                 uint32_t handle, uint32_t offset,
+                                 const uint8_t *src, uint32_t len);
+
 #ifdef __cplusplus
 }
 #endif
