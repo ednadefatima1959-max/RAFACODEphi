@@ -1,14 +1,15 @@
 #include "rmr_policy_kernel.h"
+#include "rmr_baremetal_compat.h" /* baremetal stdlib substitute */
 #include "rmr_corelib.h"
 #include "rmr_hw_detect.h"
 #include "rmr_ll_ops.h"
 #include "rmr_math_fabric.h"
 #include "rmr_ll_tuning.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
+/* BUG FIX baremetal: removido #include <stdio.h> */
+/* BUG FIX baremetal: removido #include <stdlib.h> */
+/* BUG FIX baremetal: removido #include <string.h> */
+/* BUG FIX baremetal: removido #include <sys/stat.h> */
 
 #if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32)
 #include <arm_acle.h>

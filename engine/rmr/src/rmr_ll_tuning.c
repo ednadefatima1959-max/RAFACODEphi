@@ -1,6 +1,7 @@
 #include "rmr_ll_tuning.h"
+#include "rmr_baremetal_compat.h" /* baremetal memset substitute */
 
-#include <string.h>
+/* BUG FIX baremetal: string.h removido */
 
 static uint32_t clamp_u32(uint32_t v, uint32_t lo, uint32_t hi) {
   if (v < lo) return lo;

@@ -782,7 +782,10 @@ static void raf_step_cfg(
 /* ==== Exemplo hosted (opcional) ==== */
 /* Se quiser testar em ambiente com libc, plugue write/panic e rode. */
 #ifdef RAF_HOSTED_TEST
+/* BUG FIX baremetal: stdio apenas em hosted test */
+#ifdef __linux__
 #include <stdio.h>
+#endif
 static u32 host_write(void*ctx, const u8*buf, u32 len){ (void)ctx; return (u32)fwrite(buf,1,len,stdout); }
 static void host_panic(void*ctx, const char*msg){ (void)ctx; fputs(msg, stderr); fputc('\n', stderr); }
 int main(void){

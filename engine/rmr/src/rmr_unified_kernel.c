@@ -5,7 +5,8 @@
 #include "rmr_hw_detect.h"
 #include "rmr_policy_kernel.h"
 
-#include <stdlib.h>
+/* BUG FIX: stdlib removido — baremetal usa rmr_baremetal_compat.h */
+#include "rmr_baremetal_compat.h"
 
 typedef enum {
   RMR_LEGACY_STATE_NEW = 0,
