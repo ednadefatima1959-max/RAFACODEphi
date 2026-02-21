@@ -12,9 +12,6 @@
 .type   rmr_casm_bridge_marker, @function
 rmr_casm_bridge_marker:
     /* "RVAS" = 0x52564153 — RISC-V marker */
-    lui     a0, 0x52565
-    addi    a0, a0, 0x153       /* aproximação; corrigido abaixo */
-    /* Carrega literal 0x52564153 via duas instruções */
     li      a0, 0x52564153
     ret
 .size rmr_casm_bridge_marker, .-rmr_casm_bridge_marker
