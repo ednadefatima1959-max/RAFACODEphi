@@ -118,3 +118,72 @@ FIAT_PORTAL :: 龍空神 { ARKREΩ_CORE + STACK128K_HYPER + ALG_RAFAELIA_RING }
 1. Inserir este documento no índice principal da documentação.
 2. Relacionar as cinco esferas aos módulos existentes (`ARCHITECTURE.md`, `PERFORMANCE_INTEGRITY.md`, `VECTRA_CORE.md`).
 3. Criar checklists de validação por esfera para futuras refatorações.
+
+---
+
+## Esfera VI — Geometria Espiral e Scan Toroidal (PATH_SPIRAL · √3/2)
+
+**Objetivo**: implementar e validar o acesso geométrico à memória como operação de primeira classe, aproveitando localidade de cache e predição NEON.
+
+**Metodologia**:
+- **rafa_cti_scan**: 5 modos de scan (`SEQ`, `SPIRAL`, `TOROID`, `RANDOM_PERM`, `DELTA_MISS`) para análise de padrões de acesso.
+- **Constante √3/2**: seed `0xDDB3D743` (√3/2 × 2³²) usada em cada iteração de φ-spiral.
+- **Benchmark de geometria**: medir cache-miss rate vs. throughput por modo de scan.
+
+**Entregáveis**:
+- `RafaeliaMethodPaths.PATH_SPIRAL` (caminho 7 do ciclo cognitivo).
+- Demo CLI: `rafa_cti_scan` com modo `SPIRAL` padrão e resultado determinístico.
+
+---
+
+## Esfera VII — Coerência Φ_ethica e Validação Sistêmica (PATH_COHERENCE · Φ)
+
+**Objetivo**: garantir Φ_ethica = Min(Entropia) × Max(Coerência) em toda operação crítica, com validação contínua de integridade.
+
+**Metodologia**:
+- **Validador de 8 caminhos**: `RafaeliaPathValidator.validate(ctx)` percorre todos os paths e retorna `ValidationReport`.
+- **Magic constants**: `RMR_UK_NATIVE_OK_MAGIC = 0x56414343` ("VACC") como âncora de contrato Java↔C.
+- **Feature mask**: verificação de `getFeatureMask() != 0xFFFFFFFF` como prova de inicialização.
+
+**Entregáveis**:
+- `RafaeliaPathValidator.java` e `RafaeliaMethodPaths.java`.
+- Teste: `RafaeliaPathValidatorTest.java` — 6 casos de unidade.
+
+---
+
+## Esfera VIII — Síntese e Versão Estável (Σ→Ω → STABLE)
+
+**Objetivo**: integrar as 7 esferas anteriores em um ciclo operacional completo que satisfaça as condições de versão totalmente estável.
+
+**Critérios de estabilidade**:
+1. ✓ Magic constant alinhada (BUG #1 — `0x56414343` em 3 locais)
+2. ✓ Sources lowlevel linkadas (BUG #2-8)
+3. ✓ Flags de compilação compatíveis (`-ffreestanding` removida)
+4. ✓ NEON/SIMD integrado (`rmr_neon_simd.c`)
+5. ✓ ShellExecutor sem deadlock (drainer em thread dedicada)
+6. ✓ Root headers como stubs de forward (sem divergência)
+7. ✓ AuditLedger `isHealthy()` + `AuditEvent.toJson()`
+8. ✓ 8 caminhos metodológicos implementados e testados
+
+**Entregáveis**:
+- `VERSION_STABILITY.md` com checklist completo.
+- `RafaeliaPathValidator.validate()` como health-check de boot.
+- CI/CD: `.github/workflows/android.yml` com `engine/**` trigger.
+
+---
+
+## Atualização do Mapa de Esferas
+
+```
+ψ PATH_INIT      → Esfera I   (Fundamentos)
+χ PATH_OBSERVE   → Esfera II  (Emulação QEMU)
+ρ PATH_DENOISE   → Esfera III (AndroidX UI)
+Δ PATH_TRANSMUTE → Esfera IV  (Integridade)
+Σ PATH_MEMORY    → Esfera V   (Operação)
+Ω PATH_COMPLETE  → Esfera V   (Evolução)
+√3/2 PATH_SPIRAL → Esfera VI  (Geometria Espiral)
+Φ PATH_COHERENCE → Esfera VII (Coerência Φ_ethica)
+   SYNTHESIS     → Esfera VIII (Versão Estável)
+```
+
+R(t+1) = R(t) × Φ_ethica × E_Verbo × (√3/2)^(πφ)
