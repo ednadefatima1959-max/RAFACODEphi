@@ -7,7 +7,6 @@ import com.vectras.vm.logger.VectrasStatus;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -148,7 +147,12 @@ public class ShellExecutor {
                 }
 
                 Process finalProcess = localProcess;
-                Future<?> drainerFuture = executorService.submit(() -> {
+                // IMPORTANT: drainerFuture MUST NOT use the shell executor pool.
+                // If 2 execute() calls run concurrently, both shell-executor threads are
+                // occupied in CallableExec.run(); submitting drainer to the same pool
+                // would fill the queue but never execute → deadlock.
+                // Fix: spawn a dedicated daemon thread for draining (low-cost, bounded lifetime).
+                Thread drainThread = new Thread(() -> {
                     try {
                         drainer.drain(finalProcess, (stream, line) -> {
                             if ("stderr".equals(stream)) {
@@ -160,7 +164,12 @@ public class ShellExecutor {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
-                });
+                }, "shell-drainer");
+                drainThread.setDaemon(true);
+                drainThread.start();
+                // Wrap in a future-compatible handle using drainer.shutdown() for cancellation.
+                @SuppressWarnings("UnnecessaryLocalVariable")
+                final Thread drainThreadRef = drainThread;
 
                 if (!localProcess.waitFor(timeoutMs, TimeUnit.MILLISECONDS)) {
                     timedOut = true;
@@ -176,12 +185,15 @@ public class ShellExecutor {
                 }
 
                 try {
-                    drainerFuture.get(2, TimeUnit.SECONDS);
-                } catch (TimeoutException e) {
+                    drainThreadRef.join(2_000L);
+                    if (drainThreadRef.isAlive()) {
+                        drainer.cancel();
+                        drainThreadRef.interrupt();
+                    }
+                } catch (InterruptedException e) {
                     drainer.cancel();
-                    drainerFuture.cancel(true);
-                } catch (ExecutionException e) {
-                    Log.w(TAG, "drainer failed", e.getCause());
+                    drainThreadRef.interrupt();
+                    Thread.currentThread().interrupt();
                 }
             } catch (IOException | InterruptedException e) {
                 error = e;
