@@ -12,6 +12,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -46,6 +48,7 @@ public class ProcessOutputDrainer {
     private final TokenBucketRateLimiter ioErrorSuppressedLogLimiter =
             new TokenBucketRateLimiter(IO_ERROR_SUPPRESSED_LOG_REFILL_PER_SEC, IO_ERROR_SUPPRESSED_LOG_BURST);
     private final ErrorReporter errorReporter;
+    private final Set<InputStream> activeStreams = ConcurrentHashMap.newKeySet();
 
     public ProcessOutputDrainer() {
         this(new LogcatErrorReporter());
@@ -57,6 +60,13 @@ public class ProcessOutputDrainer {
 
     public void cancel() {
         cancelled.set(true);
+        for (InputStream stream : activeStreams) {
+            try {
+                stream.close();
+            } catch (IOException ignored) {
+                // Best effort close to unblock readers.
+            }
+        }
     }
 
     public void drain(Process process, OutputLineConsumer consumer) throws InterruptedException {
@@ -93,16 +103,22 @@ public class ProcessOutputDrainer {
 
     private void readStream(String name, InputStream stream, String vmContext, OutputLineConsumer consumer) {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+            activeStreams.add(stream);
             String line;
             while (!cancelled.get() && (line = reader.readLine()) != null) {
                 consumer.onLine(name, line);
             }
         } catch (IOException e) {
+            if (cancelled.get()) {
+                return;
+            }
             if (ioErrorLogLimiter.tryAcquire()) {
                 errorReporter.onReadError(name, vmContext, e);
             } else if (ioErrorSuppressedLogLimiter.tryAcquire()) {
                 errorReporter.onReadErrorSuppressed(name, vmContext, e);
             }
+        } finally {
+            activeStreams.remove(stream);
         }
     }
 
