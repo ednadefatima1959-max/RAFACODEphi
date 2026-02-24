@@ -6,6 +6,8 @@ import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Build
 import android.os.LocaleList
+import com.vectras.vm.network.EndpointFeature
+import com.vectras.vm.network.EndpointValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject

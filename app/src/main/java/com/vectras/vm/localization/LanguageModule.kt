@@ -1,5 +1,7 @@
 package com.vectras.vm.localization
 
+import com.vectras.vm.network.NetworkEndpoints
+
 /**
  * Represents a downloadable language module for the app.
  * Language modules are designed to be downloaded on-demand to save device resources.
