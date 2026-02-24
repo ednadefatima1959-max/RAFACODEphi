@@ -230,6 +230,14 @@ jobs:
     timeout-minutes: 60
     needs: test_and_verify
     environment: BuildAPK
+    env:
+      COMPILE_API: '35'
+      TOOLS_VERSION: '35.0.0'
+      TARGET_API: '35'
+      RELEASE_MIN_TARGET_API: '34'
+      JAVA_LANGUAGE_VERSION: '17'
+      CMAKE_VERSION: '3.22.1'
+      NDK_VERSION: '27.2.12479018'
 
     steps:
       - uses: actions/checkout@v4
