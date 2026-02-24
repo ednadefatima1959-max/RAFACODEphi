@@ -54,6 +54,23 @@ public class ProcessOutputDrainerTest {
         Assert.assertEquals(1, out.get());
         Assert.assertEquals(stderrLines, err.get());
     }
+
+
+    @Test
+    public void shouldInvokeAuditCallbackOnIoException() throws Exception {
+        Process fake = new IOExceptionProcess();
+        AtomicInteger callbacks = new AtomicInteger();
+        ProcessOutputDrainer drainer = new ProcessOutputDrainer((stream, exception) -> callbacks.incrementAndGet());
+
+        try {
+            drainer.drain(fake, (stream, line) -> { });
+        } finally {
+            drainer.shutdown();
+        }
+
+        Assert.assertEquals(2, callbacks.get());
+    }
+
     @Test(expected = IllegalStateException.class)
     public void shouldPropagateWorkerFailure() throws Exception {
         Process fake = new FakeProcess("ok\n", "err\n");
