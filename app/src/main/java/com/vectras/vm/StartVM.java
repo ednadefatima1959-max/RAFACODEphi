@@ -173,30 +173,31 @@ public class StartVM {
             }
 
             if (MainSettingsManager.getSharedFolder(activity) && !arch.equals("I386")) {
-                String driveParams = "-drive ";
+                String driveParams;
                 if (ifType.isEmpty()) {
-                    driveParams += "media=disk,file=fat:";
+                    driveParams = "media=disk,file=fat:";
                 } else {
-                    driveParams += "index=3,media=disk,file=fat:";
+                    driveParams = "index=3,media=disk,file=fat:";
                 }
                 driveParams += "rw:"; //Disk Drives are always Read/Write
                 driveParams += FileUtils.getExternalFilesDirectory(activity).getPath() + "/SharedFolder,format=raw";
+                params.add("-drive");
                 params.add(driveParams);
             }
 
-            String memoryStr = "-m ";
+            String memoryStr;
             if (arch.equals("PPC") && RamInfo.vectrasMemory(activity) > 2048) {
-                memoryStr += 2048;
+                memoryStr = String.valueOf(2048);
             } else {
-                memoryStr += RamInfo.vectrasMemory(activity);
+                memoryStr = String.valueOf(RamInfo.vectrasMemory(activity));
             }
 
-            String boot = "-boot ";
+            String boot;
             if (extras.contains(".iso ")) {
 
-                boot += MainSettingsManager.getBoot(activity);
+                boot = MainSettingsManager.getBoot(activity);
             } else {
-                boot += "c";
+                boot = "c";
             }
 
             //String soundDevice = "-audiodev pa,id=pa -device AC97,audiodev=pa";
@@ -205,21 +206,21 @@ public class StartVM {
 
             if (MainSettingsManager.useDefaultBios(activity)) {
                 if (arch.equals("PPC")) {
-                    bios = "-L ";
-                    bios += "pc-bios";
+                    params.add("-L");
+                    params.add("pc-bios");
                 } else if (arch.equals("ARM64")) {
-                    bios = "-drive ";
-                    bios += "file=" + AppConfig.basefiledir + "QEMU_EFI.img,format=raw,readonly=on,if=pflash";
-                    bios += " -drive ";
-                    bios += "file=" + AppConfig.basefiledir + "QEMU_VARS.img,format=raw,if=pflash";
+                    params.add("-drive");
+                    params.add("file=" + AppConfig.basefiledir + "QEMU_EFI.img,format=raw,readonly=on,if=pflash");
+                    params.add("-drive");
+                    params.add("file=" + AppConfig.basefiledir + "QEMU_VARS.img,format=raw,if=pflash");
                 } else if (arch.equals("X86_64") && MainSettingsManager.getuseUEFI(activity)) {
-                    bios = "-drive ";
-                    bios += "file=" + AppConfig.basefiledir + "RELEASEX64_OVMF.fd,format=raw,readonly=on,if=pflash";
-                    bios += " -drive ";
-                    bios += "file=" + AppConfig.basefiledir + "RELEASEX64_OVMF_VARS.fd,format=raw,if=pflash";
+                    params.add("-drive");
+                    params.add("file=" + AppConfig.basefiledir + "RELEASEX64_OVMF.fd,format=raw,readonly=on,if=pflash");
+                    params.add("-drive");
+                    params.add("file=" + AppConfig.basefiledir + "RELEASEX64_OVMF_VARS.fd,format=raw,if=pflash");
                 } else {
-                    bios = "-bios ";
-                    bios += AppConfig.basefiledir + "bios-vectras.bin";
+                    params.add("-bios");
+                    params.add(AppConfig.basefiledir + "bios-vectras.bin");
                 }
             }
 
@@ -248,11 +249,15 @@ public class StartVM {
             //}
 
             //if (!Objects.equals(arch, "ARM64")) {
-            params.add(bios);
+            if (bios != null && !bios.isEmpty()) {
+                params.add(bios);
+            }
             //}
 
+            params.add("-boot");
             params.add(boot);
 
+            params.add("-m");
             params.add(memoryStr);
 
             finalextra = normalizeCdromArgumentStyle(extras, ifType);
@@ -296,8 +301,7 @@ public class StartVM {
 
         if (MainSettingsManager.getVmUi(activity).equals("VNC")) {
 
-            String vncStr = "-vnc ";
-            params.add(vncStr);
+            params.add("-vnc");
             // Allow connections only from localhost using localsocket without a password
             if (MainSettingsManager.getVncExternal(activity)) {
 
@@ -319,14 +323,17 @@ public class StartVM {
             params.add("vc");
             //}
         } else if (MainSettingsManager.getVmUi(activity).equals("SPICE")) {
-            String spiceStr = "-spice ";
-            spiceStr += "port=6999,disable-ticketing=on";
-            params.add(spiceStr);
+            params.add("-spice");
+            params.add("addr=127.0.0.1,port=6999,disable-ticketing=off");
         } else if (MainSettingsManager.getVmUi(activity).equals("X11")) {
             params.add("-display");
             params.add(MainSettingsManager.getUseSdl(activity) ? "sdl" : "gtk" + ",gl=on");
             params.add("-monitor");
             params.add(MainSettingsManager.getRunQemuWithXterm(activity) ? "stdio" : "vc");
+        } else {
+            params.add("-display");
+            params.add("none");
+            Log.w("StartVM", "Unknown VM UI: " + MainSettingsManager.getVmUi(activity) + ", using -display none");
         }
 
         //params.add("-full-screen");

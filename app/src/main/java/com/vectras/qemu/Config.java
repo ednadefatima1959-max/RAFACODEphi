@@ -145,7 +145,7 @@ public class Config {
     public static int MAX_DISPLAY_REFRESH_RATE = 100; //Hz
 
     // VNC Defaults
-    public static String defaultVNCHost = "0.0.0.0";
+    public static String defaultVNCHost = "127.0.0.1";
     public static String defaultVNCUsername = "vectras";
     public static String defaultVNCPasswd = "";
 
@@ -168,11 +168,13 @@ public class Config {
     public static boolean processMouseHistoricalEvents = false;
 
     public static String getLocalQMPSocketPath() {
-        return Config.getCacheDir() + "/" + vmID + "/qmpsocket";
+        String id = vmID == null ? "" : vmID.trim();
+        return Config.getCacheDir() + "/" + id + "/qmpsocket";
     }
 
     public static String getLocalVNCSocketPath() {
-        return Config.getCacheDir()+ "/" + vmID + "/vncsocket";
+        String id = vmID == null ? "" : vmID.trim();
+        return Config.getCacheDir()+ "/" + id + "/vncsocket";
     }
 
     public static enum MouseMode {
@@ -188,7 +190,13 @@ public class Config {
     public static boolean defaultCheckNewVersion = true;
 
     // App config
-    public static final String datadirpath = VectrasApp.getApp().getExternalFilesDir("data")+"/";
+    public static String getDatadirpath() {
+        if (VectrasApp.getApp() == null) {
+            return "";
+        }
+        java.io.File dataDir = VectrasApp.getApp().getExternalFilesDir("data");
+        return dataDir != null ? dataDir.getAbsolutePath() + "/" : "";
+    }
 
 	public static String machinename = "VECTRAS";
 	public static int paused = 0;
@@ -198,12 +206,12 @@ public class Config {
     public static final ScaleType defaultFullscreenScaleMode = ScaleType.FIT_CENTER;
     public static final ScaleType defaultScaleModeCenter = ScaleType.CENTER;
     public static final String defaultInputMode = VncCanvasActivity.TOUCH_ZOOM_MODE;
-    public static String vmID = "";
+    public static volatile String vmID = "";
     public static String currentVNCServervmID = "";
     public static boolean forceRefeshVNCDisplay = false;
 
     public static void setDefault () {
-        defaultVNCHost = "0.0.0.0";
+        defaultVNCHost = "127.0.0.1";
         defaultVNCUsername = "vectras";
         defaultVNCPasswd = "";
         defaultVNCPort = 5901;

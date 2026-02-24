@@ -11,8 +11,6 @@ import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.utils.TextUtils;
 
 public class RamInfo {
-    public static Activity activity;
-
     public static int safeLongToInt(long l) {
         if (l < Integer.MIN_VALUE || l > Integer.MAX_VALUE) {
             throw new IllegalArgumentException(l + " cannot be cast to int without changing its value.");
@@ -33,7 +31,7 @@ public class RamInfo {
         if (prefs.getBoolean("customMemory", false) && TextUtils.isNumberOnly(prefs.getString("memory", String.valueOf(256)))) {
             return Integer.parseInt(prefs.getString("memory", String.valueOf(256)));
         } else {
-            return freeRamInt - 100;
+            return Math.max(freeRamInt - 100, 256);
         }
     }
 }

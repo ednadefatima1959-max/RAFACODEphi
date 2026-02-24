@@ -111,7 +111,7 @@ public final class CoreExecutionBudgetPolicy {
                 break;
         }
 
-        int sockets = "PPC".equals(arch) ? 1 : 1;
+        int sockets = 1;
         int cores = Math.max(1, maxVcpus / sockets);
         int threads = 1;
 

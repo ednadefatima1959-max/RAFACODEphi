@@ -49,6 +49,8 @@ import com.vectras.vm.rafaelia.RafaeliaSettings;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class MainStartVM {
@@ -57,6 +59,7 @@ public class MainStartVM {
     public static boolean skipIDEwithARM64DialogInStartVM = false;
     public static boolean isStopNow = false;
     private static final LaunchPoller LAUNCH_POLLER = new LaunchPoller();
+    private static final ExecutorService VNC_PASSWORD_EXECUTOR = Executors.newSingleThreadExecutor();
 
     public static String lastVMName = "";
     public static String lastEnv = "";
@@ -443,7 +446,7 @@ public class MainStartVM {
             return;
         }
 
-        new Thread(() -> QmpClient.sendCommand(QmpClient.setVncPassword(password), 3, 500)).start();
+        VNC_PASSWORD_EXECUTOR.execute(() -> QmpClient.sendCommand(QmpClient.setVncPassword(password), 3, 500));
     }
 
     private static final class LaunchPoller {
