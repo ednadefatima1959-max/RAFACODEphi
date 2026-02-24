@@ -49,11 +49,10 @@ import com.vectras.vm.rafaelia.RafaeliaSettings;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
-import java.net.ServerSocket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -63,17 +62,8 @@ public class MainStartVM {
     public static boolean skipIDEwithARM64DialogInStartVM = false;
     public static boolean isStopNow = false;
     private static final LaunchPoller LAUNCH_POLLER = new LaunchPoller();
-    private static final AtomicReference<ServerSocket> RESERVED_SPICE_PORT = new AtomicReference<>(null);
-    private static volatile String reservedSpiceVmId = "";
-    private static final ExecutorService VNC_PASSWORD_EXECUTOR = Executors.newSingleThreadExecutor(new ThreadFactory() {
-        @Override
-        public Thread newThread(Runnable runnable) {
-            Thread thread = new Thread(runnable, "vnc-password-qmp");
-            thread.setDaemon(true);
-            return thread;
-        }
-    });
-    private static volatile Future<?> vncPasswordTask;
+    private static final ExecutorService QMP_EXECUTOR = Executors.newSingleThreadExecutor();
+    private static Future<?> pendingVncPasswordTask;
 
     public static String lastVMName = "";
     public static String lastEnv = "";
@@ -438,8 +428,7 @@ public class MainStartVM {
 
     private static void stopLaunchPoller() {
         LAUNCH_POLLER.stop();
-        cancelVncPasswordTask();
-        releaseReservedSpicePort();
+        cancelPendingVncPasswordTask();
     }
 
     private static void dismissProgressDialog(Context context) {
@@ -518,7 +507,15 @@ public class MainStartVM {
             return;
         }
 
-        submitVncPasswordTask(password);
+        cancelPendingVncPasswordTask();
+        pendingVncPasswordTask = QMP_EXECUTOR.submit(() -> QmpClient.sendCommand(QmpClient.setVncPassword(password), 3, 500));
+    }
+
+    private static synchronized void cancelPendingVncPasswordTask() {
+        if (pendingVncPasswordTask != null) {
+            pendingVncPasswordTask.cancel(true);
+            pendingVncPasswordTask = null;
+        }
     }
 
     private static final class LaunchPoller {
