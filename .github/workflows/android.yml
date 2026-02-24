@@ -300,10 +300,16 @@ jobs:
     environment: BuildAPK
     env:
       COMPILE_API: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.compile_api || vars.COMPILE_API || '35' }}
+      TARGET_API: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.compile_api || vars.TARGET_API || '35' }}
+      RELEASE_MIN_TARGET_API: ${{ vars.RELEASE_MIN_TARGET_API || '34' }}
       TOOLS_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tools_version || vars.TOOLS_VERSION || '35.0.0' }}
       NDK_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ndk_version || vars.NDK_VERSION || '27.2.12479018' }}
       CMAKE_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.cmake_version || vars.CMAKE_VERSION || '3.22.1' }}
       JAVA_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.java_version || vars.JAVA_VERSION || '17' }}
+      GRADLE_ARGS: >-
+        -PCOMPILE_API=${COMPILE_API} -PTARGET_API=${TARGET_API} -PRELEASE_MIN_TARGET_API=${RELEASE_MIN_TARGET_API}
+        -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION}
+        -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
 
     steps:
     - uses: actions/checkout@v4
@@ -368,23 +374,13 @@ jobs:
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace --info --tests com.vectras.vm.core.ProotCommandBuilderTest -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
-
-    - name: Upload ProotCommandBuilder unit test reports
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: unit-test-reports-build_debug
-        path: |
-          app/build/reports/tests/**
-          app/build/test-results/**
-          ./**/*.log
+      run: ./gradlew :app:testDebugUnitTest --tests com.vectras.vm.core.ProotCommandBuilderTest ${{ env.GRADLE_ARGS }}
 
     - name: Verify repository file dependencies
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./gradlew verifyRepoFileDependencies -PCOMPILE_API=${COMPILE_API} -PTARGET_API=${COMPILE_API} -PRELEASE_MIN_TARGET_API=34 -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
+      run: ./gradlew verifyRepoFileDependencies ${{ env.GRADLE_ARGS }}
 
     - name: Verify arm64 native toolchain compatibility
       run: ./gradlew verifyArm64ToolchainCompatibility -PNDK_VERSION=${NDK_VERSION}
