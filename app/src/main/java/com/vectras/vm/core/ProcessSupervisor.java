@@ -26,6 +26,28 @@ import java.util.concurrent.TimeoutException;
  */
 public class ProcessSupervisor {
     private static final String TAG = "ProcessSupervisor";
+    private static final double QMP_FAILURE_LOG_REFILL_PER_SEC = 0.2d;
+    private static final int QMP_FAILURE_LOG_BURST = 2;
+    private static final TokenBucketRateLimiter qmpFailureLogLimiter =
+            new TokenBucketRateLimiter(QMP_FAILURE_LOG_REFILL_PER_SEC, QMP_FAILURE_LOG_BURST);
+
+    private enum QmpAttemptStatus {
+        ACK,
+        TIMEOUT,
+        EXECUTION_FAILURE,
+        INTERRUPTED
+    }
+
+    private static final class QmpAttemptResult {
+        final QmpAttemptStatus status;
+        final String response;
+
+        QmpAttemptResult(QmpAttemptStatus status, String response) {
+            this.status = status;
+            this.response = response;
+        }
+    }
+
     interface QmpTransport {
         String sendPowerdown();
     }
@@ -215,13 +237,21 @@ public class ProcessSupervisor {
 
         boolean stopped = false;
         boolean qmpRequested = false;
-        boolean qmpTimedOut = false;
+        String qmpFailCause = "qmp_reject";
         try {
             if (tryQmp) {
                 qmpRequested = true;
-                String result = sendPowerdownWithTimeout(EXECUTORS.qmpGraceTimeoutMs());
-                qmpTimedOut = result == null;
-                if (ProcessRuntimeOps.isQmpAck(result) && awaitExit(running, 3_000)) {
+                QmpAttemptResult result = sendPowerdownWithTimeout(EXECUTORS.qmpGraceTimeoutMs());
+                if (result.status == QmpAttemptStatus.TIMEOUT) {
+                    qmpFailCause = "qmp_timeout";
+                } else if (result.status == QmpAttemptStatus.EXECUTION_FAILURE) {
+                    qmpFailCause = "qmp_exec_failure";
+                } else if (result.status == QmpAttemptStatus.INTERRUPTED) {
+                    qmpFailCause = "qmp_interrupted";
+                }
+                if (result.status == QmpAttemptStatus.ACK
+                        && ProcessRuntimeOps.isQmpAck(result.response)
+                        && awaitExit(running, 3_000)) {
                     synchronized (this) {
                         transition(state, State.STOP, "qmp_shutdown", 0, 0, stallMs, "qmp");
                     }
@@ -231,7 +261,7 @@ public class ProcessSupervisor {
             }
 
             synchronized (this) {
-                transition(state, State.FAILOVER, qmpRequested ? (qmpTimedOut ? "qmp_timeout" : "qmp_reject") : "no_qmp", 0, 0, stallMs, "term_kill");
+                transition(state, State.FAILOVER, qmpRequested ? qmpFailCause : "no_qmp", 0, 0, stallMs, "term_kill");
             }
             running.destroy();
             if (awaitExit(running, 3_000)) {
@@ -258,7 +288,7 @@ public class ProcessSupervisor {
         }
     }
 
-    private String sendPowerdownWithTimeout(long timeoutMs) {
+    private QmpAttemptResult sendPowerdownWithTimeout(long timeoutMs) {
         Future<String> future = EXECUTORS.submitProcessSupervisorQmp(new Callable<String>() {
             @Override
             public String call() {
@@ -266,16 +296,20 @@ public class ProcessSupervisor {
             }
         });
         try {
-            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            return new QmpAttemptResult(QmpAttemptStatus.ACK, future.get(timeoutMs, TimeUnit.MILLISECONDS));
         } catch (TimeoutException e) {
             future.cancel(true);
-            return null;
+            return new QmpAttemptResult(QmpAttemptStatus.TIMEOUT, null);
         } catch (ExecutionException e) {
-            return null;
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            if (qmpFailureLogLimiter.tryAcquire()) {
+                Log.w(TAG, "sendPowerdownWithTimeout: execution failure vmId=" + vmId, cause);
+            }
+            return new QmpAttemptResult(QmpAttemptStatus.EXECUTION_FAILURE, null);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             future.cancel(true);
-            return null;
+            return new QmpAttemptResult(QmpAttemptStatus.INTERRUPTED, null);
         }
     }
 
