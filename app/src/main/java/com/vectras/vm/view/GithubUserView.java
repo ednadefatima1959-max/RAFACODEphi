@@ -14,7 +14,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.vectras.vm.R;
-import com.vectras.vm.network.EndpointValidator;
 import com.vectras.vm.network.NetworkEndpoints;
 
 import org.json.JSONObject;
@@ -69,9 +68,7 @@ public class GithubUserView extends LinearLayout {
         io.execute(() -> {
             HttpURLConnection connection = null;
             try {
-                String profileApiUrl = NetworkEndpoints.githubApiUser(username);
-                EndpointValidator.requireValidHttpUrl(profileApiUrl, "github api user");
-                URL url = new URL(profileApiUrl);
+                URL url = new URL(NetworkEndpoints.githubUserApi(username));
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setConnectTimeout(15000);
                 connection.setReadTimeout(25000);
@@ -150,9 +147,6 @@ public class GithubUserView extends LinearLayout {
             return;
         }
         String url = NetworkEndpoints.githubProfile(thisUserNameGitHub);
-        if (!EndpointValidator.isValidHttpUrl(url)) {
-            return;
-        }
         context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
     }
 }

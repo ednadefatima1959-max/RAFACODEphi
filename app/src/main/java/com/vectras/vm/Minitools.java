@@ -30,7 +30,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.app.TermuxService;
 import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.main.MainActivity;
-import com.vectras.vm.network.EndpointValidator;
 import com.vectras.vm.network.NetworkEndpoints;
 import com.vectras.vm.setupwizard.SetupWizard2Activity;
 import com.vectras.vm.utils.CommandUtils;
@@ -88,8 +87,7 @@ public class Minitools extends AppCompatActivity {
                 DialogUtils.twoDialog(Minitools.this, getString(R.string.setup_sound), getResources().getString(R.string.setup_sound_guide_content), getString(R.string.start_setup), getString(R.string.cancel), true, R.drawable.volume_up_24px, true,
                         () -> {
                             ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                            String setupScriptUrl = NetworkEndpoints.termuxPulseAudioInstallScript();
-                            ClipData clip = ClipData.newPlainText("Setup", "curl -o setup.sh " + setupScriptUrl + " && chmod +rwx setup.sh && ./setup.sh && rm setup.sh");
+                            ClipData clip = ClipData.newPlainText("Setup", "curl -o setup.sh " + NetworkEndpoints.termuxPulseAudioScript() + " && chmod +rwx setup.sh && ./setup.sh && rm setup.sh");
                             clipboard.setPrimaryClip(clip);
                             Intent intent = getPackageManager()
                                     .getLaunchIntentForPackage("com.termux");
@@ -103,7 +101,10 @@ public class Minitools extends AppCompatActivity {
             } else {
                 DialogUtils.twoDialog(Minitools.this, getString(R.string.termux_is_not_installed), getResources().getString(R.string.you_need_to_install_termux), getString(R.string.install), getString(R.string.cancel), true, R.drawable.arrow_downward_24px, true,
                         () -> {
-                            openExternalLink(NetworkEndpoints.termuxAppReleases());
+                            Intent intent = new Intent();
+                            intent.setAction(ACTION_VIEW);
+                            intent.setData(Uri.parse(NetworkEndpoints.termuxReleasePage()));
+                            startActivity(intent);
                         }, null, null);
             }
 
