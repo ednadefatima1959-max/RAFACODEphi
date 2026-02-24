@@ -215,6 +215,6 @@ public class Config {
         defaultVNCUsername = "vectras";
         defaultVNCPasswd = "";
         defaultVNCPort = 5901;
-        QMPPort = 4444;
+        QMPPort = DEFAULT_QMP_PORT;
     }
 }

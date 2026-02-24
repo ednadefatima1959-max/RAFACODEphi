@@ -48,7 +48,6 @@ import com.vectras.vm.settings.X11DisplaySettingsActivity;
 import com.vectras.vm.utils.DialogUtils;
 import com.vectras.vm.utils.FileUtils;
 import com.vectras.vm.utils.JSONUtils;
-import com.vectras.vm.utils.TextUtils;
 import com.vectras.vm.utils.UIUtils;
 import com.vectras.vterm.Terminal;
 
@@ -61,12 +60,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.io.Writer;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -97,6 +96,14 @@ public class VMManager {
     private static final ConcurrentHashMap<String, VmRuntimeState> VM_STATES = new ConcurrentHashMap<>();
     private static final AtomicLong UNKNOWN_VM_SEQUENCE = new AtomicLong(1L);
     private static final Pattern SAFE_COMMAND_CHARS = Pattern.compile("^[a-zA-Z0-9_./,:=+\\-\"' ]+$");
+
+    public static String getFinalJson() {
+        return finalJson;
+    }
+
+    private static synchronized void setFinalJson(String value) {
+        finalJson = value == null ? "" : value;
+    }
 
     private enum VmRuntimeState {
         STOPPED,
@@ -628,42 +635,51 @@ public class VMManager {
     }
 
     public static String idGenerator() {
-        String _result = startRamdomVMID();
-
-        if (isFileExists(AppConfig.maindirpath + "/roms/" + _result)) {
-            _result = startRamdomVMID();
+        final int attempts = 512;
+        for (int attempt = 0; attempt < attempts; attempt++) {
+            String candidate = startRandomVMID();
+            if (!isFileExists(AppConfig.maindirpath + "/roms/" + candidate)) {
+                return candidate;
+            }
         }
 
-        if (isFileExists(AppConfig.maindirpath + "/roms/" + _result)) {
-            _result = startRamdomVMID();
-        }
-
-        return _result;
+        throw new IllegalStateException("Unable to allocate unique VM id after " + attempts + " attempts");
     }
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     @NonNull
-    public static String startRamdomVMID() {
-        Random random = new Random();
-        StringBuilder result = new StringBuilder();
+    public static String startRandomVMID() {
+        StringBuilder result = new StringBuilder(10);
 
         for (int i = 0; i < 10; i++) {
-            result.append(random.nextInt(2) > 0 ? TextUtils.randomALetter() : String.valueOf(random.nextInt(10)));
+            if (SECURE_RANDOM.nextBoolean()) {
+                result.append((char) ('a' + SECURE_RANDOM.nextInt(26)));
+            } else {
+                result.append((char) ('0' + SECURE_RANDOM.nextInt(10)));
+            }
         }
 
         return result.toString();
     }
 
+    /** @deprecated Use {@link #startRandomVMID()} instead. */
+    @Deprecated
+    @NonNull
+    public static String startRamdomVMID() {
+        return startRandomVMID();
+    }
+
     //This can be removed because QMP currently uses sockets instead of open ports.
     @Deprecated
     public static int startRandomPort() {
-        final Random random = new Random();
         final int min = 10_000;
         final int max = 65_535;
         final int attempts = 128;
         Set<Integer> reservedPorts = readReservedPortsFromVmDb();
 
         for (int attempt = 0; attempt < attempts; attempt++) {
-            int candidate = random.nextInt(max - min + 1) + min;
+            int candidate = SECURE_RANDOM.nextInt(max - min + 1) + min;
             if (reservedPorts.contains(candidate)) {
                 continue;
             }
@@ -704,11 +720,28 @@ public class VMManager {
         }
     }
 
+    static ArrayList<HashMap<String, Object>> parseVmListJson(String json) {
+        if (json == null || json.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        try {
+            ArrayList<HashMap<String, Object>> vmList = new Gson().fromJson(json, new TypeToken<ArrayList<HashMap<String, Object>>>() {
+            }.getType());
+            return vmList != null ? vmList : new ArrayList<>();
+        } catch (RuntimeException parseError) {
+            Log.w(TAG, "parseVmListJson: invalid JSON, using empty list", parseError);
+            return new ArrayList<>();
+        }
+    }
+
+    static boolean isValidVmPosition(ArrayList<HashMap<String, Object>> vmList, int position) {
+        return vmList != null && position >= 0 && position < vmList.size();
+    }
+
     public static void deleteVM(int position) {
         String vmId;
-        ArrayList<HashMap<String, Object>> vmList;
-        vmList = new Gson().fromJson(FileUtils.readAFile(AppConfig.maindirpath + "roms-data.json"), new TypeToken<ArrayList<HashMap<String, Object>>>() {
-        }.getType());
+        ArrayList<HashMap<String, Object>> vmList = parseVmListJson(
+                FileUtils.readAFile(AppConfig.maindirpath + "roms-data.json"));
 
         if (vmList == null || position < 0 || position > vmList.size() - 1) return;
 
@@ -723,7 +756,7 @@ public class VMManager {
             return;
         }
         vmList.remove(position);
-        finalJson = new Gson().toJson(vmList);
+        setFinalJson(new Gson().toJson(vmList));
         if (!vmId.isEmpty()) {
             int _startRepeat = 0;
             String _currentVMIDToScan;
@@ -736,7 +769,7 @@ public class VMManager {
                             _currentVMIDToScan = FileUtils.readAFile(_filelist.get(_startRepeat) + "/vmID.txt").replace("\n", "");
                             if (!_currentVMIDToScan.isEmpty()) {
                                 if (_currentVMIDToScan.equals(vmId)) {
-                                    if (!finalJson.contains(_filelist.get(_startRepeat))) {
+                                    if (!getFinalJson().contains(_filelist.get(_startRepeat))) {
                                         FileUtils.deleteDirectory(_filelist.get(_startRepeat));
                                     } else {
                                         isKeptSomeFiles = true;
@@ -813,8 +846,9 @@ public class VMManager {
     }
 
     public static void cleanUp() {
-        finalJson = FileUtils.readAFile(AppConfig.romsdatajson);
-        if (!finalJson.isEmpty()) {
+        setFinalJson(FileUtils.readAFile(AppConfig.romsdatajson));
+        String snapshot = getFinalJson();
+        if (!snapshot.isEmpty()) {
             int _startRepeat = 0;
             ArrayList<String> _filelist = new ArrayList<>();
             FileUtils.getAListOfAllFilesAndFoldersInADirectory(AppConfig.vmFolder, _filelist);
@@ -822,7 +856,7 @@ public class VMManager {
                 for (int _repeat = 0; _repeat < _filelist.size(); _repeat++) {
                     if (_startRepeat < _filelist.size()) {
                         if (!isFileExists(_filelist.get(_startRepeat) + "/vmID.txt")) {
-                            if (!finalJson.contains(_filelist.get(_startRepeat))) {
+                            if (!snapshot.contains(_filelist.get(_startRepeat))) {
                                 FileUtils.deleteDirectory(_filelist.get(_startRepeat));
                             }
                         }
@@ -975,15 +1009,16 @@ public class VMManager {
                 return;
             }
         }
-        finalJson = FileUtils.readAFile(AppConfig.romsdatajson);
-        if (!finalJson.isEmpty()) {
+        setFinalJson(FileUtils.readAFile(AppConfig.romsdatajson));
+        String snapshot = getFinalJson();
+        if (!snapshot.isEmpty()) {
             int _startRepeat = 0;
             ArrayList<String> _filelist = new ArrayList<>();
             FileUtils.getAListOfAllFilesAndFoldersInADirectory(AppConfig.vmFolder, _filelist);
             if (!_filelist.isEmpty()) {
                 for (int _repeat = 0; _repeat < _filelist.size(); _repeat++) {
                     if (_startRepeat < _filelist.size()) {
-                        if (!finalJson.contains(Objects.requireNonNull(Uri.parse(_filelist.get(_startRepeat)).getLastPathSegment()))) {
+                        if (!snapshot.contains(Objects.requireNonNull(Uri.parse(_filelist.get(_startRepeat)).getLastPathSegment()))) {
                             FileUtils.moveAFile(_filelist.get(_startRepeat), AppConfig.recyclebin + Uri.parse(_filelist.get(_startRepeat)).getLastPathSegment());
                         }
                     }
@@ -1073,7 +1108,7 @@ public class VMManager {
         }
 
         if (_command.contains("qemu-system") && _result.contains("Killed")) {
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         }
@@ -1090,13 +1125,13 @@ public class VMManager {
                         _activity.startActivity(intent);
                     },
                     null, null);
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else if (_result.contains(") exists") && _result.contains("drive with bus")) {
             //Error code: DRIVE_INDEX_0_EXISTS
             DialogUtils.oneDialog(_activity, _activity.getString(R.string.problem_has_been_detected), _activity.getString(R.string.error_DRIVE_INDEX_0_EXISTS) + "\n\n" + _result, R.drawable.hard_drive_24px);
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else if (_result.contains("gtk initialization failed") || _result.contains("x11 not available")) {
@@ -1107,14 +1142,14 @@ public class VMManager {
                         DialogUtils.oneDialog(_activity, _activity.getString(R.string.done), _activity.getString(R.string.switched_to_VNC), R.drawable.check_24px);
                     },
                     null, null);
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else if (_result.contains("Couldn't connect to XServer")) {
             if (isTryAgain) {
                 DialogUtils.oneDialog(_activity, _activity.getString(R.string.problem_has_been_detected), _activity.getString(R.string.x11_display_cannot_be_used_at_this_time_content) + "\n\n" + _result, R.drawable.cast_warning_24px);
                 _activity.stopService(new Intent(_activity, MainService.class));
-                isQemuStopedWithError = true;
+                markQemuStoppedWithError();
                 RafaeliaEventRecorder.recordCrash(_activity, _result);
                 isTryAgain = false;
             } else {
@@ -1126,14 +1161,14 @@ public class VMManager {
             //Error code: NO_SUCH_FILE_OR_DIRECTORY
             DialogUtils.oneDialog(_activity, _activity.getString(R.string.problem_has_been_detected), _activity.getString(R.string.error_NO_SUCH_FILE_OR_DIRECTORY) + "\n\n" + _result, R.drawable.file_copy_24px);
             _activity.stopService(new Intent(_activity, MainService.class));
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else if (_result.contains("another process using")) {
             //Error code: ANOTHER_PROCESS_USING_IMAGE
             DialogUtils.oneDialog(_activity, _activity.getString(R.string.problem_has_been_detected), _activity.getString(R.string.error_ANOTHER_PROCESS_USING_IMAGE) + "\n\n" + _result, R.drawable.file_copy_24px);
             _activity.stopService(new Intent(_activity, MainService.class));
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else if (_result.contains("mesapt: invalid sdl display")) {
@@ -1156,13 +1191,24 @@ public class VMManager {
             //Error code: UNKNOW_ERROR
             DialogUtils.oneDialog(_activity, _activity.getString(R.string.problem_has_been_detected), _activity.getString(R.string.vm_could_not_be_run_content) + "\n\n" + _result, R.drawable.error_96px);
             _activity.stopService(new Intent(_activity, MainService.class));
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else {
             isQemuStopedWithError = false;
             return false;
         }
+    }
+
+    private static void closeVmFdsOnStop() {
+        String vmId = MainStartVM.ensureLastVmIdInitialized(MainStartVM.lastVMID);
+        FileUtils.closeFdsForVm(vmId);
+        com.vectras.qemu.utils.FileUtils.close_fds();
+    }
+
+    private static void markQemuStoppedWithError() {
+        isQemuStopedWithError = true;
+        closeVmFdsOnStop();
     }
 
     public static boolean isRomsDataJsonValid(Boolean _needfix, Activity _context) {
@@ -1484,10 +1530,14 @@ public class VMManager {
         if (!MainStartVM.lastVMName.isEmpty()) {
             RafaeliaEventRecorder.recordStop(context, MainStartVM.lastVMName);
         }
+        closeVmFdsOnStop();
     }
 
     public static void shutdownCurrentVM() {
-        new Thread(() -> QmpClient.sendCommand("{ \"execute\": \"quit\" }")).start();
+        new Thread(() -> {
+            QmpClient.sendCommand("{ \"execute\": \"quit\" }");
+            closeVmFdsOnStop();
+        }).start();
     }
 
     public static void resetCurrentVM() {

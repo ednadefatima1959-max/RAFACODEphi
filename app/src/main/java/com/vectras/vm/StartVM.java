@@ -23,8 +23,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 public class StartVM {
+    public static final String SPICE_PORT_PLACEHOLDER = "__VECTRAS_SPICE_PORT__";
     public static String cdrompath = "";
     public static volatile String lastResolvedProfile = "BALANCED";
     public static volatile boolean lastKvmEnabled = false;
@@ -41,6 +43,7 @@ public class StartVM {
         String[] qemu = new String[0];
 
         String bios = "";
+        String biosValue = "";
 
         String finalextra = extras;
 
@@ -304,10 +307,12 @@ public class StartVM {
             params.add("-vnc");
             // Allow connections only from localhost using localsocket without a password
             if (MainSettingsManager.getVncExternal(activity)) {
+                String externalPassword = MainSettingsManager.getVncExternalPassword(activity);
+                boolean hasPassword = externalPassword != null && !externalPassword.isEmpty();
+                String vncHost = hasPassword ? "0.0.0.0" : Config.defaultVNCHost;
+                String vncParams = vncHost + ":" + Config.defaultVNCPort;
 
-                String vncParams = Config.defaultVNCHost + ":" + Config.defaultVNCPort;
-
-                if (!MainSettingsManager.getVncExternalPassword(activity).isEmpty()) {
+                if (hasPassword) {
                     vncParams += ",password=on";
                 }
 
@@ -338,7 +343,21 @@ public class StartVM {
 
         //params.add("-full-screen");
 
-        return String.join(" ", params);
+        return buildCommand(params);
+    }
+
+    static String buildCommand(List<String> params) {
+        StringJoiner joiner = new StringJoiner(" ");
+        for (String param : params) {
+            if (param == null) {
+                continue;
+            }
+            String trimmed = param.trim();
+            if (!trimmed.isEmpty()) {
+                joiner.add(trimmed);
+            }
+        }
+        return joiner.toString();
     }
 
     private static String get3dfxWrapperPath(Activity activity) {
