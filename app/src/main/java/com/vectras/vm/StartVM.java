@@ -320,7 +320,7 @@ public class StartVM {
             //}
         } else if (MainSettingsManager.getVmUi(activity).equals("SPICE")) {
             String spiceStr = "-spice ";
-            spiceStr += "port=6999,disable-ticketing=on";
+            spiceStr += "port=" + Config.getSpicePortForCurrentVm() + ",disable-ticketing=on";
             params.add(spiceStr);
         } else if (MainSettingsManager.getVmUi(activity).equals("X11")) {
             params.add("-display");
