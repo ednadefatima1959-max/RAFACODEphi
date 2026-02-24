@@ -31,7 +31,7 @@ public class RamInfo {
         if (prefs.getBoolean("customMemory", false) && TextUtils.isNumberOnly(prefs.getString("memory", String.valueOf(256)))) {
             return Integer.parseInt(prefs.getString("memory", String.valueOf(256)));
         } else {
-            return freeRamInt - 100;
+            return Math.max(freeRamInt - 100, 256);
         }
     }
 }

@@ -25,7 +25,7 @@ package android.androidVNC;
 
 public class DH {
 
-        private static final java.security.SecureRandom SECURE_RANDOM = new java.security.SecureRandom();
+        private final java.security.SecureRandom secureRandom = new java.security.SecureRandom();
 
         public DH() {
                 maxNum = (((long) 1) << DH_MAX_BITS) - 1;
@@ -40,10 +40,8 @@ public class DH {
         }
 
         private long rng(long limit) {
-                if (limit <= 0) {
-                        return 0;
-                }
-                return SECURE_RANDOM.nextLong(limit);
+                if (limit <= 0) return 0;
+                return (long) (secureRandom.nextDouble() * limit);
         }
 
         //Performs the miller-rabin primality test on a guessed prime n.

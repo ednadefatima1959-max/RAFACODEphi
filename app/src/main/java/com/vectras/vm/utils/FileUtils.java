@@ -518,8 +518,7 @@ public class FileUtils {
 		}
 	}
 
-	public static HashMap<Integer, ParcelFileDescriptor> fds = new HashMap<Integer, ParcelFileDescriptor>();
-	private static final HashMap<Integer, String> fdOwners = new HashMap<Integer, String>();
+	public static final java.util.concurrent.ConcurrentHashMap<Integer, ParcelFileDescriptor> fds = new java.util.concurrent.ConcurrentHashMap<Integer, ParcelFileDescriptor>();
 
 	public static int get_fd(final Context context, String path) {
 		return get_fd(context, path, null);

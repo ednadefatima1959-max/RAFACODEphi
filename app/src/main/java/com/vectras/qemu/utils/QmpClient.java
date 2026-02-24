@@ -49,8 +49,6 @@ public class QmpClient {
 	}
 
 	public static String sendCommand(String command, int maxRetries, int retryDelayMs) {
-		Object vmLock = lockForCurrentSocket();
-		synchronized (vmLock) {
 		String response = null;
 		boolean isQueryMigrateCommand = isQueryMigrateCommand(command);
 		int trial=0;
@@ -306,41 +304,38 @@ public class QmpClient {
 	}
 
 	public static String migrate(boolean block, boolean inc, String uri) {
+		try {
+			JSONObject arguments = new JSONObject();
+			arguments.put("blk", block);
+			arguments.put("inc", inc);
+			arguments.put("uri", uri);
 
-		// XXX: Detach should not be used via QMP according to docs
-		// return "{\"execute\":\"migrate\",\"arguments\":{\"detach\":" + detach
-		// + ",\"blk\":" + block + ",\"inc\":" + inc
-		// + ",\"uri\":\"" + uri + "\"},\"id\":\"vectras\"}";
-
-		// its better not to use block (full disk copy) cause its slow (though
-		// safer)
-		// see qmp-commands.hx for more info
-		JSONObject arguments = new JSONObject();
-		arguments.put("blk", block);
-		arguments.put("inc", inc);
-		arguments.put("uri", uri);
-
-		JSONObject jsonObject = new JSONObject();
-		jsonObject.put("execute", "migrate");
-		jsonObject.put("arguments", arguments);
-		jsonObject.put("id", "vectras");
-
-		return jsonObject.toString();
-
+			JSONObject jsonObject = new JSONObject();
+			jsonObject.put("execute", "migrate");
+			jsonObject.put("arguments", arguments);
+			jsonObject.put("id", "vectras");
+			return jsonObject.toString();
+		} catch (Exception e) {
+			Log.e(TAG, "Could not build migrate command", e);
+			return "{}";
+		}
 	}
 
     public static String setVncPassword(String passwd) {
-		JSONObject arguments = new JSONObject();
-		arguments.put("protocol", "vnc");
-		arguments.put("password", passwd);
+		try {
+			JSONObject arguments = new JSONObject();
+			arguments.put("protocol", "vnc");
+			arguments.put("password", passwd);
 
-		JSONObject jsonObject = new JSONObject();
-		jsonObject.put("execute", "set_password");
-		jsonObject.put("arguments", arguments);
-		jsonObject.put("id", "vectras");
-
-		return jsonObject.toString();
-
+			JSONObject jsonObject = new JSONObject();
+			jsonObject.put("execute", "set_password");
+			jsonObject.put("arguments", arguments);
+			jsonObject.put("id", "vectras");
+			return jsonObject.toString();
+		} catch (Exception e) {
+			Log.e(TAG, "Could not build set_password command", e);
+			return "{}";
+		}
     }
 
     public static String changevncpasswd(String passwd) {
@@ -393,14 +388,18 @@ public class QmpClient {
 	}
 
 	public static String save_snapshot(String snapshot_name) {
-		JSONObject arguments = new JSONObject();
-		arguments.put("name", snapshot_name);
-
-		JSONObject jsonObject = new JSONObject();
-		jsonObject.put("execute", "snapshot-create");
-		jsonObject.put("arguments", arguments);
-
-		return jsonObject.toString();
+		try {
+			JSONObject arguments = new JSONObject();
+			arguments.put("name", snapshot_name);
+			JSONObject jsonObject = new JSONObject();
+			jsonObject.put("execute", "snapshot-create");
+			jsonObject.put("arguments", arguments);
+			jsonObject.put("id", "vectras");
+			return jsonObject.toString();
+		} catch (Exception e) {
+			Log.e(TAG, "Could not build snapshot-create command", e);
+			return "{}";
+		}
 
 	}
 

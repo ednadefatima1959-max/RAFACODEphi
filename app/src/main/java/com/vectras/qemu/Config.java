@@ -21,7 +21,6 @@ package com.vectras.qemu;
 import android.androidVNC.COLORMODEL;
 import android.androidVNC.VncCanvasActivity;
 import android.graphics.Bitmap;
-import android.content.Context;
 import android.os.Environment;
 import android.widget.ImageView.ScaleType;
 
@@ -141,9 +140,7 @@ public class Config {
 
     //QMP
     public static String QMPServer = "127.0.0.1";
-    public static final int DEFAULT_QMP_PORT = 4444;
-    public static final int DEFAULT_SPICE_PORT = 6999;
-    public static int QMPPort = DEFAULT_QMP_PORT;
+    public static int QMPPort = 4444;
 
     public static int MAX_DISPLAY_REFRESH_RATE = 100; //Hz
 
@@ -171,21 +168,13 @@ public class Config {
     public static boolean processMouseHistoricalEvents = false;
 
     public static String getLocalQMPSocketPath() {
-        return Config.getCacheDir() + "/" + vmID + "/qmpsocket";
+        String id = vmID == null ? "" : vmID.trim();
+        return Config.getCacheDir() + "/" + id + "/qmpsocket";
     }
 
     public static String getLocalVNCSocketPath() {
-        return Config.getCacheDir()+ "/" + vmID + "/vncsocket";
-    }
-
-    public static int getSpicePortForCurrentVm() {
-        if (QMPPort > 0 && QMPPort < 65535) {
-            int candidate = QMPPort + 1;
-            if (candidate <= 65535) {
-                return candidate;
-            }
-        }
-        return DEFAULT_SPICE_PORT;
+        String id = vmID == null ? "" : vmID.trim();
+        return Config.getCacheDir()+ "/" + id + "/vncsocket";
     }
 
     public static enum MouseMode {
@@ -201,27 +190,12 @@ public class Config {
     public static boolean defaultCheckNewVersion = true;
 
     // App config
-    private static volatile String datadirpath;
-
     public static String getDatadirpath() {
-        String cached = datadirpath;
-        if (cached != null) {
-            return cached;
+        if (VectrasApp.getApp() == null) {
+            return "";
         }
-        synchronized (Config.class) {
-            if (datadirpath == null) {
-                Context appContext = VectrasApp.getApp();
-                if (appContext == null) {
-                    return "";
-                }
-                java.io.File externalDataDir = appContext.getExternalFilesDir("data");
-                if (externalDataDir == null) {
-                    return "";
-                }
-                datadirpath = externalDataDir.getAbsolutePath() + "/";
-            }
-            return datadirpath;
-        }
+        java.io.File dataDir = VectrasApp.getApp().getExternalFilesDir("data");
+        return dataDir != null ? dataDir.getAbsolutePath() + "/" : "";
     }
 
 	public static String machinename = "VECTRAS";
@@ -232,7 +206,7 @@ public class Config {
     public static final ScaleType defaultFullscreenScaleMode = ScaleType.FIT_CENTER;
     public static final ScaleType defaultScaleModeCenter = ScaleType.CENTER;
     public static final String defaultInputMode = VncCanvasActivity.TOUCH_ZOOM_MODE;
-    public static String vmID = "";
+    public static volatile String vmID = "";
     public static String currentVNCServervmID = "";
     public static boolean forceRefeshVNCDisplay = false;
 

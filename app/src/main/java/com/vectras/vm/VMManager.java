@@ -83,7 +83,7 @@ import java.util.regex.Pattern;
 public class VMManager {
 
     public static final String TAG = "VMManager";
-    private static volatile String finalJson = "";
+    public static volatile String finalJson = "";
     public static String pendingDeviceID = "";
     public static String generatedVMId = "";
     public static int restoredVMs = 0;
@@ -743,9 +743,7 @@ public class VMManager {
         ArrayList<HashMap<String, Object>> vmList = parseVmListJson(
                 FileUtils.readAFile(AppConfig.maindirpath + "roms-data.json"));
 
-        if (!isValidVmPosition(vmList, position)) {
-            return;
-        }
+        if (vmList == null || position < 0 || position > vmList.size() - 1) return;
 
         if (vmList.get(position).containsKey("vmID")) {
             vmId = Objects.requireNonNull(vmList.get(position).get("vmID")).toString();

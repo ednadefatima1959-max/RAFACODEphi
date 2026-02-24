@@ -175,7 +175,7 @@ public class StartVM {
                 }
             }
 
-                if (MainSettingsManager.getSharedFolder(activity) && !arch.equals("I386")) {
+            if (MainSettingsManager.getSharedFolder(activity) && !arch.equals("I386")) {
                 String driveParams;
                 if (ifType.isEmpty()) {
                     driveParams = "media=disk,file=fat:";
@@ -188,19 +188,19 @@ public class StartVM {
                 params.add(driveParams);
             }
 
-            String memoryStr = "-m ";
+            String memoryStr;
             if (arch.equals("PPC") && RamInfo.vectrasMemory(activity) > 2048) {
-                memoryStr += 2048;
+                memoryStr = String.valueOf(2048);
             } else {
-                memoryStr += RamInfo.vectrasMemory(activity);
+                memoryStr = String.valueOf(RamInfo.vectrasMemory(activity));
             }
 
-            String boot = "-boot ";
+            String boot;
             if (extras.contains(".iso ")) {
 
-                boot += MainSettingsManager.getBoot(activity);
+                boot = MainSettingsManager.getBoot(activity);
             } else {
-                boot += "c";
+                boot = "c";
             }
 
             //String soundDevice = "-audiodev pa,id=pa -device AC97,audiodev=pa";
@@ -209,8 +209,8 @@ public class StartVM {
 
             if (MainSettingsManager.useDefaultBios(activity)) {
                 if (arch.equals("PPC")) {
-                    bios = "-L";
-                    biosValue = "pc-bios";
+                    params.add("-L");
+                    params.add("pc-bios");
                 } else if (arch.equals("ARM64")) {
                     params.add("-drive");
                     params.add("file=" + AppConfig.basefiledir + "QEMU_EFI.img,format=raw,readonly=on,if=pflash");
@@ -222,8 +222,8 @@ public class StartVM {
                     params.add("-drive");
                     params.add("file=" + AppConfig.basefiledir + "RELEASEX64_OVMF_VARS.fd,format=raw,if=pflash");
                 } else {
-                    bios = "-bios";
-                    biosValue = AppConfig.basefiledir + "bios-vectras.bin";
+                    params.add("-bios");
+                    params.add(AppConfig.basefiledir + "bios-vectras.bin");
                 }
             }
 
@@ -255,13 +255,12 @@ public class StartVM {
             if (bios != null && !bios.isEmpty()) {
                 params.add(bios);
             }
-            if (biosValue != null && !biosValue.isEmpty()) {
-                params.add(biosValue);
-            }
             //}
 
+            params.add("-boot");
             params.add(boot);
 
+            params.add("-m");
             params.add(memoryStr);
 
             finalextra = normalizeCdromArgumentStyle(extras, ifType);
@@ -305,8 +304,7 @@ public class StartVM {
 
         if (MainSettingsManager.getVmUi(activity).equals("VNC")) {
 
-            String vncStr = "-vnc";
-            params.add(vncStr);
+            params.add("-vnc");
             // Allow connections only from localhost using localsocket without a password
             if (MainSettingsManager.getVncExternal(activity)) {
                 String externalPassword = MainSettingsManager.getVncExternalPassword(activity);
@@ -330,14 +328,17 @@ public class StartVM {
             params.add("vc");
             //}
         } else if (MainSettingsManager.getVmUi(activity).equals("SPICE")) {
-            String spiceStr = "-spice ";
-            spiceStr += "port=" + Config.getSpicePortForCurrentVm() + ",disable-ticketing=on";
-            params.add(spiceStr);
+            params.add("-spice");
+            params.add("addr=127.0.0.1,port=6999,disable-ticketing=off");
         } else if (MainSettingsManager.getVmUi(activity).equals("X11")) {
             params.add("-display");
             params.add(MainSettingsManager.getUseSdl(activity) ? "sdl" : "gtk" + ",gl=on");
             params.add("-monitor");
             params.add(MainSettingsManager.getRunQemuWithXterm(activity) ? "stdio" : "vc");
+        } else {
+            params.add("-display");
+            params.add("none");
+            Log.w("StartVM", "Unknown VM UI: " + MainSettingsManager.getVmUi(activity) + ", using -display none");
         }
 
         //params.add("-full-screen");
