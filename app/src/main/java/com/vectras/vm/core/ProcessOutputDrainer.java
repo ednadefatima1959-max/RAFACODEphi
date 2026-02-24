@@ -20,12 +20,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ProcessOutputDrainer {
     private static final String TAG = "ProcessOutputDrainer";
+    private static final double IO_ERROR_LOG_REFILL_PER_SEC = 0.2d;
+    private static final int IO_ERROR_LOG_BURST = 2;
+    private static final double IO_ERROR_SUPPRESSED_LOG_REFILL_PER_SEC = 0.1d;
+    private static final int IO_ERROR_SUPPRESSED_LOG_BURST = 1;
     public interface OutputLineConsumer {
         void onLine(String stream, String line);
     }
 
     private final ExecutorService streamExecutor = Executors.newFixedThreadPool(2);
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
+    private final TokenBucketRateLimiter ioErrorLogLimiter =
+            new TokenBucketRateLimiter(IO_ERROR_LOG_REFILL_PER_SEC, IO_ERROR_LOG_BURST);
+    private final TokenBucketRateLimiter ioErrorSuppressedLogLimiter =
+            new TokenBucketRateLimiter(IO_ERROR_SUPPRESSED_LOG_REFILL_PER_SEC, IO_ERROR_SUPPRESSED_LOG_BURST);
 
     public void cancel() {
         cancelled.set(true);
