@@ -50,8 +50,25 @@ public final class BackgroundJob {
             process = Runtime.getRuntime().exec(progArray, env, new File(cwd));
         } catch (IOException e) {
             mProcess = null;
-            // TODO: Visible error message?
-            Log.e(LOG_TAG, "Failed running background job: " + processDescription, e);
+            String errorMessage = "Failed running background job: " + processDescription + ": " + e.getMessage();
+            Log.e(LOG_TAG, errorMessage, e);
+
+            Bundle result = new Bundle();
+            result.putInt("exitCode", -1);
+            result.putString("stdout", "");
+            result.putString("stderr", errorMessage);
+
+            if (pendingIntent != null) {
+                Intent data = new Intent();
+                data.putExtra("result", result);
+                try {
+                    pendingIntent.send(service.getApplicationContext(), Activity.RESULT_CANCELED, data);
+                } catch (PendingIntent.CanceledException canceledException) {
+                    // The caller doesn't want the result? That's fine, just ignore.
+                }
+            }
+
+            service.onBackgroundJobExited(this);
             return;
         }
 
