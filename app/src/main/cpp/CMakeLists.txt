@@ -80,27 +80,41 @@ endif()
 
 # BUG#3 FIX: -ffreestanding/-fno-builtin removed — Android JNI requires bionic libc
 set(VECTRA_COMMON_COMPILE_OPTIONS -O3 -ffast-math -fvisibility=hidden -DRMR_BAREMETAL=1 -DRMR_JNI_BUILD=1)
-set(VECTRA_ARM64_COMPILE_OPTIONS)
+set(VECTRA_ABI_COMPILE_OPTIONS)
 
-if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
-    # +crc enables CRC32 intrinsics | +simd enables NEON | +sha2 enables SHA hw
-    set(VECTRA_ARM64_COMPILE_OPTIONS
-        -march=armv8-a+crc+simd
-        -mabi=lp64
-        -DRMR_ARCH_ARM64=1
-        -DRMR_FEAT_CRC32_HW=1)
-endif()
-if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
-    set(VECTRA_ARM64_COMPILE_OPTIONS -msse4.2 -mpopcnt -DRMR_ARCH_X86_64=1)
-endif()
-if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
-    set(VECTRA_ARM64_COMPILE_OPTIONS -march=armv7-a -mfpu=neon -DRMR_ARCH_ARM32=1)
+if(ANDROID)
+    if(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+        # +crc enables CRC32 intrinsics | +simd enables NEON | +sha2 enables SHA hw
+        set(VECTRA_ABI_COMPILE_OPTIONS
+            -march=armv8-a+crc+simd
+            -mabi=lp64
+            -DRMR_ARCH_ARM64=1
+            -DRMR_FEAT_CRC32_HW=1)
+    elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+        set(VECTRA_ABI_COMPILE_OPTIONS
+            -march=armv7-a
+            -mfpu=neon
+            -DRMR_ARCH_ARM32=1)
+    elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86")
+        set(VECTRA_ABI_COMPILE_OPTIONS
+            -msse4.2
+            -mpopcnt
+            -DRMR_ARCH_X86=1)
+    elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+        set(VECTRA_ABI_COMPILE_OPTIONS
+            -msse4.2
+            -mpopcnt
+            -DRMR_ARCH_X86_64=1)
+    else()
+        set(VECTRA_ABI_COMPILE_OPTIONS -DRMR_ARCH_UNSUPPORTED=1)
+        message(FATAL_ERROR "Unsupported Android ABI for vectra_core_accel: ${CMAKE_ANDROID_ARCH_ABI}. Supported: arm64-v8a, armeabi-v7a, x86, x86_64")
+    endif()
 endif()
 
 if(TARGET rmr_policy_static)
     target_compile_options(rmr_policy_static PRIVATE
         ${VECTRA_COMMON_COMPILE_OPTIONS}
-        ${VECTRA_ARM64_COMPILE_OPTIONS})
+        ${VECTRA_ABI_COMPILE_OPTIONS})
     target_include_directories(rmr_policy_static PRIVATE
         ${VECTRA_RMR_INCLUDE_DIR})
     target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_POLICY_MODULE=1)
@@ -115,7 +129,7 @@ endif()
 if(TARGET bitraf_static)
     target_compile_options(bitraf_static PRIVATE
         ${VECTRA_COMMON_COMPILE_OPTIONS}
-        ${VECTRA_ARM64_COMPILE_OPTIONS})
+        ${VECTRA_ABI_COMPILE_OPTIONS})
     target_include_directories(bitraf_static PRIVATE
         ${VECTRA_RMR_INCLUDE_DIR})
     target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_BITRAF_MODULE=1)
@@ -129,7 +143,7 @@ endif()
 
 target_compile_options(vectra_core_accel PRIVATE
     ${VECTRA_COMMON_COMPILE_OPTIONS}
-    ${VECTRA_ARM64_COMPILE_OPTIONS})
+    ${VECTRA_ABI_COMPILE_OPTIONS})
 
 target_link_libraries(vectra_core_accel PRIVATE ${log-lib})
 
