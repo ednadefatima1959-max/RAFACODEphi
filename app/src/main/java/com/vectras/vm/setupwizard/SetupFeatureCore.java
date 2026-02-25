@@ -333,12 +333,18 @@ public class SetupFeatureCore {
 
     public static boolean extractSystemFiles(Context context, String fromAsset, String extractTo) {
         String randomFileName = VMManager.startRamdomVMID();
-        AbiAssetResolution abiAssetResolution = resolveExistingBundledAbiAsset(context, fromAsset);
-        if (abiAssetResolution.assetPath == null) {
-            lastErrorLog = abiAssetResolution.errorMessage;
+        ArrayList<String> abiCandidates = resolveBootstrapAbiCandidates();
+        String assetPath = resolveFirstExistingAssetPath(context.getAssets(), fromAsset, abiCandidates);
+        if (assetPath == null) {
+            lastErrorLog = buildAbiResolutionError(
+                    "No bundled bootstrap package matched the current device architecture.",
+                    Build.SUPPORTED_ABIS,
+                    abiCandidates,
+                    fromAsset
+            );
+            Log.e(ABI_RESOLVE_TAG, lastErrorLog);
             return false;
         }
-        String assetPath = abiAssetResolution.assetPath;
 
         final Path filesDirRealPath;
         final Path extractTargetPath;
@@ -561,95 +567,67 @@ public class SetupFeatureCore {
                     null);
     }
 
-    public static final class AbiAssetResolution {
-        public final List<String> candidates;
-        public final String matchedCandidate;
-        public final String assetPath;
-        public final String errorMessage;
-
-        AbiAssetResolution(List<String> candidates, String matchedCandidate, String assetPath, String errorMessage) {
-            this.candidates = candidates;
-            this.matchedCandidate = matchedCandidate;
-            this.assetPath = assetPath;
-            this.errorMessage = errorMessage;
-        }
-    }
-
-    public static List<String> resolveBootstrapAbiCandidates() {
-        LinkedHashSet<String> candidates = new LinkedHashSet<>();
-        String[] supportedAbis = Build.SUPPORTED_ABIS == null ? new String[0] : Build.SUPPORTED_ABIS;
-
-        for (String supportedAbi : supportedAbis) {
-            if (supportedAbi == null) continue;
-            String normalized = supportedAbi.trim().toLowerCase(Locale.ROOT);
-            if (normalized.isEmpty()) continue;
-
-            switch (normalized) {
-                case "arm64-v8a":
-                    candidates.add("arm64-v8a");
-                    candidates.add("aarch64");
-                    break;
-                case "armeabi-v7a":
-                    candidates.add("armeabi-v7a");
-                    candidates.add("arm");
-                    candidates.add("armhf");
-                    break;
-                case "x86_64":
-                    candidates.add("x86_64");
-                    candidates.add("amd64");
-                    break;
-                case "x86":
-                    candidates.add("x86");
-                    candidates.add("i686");
-                    break;
-                default:
-                    candidates.add(normalized);
-                    break;
+    public static ArrayList<String> resolveBootstrapAbiCandidates() {
+        LinkedHashSet<String> orderedCandidates = new LinkedHashSet<>();
+        if (Build.SUPPORTED_ABIS != null) {
+            for (String abi : Build.SUPPORTED_ABIS) {
+                if (abi == null) continue;
+                String normalizedAbi = abi.trim().toLowerCase(Locale.ROOT);
+                if (normalizedAbi.isEmpty()) continue;
+                orderedCandidates.add(normalizedAbi);
+                addAbiAliases(normalizedAbi, orderedCandidates);
             }
         }
 
-        if (candidates.isEmpty()) {
-            candidates.add("arm64-v8a");
-            candidates.add("aarch64");
-            candidates.add("armeabi-v7a");
-            candidates.add("arm");
-            candidates.add("armhf");
-            candidates.add("x86_64");
-            candidates.add("amd64");
-            candidates.add("x86");
-            candidates.add("i686");
-        }
-
-        ArrayList<String> resolved = new ArrayList<>(candidates);
-        Log.i(ABI_RESOLVE_TAG, "resolveBootstrapAbiCandidates supported=" + Arrays.toString(supportedAbis)
-                + " | candidates=" + resolved);
-        return resolved;
+        ArrayList<String> result = new ArrayList<>(orderedCandidates);
+        Log.i(ABI_RESOLVE_TAG,
+                "resolveBootstrapAbiCandidates supported=" + Arrays.toString(Build.SUPPORTED_ABIS)
+                        + " candidates=" + result);
+        return result;
     }
 
-    public static AbiAssetResolution resolveExistingBundledAbiAsset(Context context, String assetRoot) {
-        List<String> candidates = resolveBootstrapAbiCandidates();
-        AssetManager assetManager = context.getAssets();
+    public static String resolveFirstExistingAssetPath(AssetManager assetManager, String assetGroup, List<String> abiCandidates) {
+        if (assetManager == null || abiCandidates == null || abiCandidates.isEmpty()) {
+            return null;
+        }
 
-        for (String candidate : candidates) {
-            String candidatePath = assetRoot + "/" + candidate + ".tar";
-            try (InputStream ignored = assetManager.open(candidatePath)) {
-                Log.i(ABI_RESOLVE_TAG, "Resolved bundled ABI asset root=" + assetRoot
-                        + " | selectedCandidate=" + candidate
-                        + " | path=" + candidatePath);
-                return new AbiAssetResolution(candidates, candidate, candidatePath, "");
+        for (String candidate : abiCandidates) {
+            String assetPath = assetGroup + "/" + candidate + ".tar";
+            try (InputStream inputStream = assetManager.open(assetPath)) {
+                Log.i(ABI_RESOLVE_TAG, "Resolved asset path group=" + assetGroup + " candidate=" + candidate + " path=" + assetPath);
+                return assetPath;
             } catch (IOException ignored) {
-                // Probe next candidate
+                Log.d(ABI_RESOLVE_TAG, "Asset candidate not found: " + assetPath);
             }
         }
 
-        ArrayList<String> requiredKeys = new ArrayList<>();
-        for (String candidate : candidates) {
-            requiredKeys.add(assetRoot + "/" + candidate + ".tar");
+        return null;
+    }
+
+    public static String buildAbiResolutionError(String reason, String[] supportedAbis, List<String> candidates, String assetGroup) {
+        String requiredAssetKeys = assetGroup + "/<abi>.tar where <abi> is one of " + candidates;
+        return reason
+                + " Supported device ABIs=" + Arrays.toString(supportedAbis)
+                + " | Required asset keys=" + requiredAssetKeys;
+    }
+
+    private static void addAbiAliases(String abi, LinkedHashSet<String> orderedCandidates) {
+        switch (abi) {
+            case "arm64-v8a":
+                orderedCandidates.add("aarch64");
+                break;
+            case "armeabi-v7a":
+                orderedCandidates.add("arm");
+                orderedCandidates.add("armhf");
+                break;
+            case "x86_64":
+                orderedCandidates.add("amd64");
+                break;
+            case "x86":
+                orderedCandidates.add("i686");
+                break;
+            default:
+                break;
         }
-        String error = "No bundled asset matched for root=" + assetRoot
-                + ". Supported device ABIs=" + Arrays.toString(Build.SUPPORTED_ABIS)
-                + ". Required asset keys=" + requiredKeys;
-        Log.e(ABI_RESOLVE_TAG, error);
-        return new AbiAssetResolution(candidates, null, null, error);
     }
 }

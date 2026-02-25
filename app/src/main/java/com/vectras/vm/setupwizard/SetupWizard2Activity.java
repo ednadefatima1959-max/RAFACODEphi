@@ -80,6 +80,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private static final String TAG = "SetupWizard2Activity";
     private static final String BOOTSTRAP_PREFIX_ARIA2 = " aria2c -x 4 --async-dns=false --disable-ipv6 -o setup.tar.gz ";
     private static final String BOOTSTRAP_PREFIX_CURL = " curl -o setup.tar.gz -L ";
+    private static final String[] BOOTSTRAP_COMPATIBLE_ABI_PREFIXES = new String[]{"arm64-v8a", "aarch64", "armeabi-v7a", "arm", "armhf", "x86_64", "amd64", "x86", "i686"};
     private static final Pattern ARIA2_PROGRESS_PATTERN = Pattern.compile("\\((\\d{1,3})%\\)");
     private static final Pattern CURL_PROGRESS_PATTERN = Pattern.compile("^\\s*(\\d{1,3})\\s+\\d");
     private static final Pattern PACKAGE_PROGRESS_PATTERN = Pattern.compile("\\((\\d+)/(\\d+)\\)");
@@ -710,15 +711,21 @@ public class SetupWizard2Activity extends AppCompatActivity {
     }
 
     private boolean prepareBundledBootstrapArchive() {
-        SetupFeatureCore.AbiAssetResolution abiAssetResolution =
-                SetupFeatureCore.resolveExistingBundledAbiAsset(this, "alpine19");
-        if (abiAssetResolution.assetPath == null) {
-            Log.e(SetupFeatureCore.ABI_RESOLVE_TAG, abiAssetResolution.errorMessage);
+        ArrayList<String> abiCandidates = SetupFeatureCore.resolveBootstrapAbiCandidates();
+        String assetPath = SetupFeatureCore.resolveFirstExistingAssetPath(getAssets(), "alpine19", abiCandidates);
+        setupArchiveFileName = "setup.tar";
+
+        if (assetPath == null) {
+            String error = SetupFeatureCore.buildAbiResolutionError(
+                    "No bundled alpine19 bootstrap archive matched the current device architecture.",
+                    Build.SUPPORTED_ABIS,
+                    abiCandidates,
+                    "alpine19"
+            );
+            Log.e(SetupFeatureCore.ABI_RESOLVE_TAG, error);
             return false;
         }
 
-        setupArchiveFileName = "setup.tar";
-        String assetPath = abiAssetResolution.assetPath;
         try (InputStream input = getAssets().open(assetPath);
              FileOutputStream output = new FileOutputStream(tarPath)) {
             byte[] buffer = new byte[32 * 1024];
@@ -1419,10 +1426,11 @@ public class SetupWizard2Activity extends AppCompatActivity {
             return false;
         }
 
-        ArrayList<String> abiCandidates = new ArrayList<>(SetupFeatureCore.resolveBootstrapAbiCandidates());
-        Log.i(SetupFeatureCore.ABI_RESOLVE_TAG, "Resolving remote bootstrap metadata keys=" + abiCandidates);
+        ArrayList<String> architectureKeys = SetupFeatureCore.resolveBootstrapAbiCandidates();
+        Log.i(SetupFeatureCore.ABI_RESOLVE_TAG,
+                "metadata candidates=" + architectureKeys + " availableKeys=" + bootstrapMap.keySet());
 
-        for (String architectureKey : abiCandidates) {
+        for (String architectureKey : architectureKeys) {
             Object architectureConfig = bootstrapMap.get(architectureKey);
             if (architectureConfig == null) {
                 continue;
@@ -1453,6 +1461,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
             }
 
             if (!isBootstrapLinkValid(resolvedBootstrapUrl)) {
+                Log.w(SetupFeatureCore.ABI_RESOLVE_TAG, "Invalid bootstrap URL for key=" + architectureKey + " value=" + resolvedBootstrapUrl);
                 continue;
             }
 
@@ -1460,7 +1469,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
             bootstrapExpectedSha256 = resolvedSha256;
             bootstrapExpectedSignature = resolvedSignature;
             downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, false);
-            Log.i(SetupFeatureCore.ABI_RESOLVE_TAG, "Resolved remote bootstrap metadata key=" + architectureKey
+            Log.i(SetupFeatureCore.ABI_RESOLVE_TAG, "Resolved metadata key=" + architectureKey + " origin=" + bootstrapFileLink);
+            Log.i(TAG, "AUDIT bootstrap metadata resolved architecture=" + architectureKey
                     + " | hasSha256=" + (!TextUtils.isEmpty(bootstrapExpectedSha256))
                     + " | hasSig=" + (!TextUtils.isEmpty(bootstrapExpectedSignature))
                     + " | origin=" + bootstrapFileLink);
@@ -1468,9 +1478,13 @@ public class SetupWizard2Activity extends AppCompatActivity {
             return !downloadBootstrapsCommand.isEmpty();
         }
 
-        Log.e(SetupFeatureCore.ABI_RESOLVE_TAG,
-                "No remote bootstrap metadata matched. Supported device ABIs=" + java.util.Arrays.toString(Build.SUPPORTED_ABIS)
-                        + " | required metadata keys=" + abiCandidates);
+        String error = SetupFeatureCore.buildAbiResolutionError(
+                "No remote bootstrap metadata entry matched the current device architecture.",
+                Build.SUPPORTED_ABIS,
+                architectureKeys,
+                "bootstrap"
+        ) + " | Metadata keys=" + bootstrapMap.keySet();
+        Log.e(SetupFeatureCore.ABI_RESOLVE_TAG, error);
         return false;
     }
 
