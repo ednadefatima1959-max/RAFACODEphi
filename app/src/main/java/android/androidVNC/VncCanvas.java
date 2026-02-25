@@ -1023,6 +1023,8 @@ public class VncCanvas extends AppCompatImageView {
                         pointerMask |= MOUSE_BUTTON_SCROLL_UP;
                     else
                         pointerMask |= MOUSE_BUTTON_SCROLL_DOWN;
+                } else if (action == MotionEvent.ACTION_HOVER_MOVE) {
+                    pointerMask &= ~(MOUSE_BUTTON_LEFT | MOUSE_BUTTON_MIDDLE | MOUSE_BUTTON_RIGHT);
                 } else if (action == MotionEvent.ACTION_UP) {
                     // Log.v("Vectras", "Button Up");
                     //pointerMask = 0;
@@ -2192,14 +2194,14 @@ public class VncCanvas extends AppCompatImageView {
                                     float hx = event.getHistoricalX(h);
                                     float hy = event.getHistoricalY(h);
                                     float hp = event.getHistoricalPressure(h);
-                                    processHoverMouse(event, hx, hy, hp, action);
+                                    processHoverMouse(event, hx, hy, hp, MotionEvent.ACTION_HOVER_MOVE);
                                 }
                             }
 
                             float currentX = event.getX();
                             float currentY = event.getY();
                             float currentPressure = event.getPressure();
-                            processHoverMouse(event, currentX, currentY, currentPressure, action);
+                            processHoverMouse(event, currentX, currentY, currentPressure, MotionEvent.ACTION_HOVER_MOVE);
                             return true;
 
                         case MotionEvent.ACTION_UP:
