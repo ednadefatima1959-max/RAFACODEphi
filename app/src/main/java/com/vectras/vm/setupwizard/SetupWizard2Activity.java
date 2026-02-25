@@ -78,9 +78,11 @@ import java.util.regex.Pattern;
 
 public class SetupWizard2Activity extends AppCompatActivity {
     private static final String TAG = "SetupWizard2Activity";
+    public static final String ACTION_DEBUG_PROOT_SELF_CHECK = "com.vectras.vm.action.DEBUG_PROOT_SELF_CHECK";
+    public static final String EXTRA_DEBUG_PROOT_SELF_CHECK = "debug_proot_self_check";
     private static final String BOOTSTRAP_PREFIX_ARIA2 = " aria2c -x 4 --async-dns=false --disable-ipv6 -o setup.tar.gz ";
     private static final String BOOTSTRAP_PREFIX_CURL = " curl -o setup.tar.gz -L ";
-    private static final String[] BOOTSTRAP_COMPATIBLE_ABI_PREFIXES = new String[]{"arm64-v8a", "aarch64", "armeabi-v7a", "armhf", "x86_64", "amd64", "x86"};
+    private static final String[] BOOTSTRAP_COMPATIBLE_ABI_PREFIXES = new String[]{"arm64-v8a", "aarch64", "armeabi-v7a", "arm", "armhf", "x86_64", "amd64", "x86", "i686"};
     private static final Pattern ARIA2_PROGRESS_PATTERN = Pattern.compile("\\((\\d{1,3})%\\)");
     private static final Pattern CURL_PROGRESS_PATTERN = Pattern.compile("^\\s*(\\d{1,3})\\s+\\d");
     private static final Pattern PACKAGE_PROGRESS_PATTERN = Pattern.compile("\\((\\d+)/(\\d+)\\)");
@@ -149,6 +151,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     String installStateDetail = "";
     String normalizedLastError = "";
     String activeSetupTimestamp = "";
+    String lastProotSelfCheckBlock = "";
     boolean rollbackAvailable = false;
     final ArrayList<HashMap<String, String>> mirrorList = new ArrayList<>();
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -256,6 +259,10 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 VTERM.showVterm();
             }
         });
+        binding.ivOpenTerminal.setOnLongClickListener(v -> {
+            triggerDebugProotSelfCheck("ui-long-press");
+            return true;
+        });
 
         binding.btnRetrySetup.setOnClickListener(v -> retrySetupIdempotent());
 
@@ -303,12 +310,26 @@ public class SetupWizard2Activity extends AppCompatActivity {
             }).start();
         });
 
-        if (getIntent().hasExtra("action")) {
-            if (getIntent().getIntExtra("action", -1) == ACTION_SYSTEM_UPDATE) {
+        Intent launchIntent = getIntent();
+        if (ACTION_DEBUG_PROOT_SELF_CHECK.equals(launchIntent.getAction())
+                || launchIntent.getBooleanExtra(EXTRA_DEBUG_PROOT_SELF_CHECK, false)
+                ) {
+            triggerDebugProotSelfCheck("intent");
+        }
+
+        if (launchIntent.hasExtra("action")) {
+            if (launchIntent.getIntExtra("action", -1) == ACTION_SYSTEM_UPDATE) {
                 isSystemUpdateMode = true;
                 uiController(STEP_SYSTEM_UPDATE);
             }
         }
+    }
+
+    private void triggerDebugProotSelfCheck(String triggerOrigin) {
+        executor.execute(() -> {
+            boolean checkOk = SetupFeatureCore.runProotSelfCheck(this);
+            Log.i(TAG, "runProotSelfCheck trigger=" + triggerOrigin + " ok=" + checkOk);
+        });
     }
 
     private void uiController(int step) {
@@ -452,6 +473,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
                     runOnUiThread(() -> new Handler(Looper.getMainLooper()).postDelayed(() -> {
                         if (result) {
+                            runAndDisplayProotSelfCheck();
                             SetupFeatureCore.PostInstallCheckResult postInstallCheckResult = SetupFeatureCore.runPostInstallCheck(this);
                             if (postInstallCheckResult.ok) {
                                 getDataForStandardSetup();
@@ -740,6 +762,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 output.write(buffer, 0, read);
             }
             output.flush();
+            Log.i(SetupFeatureCore.ABI_RESOLVE_TAG, "Bundled bootstrap prepared from path=" + assetPath);
             return true;
         } catch (IOException e) {
             Log.e(TAG, "Failed to prepare bundled bootstrap archive: " + selectedAssetPath, e);
@@ -1232,6 +1255,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
         transitionInstallState(InstallState.INIT, "Retry requested by user.");
         if (SetupFeatureCore.isInstalledSystemFiles(this)) {
+            runAndDisplayProotSelfCheck();
             SetupFeatureCore.PostInstallCheckResult postInstallCheckResult = SetupFeatureCore.runPostInstallCheck(this);
             if (postInstallCheckResult.ok) {
                 getDataForStandardSetup();
@@ -1243,12 +1267,40 @@ public class SetupWizard2Activity extends AppCompatActivity {
         }
     }
 
+    private void runAndDisplayProotSelfCheck() {
+        try {
+            java.lang.reflect.Method runSelfCheckMethod = SetupFeatureCore.class.getMethod("runProotSelfCheck", Context.class);
+            Object result = runSelfCheckMethod.invoke(null, this);
+            if (result == null) {
+                lastProotSelfCheckBlock = "prootSelfCheck=unavailable\nreason=result-null";
+            } else {
+                java.lang.reflect.Method structuredTextMethod = result.getClass().getMethod("toStructuredText");
+                Object structuredTextValue = structuredTextMethod.invoke(result);
+                lastProotSelfCheckBlock = structuredTextValue == null
+                        ? "prootSelfCheck=unavailable\nreason=structured-text-null"
+                        : structuredTextValue.toString();
+            }
+        } catch (Exception e) {
+            lastProotSelfCheckBlock = "prootSelfCheck=unavailable\nreason=" + e.getClass().getSimpleName() + ":" + e.getMessage();
+        }
+
+        for (String line : lastProotSelfCheckBlock.split("\\R")) {
+            if (!line.trim().isEmpty()) {
+                Log.i(PROOT_SELF_CHECK_TAG, line);
+            }
+        }
+        appendTextAndScroll("\n[PROOT_SELF_CHECK]\n" + lastProotSelfCheckBlock + "\n");
+    }
+
     private void exportSetupDiagnostic() {
         String diagnostic = "state=" + installState + "\n"
                 + "detail=" + installStateDetail + "\n"
                 + "lastError=" + normalizedLastError + "\n"
                 + "setupSource=" + setupSource + "\n"
-                + "timestamp=" + activeSetupTimestamp + "\n\n"
+                + "timestamp=" + activeSetupTimestamp + "\n"
+                + "prootSelfCheck=" + (lastProotSelfCheckBlock.isEmpty() ? "not-run" : "captured") + "\n"
+                + (lastProotSelfCheckBlock.isEmpty() ? "" : "\n[PROOT_SELF_CHECK]\n" + lastProotSelfCheckBlock + "\n")
+                + "\n"
                 + logs;
         ClipboardUltils.copyToClipboard(this, diagnostic);
         UIUtils.toastShort(this, getString(R.string.export_results));
@@ -1348,6 +1400,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
             return "";
         }
 
+        Log.i(TAG, "SETUP_URL_NORMALIZED raw=" + link + " normalized=" + sanitizedBootstrapUrl);
+
         String template = forceCurl
                 ? "curl -o setup.tar.gz -L <bootstrap-url>"
                 : "aria2c -x 4 --async-dns=false --disable-ipv6 -o setup.tar.gz <bootstrap-url>";
@@ -1361,7 +1415,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
         return sanitizeBootstrapUrl(link) != null;
     }
 
-    private String sanitizeBootstrapUrl(String link) {
+    private static String sanitizeBootstrapUrl(String link) {
         if (link == null) {
             return null;
         }
@@ -1489,27 +1543,38 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 } else if (!candidate.isEmpty()) {
                     Log.w(TAG, "AUDIT bootstrap metadata contains invalid sha256 for architecture=" + architectureKey);
                 }
+                Object sigObject = architectureMap.get("sig");
+                resolvedSignature = sigObject == null ? "" : sigObject.toString().trim();
+            } else {
+                resolvedBootstrapUrl = architectureConfig.toString().trim();
             }
-            Object sigObject = architectureMap.get("sig");
-            resolvedSignature = sigObject == null ? "" : sigObject.toString().trim();
-        } else {
-            resolvedBootstrapUrl = architectureConfig == null ? "" : architectureConfig.toString().trim();
+
+            if (!isBootstrapLinkValid(resolvedBootstrapUrl)) {
+                Log.w(SetupFeatureCore.ABI_RESOLVE_TAG, "Invalid bootstrap URL for key=" + architectureKey + " value=" + resolvedBootstrapUrl);
+                continue;
+            }
+
+            bootstrapFileLink = resolvedBootstrapUrl;
+            bootstrapExpectedSha256 = resolvedSha256;
+            bootstrapExpectedSignature = resolvedSignature;
+            downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, false);
+            Log.i(SetupFeatureCore.ABI_RESOLVE_TAG, "Resolved metadata key=" + architectureKey + " origin=" + bootstrapFileLink);
+            Log.i(TAG, "AUDIT bootstrap metadata resolved architecture=" + architectureKey
+                    + " | hasSha256=" + (!TextUtils.isEmpty(bootstrapExpectedSha256))
+                    + " | hasSig=" + (!TextUtils.isEmpty(bootstrapExpectedSignature))
+                    + " | origin=" + bootstrapFileLink);
+            MainSettingsManager.setLastSetupBootstrapUrl(this, bootstrapFileLink);
+            return !downloadBootstrapsCommand.isEmpty();
         }
 
-        if (!isBootstrapLinkValid(resolvedBootstrapUrl)) {
-            return false;
-        }
-
-        bootstrapFileLink = resolvedBootstrapUrl;
-        bootstrapExpectedSha256 = resolvedSha256;
-        bootstrapExpectedSignature = resolvedSignature;
-        downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, false);
-        Log.i(TAG, "AUDIT bootstrap metadata resolved architecture=" + architectureKey
-                + " | hasSha256=" + (!TextUtils.isEmpty(bootstrapExpectedSha256))
-                + " | hasSig=" + (!TextUtils.isEmpty(bootstrapExpectedSignature))
-                + " | origin=" + bootstrapFileLink);
-        MainSettingsManager.setLastSetupBootstrapUrl(this, bootstrapFileLink);
-        return !downloadBootstrapsCommand.isEmpty();
+        String error = SetupFeatureCore.buildAbiResolutionError(
+                "No remote bootstrap metadata entry matched the current device architecture.",
+                Build.SUPPORTED_ABIS,
+                architectureKeys,
+                "bootstrap"
+        ) + " | Metadata keys=" + bootstrapMap.keySet();
+        Log.e(SetupFeatureCore.ABI_RESOLVE_TAG, error);
+        return false;
     }
 
     private void selectMirror() {
@@ -1722,12 +1787,12 @@ public class SetupWizard2Activity extends AppCompatActivity {
             return false;
         }
 
-        String normalized = fileName.trim().toLowerCase();
+        String normalized = fileName.trim().toLowerCase(Locale.ROOT);
         if (!(normalized.endsWith(".tar.gz") || normalized.endsWith(".tar"))) {
             return false;
         }
 
-        for (String abiPrefix : BOOTSTRAP_COMPATIBLE_ABI_PREFIXES) {
+        for (String abiPrefix : SetupFeatureCore.resolveBootstrapAbiCandidates()) {
             if (normalized.contains(abiPrefix)) {
                 return true;
             }
