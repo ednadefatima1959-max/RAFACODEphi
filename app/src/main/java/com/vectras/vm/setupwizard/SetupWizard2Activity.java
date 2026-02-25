@@ -1327,6 +1327,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
             return "";
         }
 
+        Log.i(TAG, "SETUP_URL_NORMALIZED raw=" + link + " normalized=" + sanitizedBootstrapUrl);
+
         String template = forceCurl
                 ? "curl -o setup.tar.gz -L <bootstrap-url>"
                 : "aria2c -x 4 --async-dns=false --disable-ipv6 -o setup.tar.gz <bootstrap-url>";
@@ -1340,7 +1342,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
         return sanitizeBootstrapUrl(link) != null;
     }
 
-    private String sanitizeBootstrapUrl(String link) {
+    private static String sanitizeBootstrapUrl(String link) {
         if (link == null) {
             return null;
         }
@@ -1374,7 +1376,31 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 return null;
             }
 
-            return trimmed;
+            String encodedPath = parsed.getEncodedPath();
+            String normalizedEncodedPath = encodedPath;
+            if (encodedPath != null) {
+                normalizedEncodedPath = encodedPath.replaceAll("/{2,}", "/");
+            }
+
+            Uri.Builder uriBuilder = new Uri.Builder()
+                    .scheme(normalizedScheme)
+                    .encodedAuthority(authority);
+
+            if (normalizedEncodedPath != null) {
+                uriBuilder.encodedPath(normalizedEncodedPath);
+            }
+
+            String encodedQuery = parsed.getEncodedQuery();
+            if (encodedQuery != null) {
+                uriBuilder.encodedQuery(encodedQuery);
+            }
+
+            String encodedFragment = parsed.getEncodedFragment();
+            if (encodedFragment != null) {
+                uriBuilder.encodedFragment(encodedFragment);
+            }
+
+            return uriBuilder.build().toString();
         } catch (Exception e) {
             return null;
         }
