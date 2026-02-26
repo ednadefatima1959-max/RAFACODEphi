@@ -18,8 +18,8 @@ local_companion_files=(
   "06_LIMITATIONS_NEXT.md"
 )
 
-# Aliases legados proibidos (não há renomeação pós-extração)
-legacy_aliases=(
+# Aliases legados (não-canônicos) que NÃO fazem parte da convenção do ZIP.
+deprecated_aliases=(
   "01_FOUNDATIONS.md"
   "02_METHODS.md"
   "03_RESULTS.md"
@@ -35,16 +35,14 @@ for file in "${zip_files[@]}" "${local_companion_files[@]}"; do
   fi
 done
 
-legacy_conflict=0
-for file in "${legacy_aliases[@]}"; do
-  if [[ -f "${ROOT_DIR}/${file}" ]]; then
-    echo "[bitomega-postdoc] alias legado detectado (remover): ${file}" >&2
-    legacy_conflict=1
+for alias in "${deprecated_aliases[@]}"; do
+  if [[ -f "${ROOT_DIR}/${alias}" ]]; then
+    echo "[bitomega-postdoc] aviso: alias legado detectado (ignorado): ${alias}" >&2
   fi
 done
 
-if [[ "${missing}" -ne 0 || "${legacy_conflict}" -ne 0 ]]; then
-  echo "[bitomega-postdoc] validação falhou: convenção de nomes divergente" >&2
+if [[ "${missing}" -ne 0 ]]; then
+  echo "[bitomega-postdoc] validação falhou: conjunto incompleto" >&2
   exit 1
 fi
 

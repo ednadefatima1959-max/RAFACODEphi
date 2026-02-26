@@ -50,6 +50,9 @@ Executar:
 docs/bitomega_postdoc/validate_pack.sh
 ```
 
+O script valida o conjunto completo do pacote (`00` até `06`) usando a mesma
+convenção de nomes do ZIP e emite apenas **aviso** se encontrar aliases legados
+no diretório.
 O script valida:
 
 1. presença dos arquivos oficiais do ZIP;
