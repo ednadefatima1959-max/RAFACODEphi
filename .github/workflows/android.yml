@@ -52,6 +52,11 @@ on:
         required: false
         type: boolean
         default: false
+      upload_telegram:
+        description: 'Send Telegram notifications and upload release artifacts to Telegram'
+        required: false
+        type: boolean
+        default: false
       compile_api:
         description: 'Android compileSdk/targetSdk API level (e.g. 35)'
         required: false
@@ -372,6 +377,7 @@ jobs:
         echo "build_debug=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_debug || 'true' }}"
         echo "build_release=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_release || 'true' }}"
         echo "sign_release=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release || 'true' }}"
+        echo "upload_telegram=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram || 'false' }}"
         echo "compile_api=${COMPILE_API}"
         echo "tools_version=${TOOLS_VERSION}"
         echo "ndk_version=${NDK_VERSION}"
@@ -644,3 +650,58 @@ jobs:
       with:
         name: android-release-apk
         path: app/build/outputs/apk/release/app-release.apk
+
+    - name: Stage Release APKs for Telegram upload
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && github.event.inputs.build_release == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        shopt -s nullglob
+        mkdir -p artifacts/release
+        release_apks=(app/build/outputs/apk/release/*.apk)
+        if [[ ${#release_apks[@]} -eq 0 ]]; then
+          echo "No APK files found under app/build/outputs/apk/release for Telegram staging." >&2
+          exit 1
+        fi
+        cp app/build/outputs/apk/release/*.apk artifacts/release/
+
+    - name: Upload to Telegram
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && github.event.inputs.build_release == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [[ -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" || ( -z "${{ secrets.TELEGRAM_CHAT_ID }}" && -z "${{ secrets.TELEGRAM_CHAT_ID_VEC }}" ) ]]; then
+          echo "Telegram secrets/chat IDs are not configured; skipping Telegram upload gracefully."
+          exit 0
+        fi
+
+        shopt -s nullglob
+        release_apks=(artifacts/release/*.apk)
+        if [[ ${#release_apks[@]} -eq 0 ]]; then
+          echo "Upload requested but no staged release APK found in artifacts/release/*.apk." >&2
+          exit 1
+        fi
+
+        caption="Done! Note that this is a version that is automatically built when there are changes in the GitHub repository, not the official version. Please only install it if you really want to see what is new.
+Explore beta releases here: https://github.com/AnBui2004/Vectras-VM-Emu-Android/releases
+Run ID: ${GITHUB_RUN_ID}"
+
+        for file in "${release_apks[@]}"; do
+          if [[ -n "${{ secrets.TELEGRAM_CHAT_ID }}" ]]; then
+            curl --fail --silent --show-error --retry 3 --retry-all-errors -o /dev/null \
+              -F "document=@${file}" \
+              -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -F "message_thread_id=8" \
+              -F "caption=${caption}" \
+              "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
+          fi
+
+          if [[ -n "${{ secrets.TELEGRAM_CHAT_ID_VEC }}" ]]; then
+            curl --fail --silent --show-error --retry 3 --retry-all-errors -o /dev/null \
+              -F "document=@${file}" \
+              -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID_VEC }}" \
+              -F "caption=${caption}" \
+              "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
+          fi
+        done
