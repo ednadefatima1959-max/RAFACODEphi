@@ -35,6 +35,7 @@ import com.vectras.vm.AppConfig;
 import com.vectras.vm.R;
 import com.vectras.vm.VMManager;
 import com.vectras.vm.core.ProcessLaunch;
+import com.vectras.vm.core.HardwareProfileBridge;
 import com.vectras.vm.core.ProcessRuntimeOps;
 import com.vectras.vm.core.ProotCommandBuilder;
 import com.vectras.vm.network.RequestNetwork;
@@ -209,6 +210,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
         ListUtils.setupMirrorListForListmap(mirrorList);
         applySelectedMirror(MainSettingsManager.getSelectedMirror(this));
+        HardwareProfileBridge.Snapshot hardwareSnapshot = HardwareProfileBridge.captureAndPersist(this, false);
+        Log.i(TAG, "Hardware snapshot: " + hardwareSnapshot.debuggerSummary());
 
         String persistedBootstrapLink = MainSettingsManager.getLastSetupBootstrapUrl(this);
         if (isBootstrapLinkValid(persistedBootstrapLink)) {
@@ -216,6 +219,9 @@ public class SetupWizard2Activity extends AppCompatActivity {
             bootstrapExpectedSha256 = "";
             bootstrapExpectedSignature = "";
             downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, false);
+            if (!HardwareProfileBridge.isAdvancedFeaturesEnabled(this)) {
+                downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, true);
+            }
         }
 
         bindingFinalSteps.main.setVisibility(View.GONE);
@@ -733,7 +739,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private boolean prepareBundledBootstrapArchive() {
         String selectedAssetPath = null;
         String selectedAbi = null;
-        for (String abiCandidate : BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS)) {
+        for (String abiCandidate : BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS, HardwareProfileBridge.getEffectiveAbiHint(this))) {
             String candidatePath = "alpine19/" + abiCandidate + ".tar";
             try (InputStream ignored = getAssets().open(candidatePath)) {
                 selectedAssetPath = candidatePath;
@@ -745,7 +751,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
         if (selectedAssetPath == null) {
             Log.e(TAG, "PROOT_BOOTSTRAP ABI_RESOLUTION_FAIL bundled candidates="
-                    + BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS));
+                    + BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS, HardwareProfileBridge.getEffectiveAbiHint(this)));
             return false;
         }
 
@@ -1349,7 +1355,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
         if (installState == InstallState.FAILED && rollbackAvailable) {
             action = getString(R.string.setup_action_rollback);
         }
-        binding.tvInstallRecommendedAction.setText(action);
+        HardwareProfileBridge.Snapshot snapshot = HardwareProfileBridge.captureAndPersist(this, false);
+        binding.tvInstallRecommendedAction.setText(action + " | " + snapshot.wizardSummary());
         binding.btnRollbackSetup.setEnabled(rollbackAvailable);
     }
 
@@ -1526,7 +1533,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
         String architectureKey = "";
         Object architectureConfig = null;
         ArrayList<String> attemptedKeys = new ArrayList<>();
-        for (String abiCandidate : BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS)) {
+        for (String abiCandidate : BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS, HardwareProfileBridge.getEffectiveAbiHint(this))) {
             String metadataKey = BootstrapAbiMapper.architectureMetadataKey(abiCandidate);
             attemptedKeys.add(metadataKey);
             Object candidateConfig = bootstrapMap.get(metadataKey);

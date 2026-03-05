@@ -1098,6 +1098,19 @@ public class MainSettingsManager extends AppCompatActivity
         edit.apply();
     }
 
+
+    public static void setHardwareProfileSnapshot(Context context, String snapshot) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("hardwareProfileSnapshot", snapshot == null ? "" : snapshot);
+        edit.apply();
+    }
+
+    public static String getHardwareProfileSnapshot(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("hardwareProfileSnapshot", "");
+    }
+
     public static void setDontShowAgainJoinBetaUpdateChannelDialog(Context context, Boolean _boolean) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         SharedPreferences.Editor edit = prefs.edit();
