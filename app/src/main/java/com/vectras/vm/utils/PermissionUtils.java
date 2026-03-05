@@ -48,12 +48,195 @@ public class PermissionUtils {
         return false;
     }
 
+    public static boolean hasStorageCapability(Activity activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return hasPersistedTreePermission(activity);
+        }
+        return ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public static boolean hasNotificationCapability(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return true;
+        }
+        return ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public static boolean hasMediaReadCapability(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return true;
+        }
+
+        return ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public static boolean isBatteryOptimizationIgnored(Activity activity) {
+        PowerManager powerManager = (PowerManager) activity.getSystemService(Activity.POWER_SERVICE);
+        return powerManager != null && powerManager.isIgnoringBatteryOptimizations(activity.getPackageName());
+    }
+
+    public static boolean hasOverlayCapability(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        return Settings.canDrawOverlays(activity);
+    }
+
+    public static Intent buildBatteryOptimizationSettingsIntent(Activity activity) {
+        Intent ignoreIntent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+        ignoreIntent.setData(Uri.parse("package:" + activity.getPackageName()));
+        if (ignoreIntent.resolveActivity(activity.getPackageManager()) != null) {
+            return ignoreIntent;
+        }
+
+        Intent settingsIntent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+        if (settingsIntent.resolveActivity(activity.getPackageManager()) != null) {
+            return settingsIntent;
+        }
+
+        Intent detailsIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        detailsIntent.setData(Uri.parse("package:" + activity.getPackageName()));
+        return detailsIntent;
+    }
+
+    public static Intent buildOverlaySettingsIntent(Activity activity) {
+        Intent overlayIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+        overlayIntent.setData(Uri.parse("package:" + activity.getPackageName()));
+        if (overlayIntent.resolveActivity(activity.getPackageManager()) != null) {
+            return overlayIntent;
+        }
+
+        Intent detailsIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        detailsIntent.setData(Uri.parse("package:" + activity.getPackageName()));
+        return detailsIntent;
+    }
+
     public static void requestStoragePermission(Activity activity, ActivityResultLauncher<Uri> openDocumentTreeLauncher) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             openDocumentTreeLauncher.launch(null);
             return;
         }
         requestLegacyStoragePermission(activity);
+    }
+
+    public static boolean hasNotificationPermission(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return true;
+        }
+        return ContextCompat.checkSelfPermission(activity, PermissionCapabilitySupport.getNotificationPermission())
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public static void requestNotificationPermission(Activity activity, int requestCode) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        ActivityCompat.requestPermissions(
+                activity,
+                new String[]{PermissionCapabilitySupport.getNotificationPermission()},
+                requestCode
+        );
+    }
+
+    public static boolean hasMediaReadPermission(Activity activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            for (String permission : PermissionCapabilitySupport.getMediaReadPermissions()) {
+                if (ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return true;
+        }
+
+        return ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public static void requestMediaReadPermission(Activity activity, int requestCode) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(activity, PermissionCapabilitySupport.getMediaReadPermissions(), requestCode);
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return;
+        }
+
+        requestLegacyStoragePermission(activity);
+    }
+
+    public static boolean isIgnoringBatteryOptimizations(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+
+        PowerManager powerManager = activity.getSystemService(PowerManager.class);
+        if (powerManager == null) {
+            return false;
+        }
+        return powerManager.isIgnoringBatteryOptimizations(activity.getPackageName());
+    }
+
+    public static void openBatteryOptimizationSettings(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return;
+        }
+
+        Intent ignoreIntent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+        ignoreIntent.setData(Uri.parse("package:" + activity.getPackageName()));
+        if (ignoreIntent.resolveActivity(activity.getPackageManager()) != null) {
+            activity.startActivity(ignoreIntent);
+            return;
+        }
+
+        Intent settingsIntent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+        if (settingsIntent.resolveActivity(activity.getPackageManager()) != null) {
+            activity.startActivity(settingsIntent);
+        }
+    }
+
+    public static boolean canDrawOverlays(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        return Settings.canDrawOverlays(activity);
+    }
+
+    public static void openOverlaySettings(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return;
+        }
+
+        Intent overlayIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+        overlayIntent.setData(Uri.parse("package:" + activity.getPackageName()));
+        if (overlayIntent.resolveActivity(activity.getPackageManager()) != null) {
+            activity.startActivity(overlayIntent);
+            return;
+        }
+
+        Intent detailsIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        detailsIntent.setData(Uri.parse("package:" + activity.getPackageName()));
+        activity.startActivity(detailsIntent);
+    }
+
+    public static boolean hasSafTreePermission(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            return true;
+        }
+        return hasPersistedTreePermission(activity);
+    }
+
+    public static void requestSafTreePermission(Activity activity, ActivityResultLauncher<Uri> openDocumentTreeLauncher) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            return;
+        }
+        openDocumentTreeLauncher.launch(null);
     }
 
 
