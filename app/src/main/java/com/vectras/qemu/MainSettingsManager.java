@@ -1352,6 +1352,241 @@ public class MainSettingsManager extends AppCompatActivity
         edit.apply();
     }
 
+    public static void setSetupInitialBenchmarkOptIn(Context context, boolean enabled) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("setupInitialBenchmarkOptIn", enabled);
+        edit.apply();
+    }
+
+    public static boolean getSetupInitialBenchmarkOptIn(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("setupInitialBenchmarkOptIn", false);
+    }
+
+    public static void setSetupInitialBenchmarkLast(Context context, String summary) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("setupInitialBenchmarkLast", summary);
+        edit.apply();
+    }
+
+    public static String getSetupInitialBenchmarkLast(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("setupInitialBenchmarkLast", "");
+    }
+
+    public static void setDontShowAgainJoinBetaUpdateChannelDialog(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("dontShowAgainJoinBetaUpdateChannelDialog", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getDontShowAgainJoinBetaUpdateChannelDialog(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("dontShowAgainJoinBetaUpdateChannelDialog", false);
+    }
+
+    public static void setuseDefaultBios(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("useDefaultBios", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getuseDefaultBios(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("useDefaultBios", true);
+    }
+
+    public static void setuseUEFI(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("useUEFI", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getuseUEFI(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("useUEFI", false);
+    }
+
+    public static void setSkipVersion(Context context, String version) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("skipVersion", version);
+        edit.apply();
+    }
+
+    public static String getSkipVersion(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("skipVersion", "");
+    }
+
+    public static void setVNCScaleMode(Context context, int mode) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putInt("vncScaleMode", mode);
+        edit.apply();
+    }
+
+    public static int getVNCScaleMode(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getInt("vncScaleMode", 0);
+    }
+
+    public static void setForceRefreshVNCDisplay(Context context, Boolean enabled) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("forceRefeshVNCDisplay", enabled);
+        edit.apply();
+    }
+
+    public static Boolean getForceRefreshVNCDisplay(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("forceRefeshVNCDisplay", true);
+    }
+
+    /** @deprecated Use {@link #setForceRefreshVNCDisplay(Context, Boolean)} instead. */
+    @Deprecated
+    public static void setForceRefeshVNCDisplay(Context context, Boolean _boolean) {
+        setForceRefreshVNCDisplay(context, _boolean);
+    }
+
+    /** @deprecated Use {@link #getForceRefreshVNCDisplay(Context)} instead. */
+    @Deprecated
+    public static Boolean getForceRefeshVNCDisplay(Context context) {
+        return getForceRefreshVNCDisplay(context);
+    }
+
+    public static void setQuickStart(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("quickStart", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getQuickStart(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("quickStart", true);
+    }
+
+    public static void setTheme(Context context, int value) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putInt("theme", value);
+        edit.apply();
+    }
+
+    public static int getTheme(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getInt("theme", 0);
+    }
+
+    public static void setDynamicColor(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("dynamicColor", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getDynamicColor(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("dynamicColor", true);
+    }
+
+    public static void setLikes(Context context, String value) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("likes", value);
+        edit.apply();
+    }
+
+    public static String getLikes(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("likes", "");
+    }
+
+    public static void setViews(Context context, String value) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("views", value);
+        edit.apply();
+    }
+
+    public static String getViews(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("views", "");
+    }
+
+    public static void setSmartSizeCalculation(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("smartSizeCalculation", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getSmartSizeCalculation(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("smartSizeCalculation", true);
+    }
+
+    public static void setCyclicRedundancyCheck(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("cyclicRedundancyCheck", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getCyclicRedundancyCheck(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("cyclicRedundancyCheck", true);
+    }
+
+    public static void setCheckBeforeExtract(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("checkBeforeExtract", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getCheckBeforeExtract(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("checkBeforeExtract", false);
+    }
+
+    public static void setRunQemuWithXterm(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("runQemuWithXterm", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getRunQemuWithXterm(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("runQemuWithXterm", true);
+    }
+
+    public static void setUseSdl(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("useSdl", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getUseSdl(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("useSdl", false);
+    }
+
+    public static void setStandardSetupVersion(Context context, int value) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putInt("standardSetupVersion", value);
+        edit.apply();
+    }
+
     public static int getStandardSetupVersion(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         return prefs.getInt("standardSetupVersion", 0);
@@ -1379,226 +1614,5 @@ public class MainSettingsManager extends AppCompatActivity
     public static Boolean getShowVirtualMouse(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         return prefs.getBoolean("showVirtualMouse", false);
-    }
-
-    public static final String ONBOARDING_PERMISSION_GRANTED = "GRANTED";
-    public static final String ONBOARDING_PERMISSION_SKIPPED = "SKIPPED";
-    public static final String ONBOARDING_PERMISSION_FAILED = "FAILED";
-    private static final int ONBOARDING_PERMISSION_SCHEMA_VERSION = 1;
-    private static final String KEY_ONBOARDING_PERM_STORAGE_SAF = "onboardingPermStorageSaf";
-    private static final String KEY_ONBOARDING_PERM_NOTIFICATIONS = "onboardingPermNotifications";
-    private static final String KEY_ONBOARDING_PERM_BATTERY = "onboardingPermBattery";
-    private static final String KEY_ONBOARDING_PERM_OVERLAY = "onboardingPermOverlay";
-    private static final String KEY_ONBOARDING_PERM_MEDIA_READ = "onboardingPermMediaRead";
-    private static final String KEY_ONBOARDING_PERM_SCHEMA_VERSION = "onboardingPermSchemaVersion";
-    private static final String KEY_ONBOARDING_PERM_UPDATED_AT = "onboardingPermUpdatedAt";
-    private static final String KEY_ONBOARDING_PERMISSIONS_REVIEW_ENABLED = "onboardingPermissionsReviewEnabled";
-
-    public static class OnboardingPermissionsSnapshot {
-        public final String storageSaf;
-        public final String notifications;
-        public final String battery;
-        public final String overlay;
-        public final String mediaRead;
-        public final int schemaVersion;
-        public final long updatedAt;
-
-        public OnboardingPermissionsSnapshot(String storageSaf,
-                                             String notifications,
-                                             String battery,
-                                             String overlay,
-                                             String mediaRead,
-                                             int schemaVersion,
-                                             long updatedAt) {
-            this.storageSaf = storageSaf;
-            this.notifications = notifications;
-            this.battery = battery;
-            this.overlay = overlay;
-            this.mediaRead = mediaRead;
-            this.schemaVersion = schemaVersion;
-            this.updatedAt = updatedAt;
-        }
-    }
-
-    private static void setOnboardingPermissionStatus(Context context, String key, String status) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        prefs.edit()
-                .putString(key, normalizeOnboardingPermissionStatus(status))
-                .putInt(KEY_ONBOARDING_PERM_SCHEMA_VERSION, ONBOARDING_PERMISSION_SCHEMA_VERSION)
-                .putLong(KEY_ONBOARDING_PERM_UPDATED_AT, System.currentTimeMillis())
-                .apply();
-    }
-
-    private static String getOnboardingPermissionStatus(Context context, String key) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        return normalizeOnboardingPermissionStatus(prefs.getString(key, ONBOARDING_PERMISSION_SKIPPED));
-    }
-
-    public static void setOnboardingPermStorageSaf(Context context, String status) {
-        setOnboardingPermissionStatus(context, KEY_ONBOARDING_PERM_STORAGE_SAF, status);
-    }
-
-    public static String getOnboardingPermStorageSaf(Context context) {
-        return getOnboardingPermissionStatus(context, KEY_ONBOARDING_PERM_STORAGE_SAF);
-    }
-
-    public static void setOnboardingPermNotifications(Context context, String status) {
-        setOnboardingPermissionStatus(context, KEY_ONBOARDING_PERM_NOTIFICATIONS, status);
-    }
-
-    public static String getOnboardingPermNotifications(Context context) {
-        return getOnboardingPermissionStatus(context, KEY_ONBOARDING_PERM_NOTIFICATIONS);
-    }
-
-    public static void setOnboardingPermBattery(Context context, String status) {
-        setOnboardingPermissionStatus(context, KEY_ONBOARDING_PERM_BATTERY, status);
-    }
-
-    public static String getOnboardingPermBattery(Context context) {
-        return getOnboardingPermissionStatus(context, KEY_ONBOARDING_PERM_BATTERY);
-    }
-
-    public static void setOnboardingPermOverlay(Context context, String status) {
-        setOnboardingPermissionStatus(context, KEY_ONBOARDING_PERM_OVERLAY, status);
-    }
-
-    public static String getOnboardingPermOverlay(Context context) {
-        return getOnboardingPermissionStatus(context, KEY_ONBOARDING_PERM_OVERLAY);
-    }
-
-    public static void setOnboardingPermMediaRead(Context context, String status) {
-        setOnboardingPermissionStatus(context, KEY_ONBOARDING_PERM_MEDIA_READ, status);
-    }
-
-    public static String getOnboardingPermMediaRead(Context context) {
-        return getOnboardingPermissionStatus(context, KEY_ONBOARDING_PERM_MEDIA_READ);
-    }
-
-    public static OnboardingPermissionsSnapshot getOnboardingPermissionsSnapshot(Context context) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        return new OnboardingPermissionsSnapshot(
-                getOnboardingPermStorageSaf(context),
-                getOnboardingPermNotifications(context),
-                getOnboardingPermBattery(context),
-                getOnboardingPermOverlay(context),
-                getOnboardingPermMediaRead(context),
-                prefs.getInt(KEY_ONBOARDING_PERM_SCHEMA_VERSION, 0),
-                prefs.getLong(KEY_ONBOARDING_PERM_UPDATED_AT, 0L)
-        );
-    }
-
-    public static void clearOnboardingPermissionsSnapshot(Context context) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        prefs.edit()
-                .remove(KEY_ONBOARDING_PERM_STORAGE_SAF)
-                .remove(KEY_ONBOARDING_PERM_NOTIFICATIONS)
-                .remove(KEY_ONBOARDING_PERM_BATTERY)
-                .remove(KEY_ONBOARDING_PERM_OVERLAY)
-                .remove(KEY_ONBOARDING_PERM_MEDIA_READ)
-                .remove(KEY_ONBOARDING_PERM_SCHEMA_VERSION)
-                .remove(KEY_ONBOARDING_PERM_UPDATED_AT)
-                .apply();
-    }
-
-    public static void reevaluateOnboardingPermissionsSnapshot(Context context) {
-        setOnboardingPermStorageSaf(context, evaluateStorageSafPermission(context));
-        setOnboardingPermNotifications(context, evaluateNotificationsPermission(context));
-        setOnboardingPermBattery(context, evaluateBatteryPermission(context));
-        setOnboardingPermOverlay(context, evaluateOverlayPermission(context));
-        setOnboardingPermMediaRead(context, evaluateMediaReadPermission(context));
-    }
-
-    public static void setOnboardingPermissionsReviewEnabled(Context context, boolean enabled) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        prefs.edit().putBoolean(KEY_ONBOARDING_PERMISSIONS_REVIEW_ENABLED, enabled).apply();
-    }
-
-    public static boolean getOnboardingPermissionsReviewEnabled(Context context) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        return prefs.getBoolean(KEY_ONBOARDING_PERMISSIONS_REVIEW_ENABLED, false);
-    }
-
-    public static String getOnboardingPermissionsSnapshotSummary(OnboardingPermissionsSnapshot snapshot) {
-        return "Storage(SAF): " + snapshot.storageSaf
-                + " • Notifications: " + snapshot.notifications
-                + " • Battery: " + snapshot.battery
-                + " • Overlay: " + snapshot.overlay
-                + " • Media: " + snapshot.mediaRead;
-    }
-
-    private static String evaluateStorageSafPermission(Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            return ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED
-                    ? ONBOARDING_PERMISSION_GRANTED
-                    : ONBOARDING_PERMISSION_FAILED;
-        }
-        for (UriPermission permission : context.getContentResolver().getPersistedUriPermissions()) {
-            if (permission != null && permission.isReadPermission()) {
-                return ONBOARDING_PERMISSION_GRANTED;
-            }
-        }
-        return ONBOARDING_PERMISSION_FAILED;
-    }
-
-    private static String evaluateNotificationsPermission(Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            return ONBOARDING_PERMISSION_GRANTED;
-        }
-        return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-                == PackageManager.PERMISSION_GRANTED
-                ? ONBOARDING_PERMISSION_GRANTED
-                : ONBOARDING_PERMISSION_FAILED;
-    }
-
-    private static String evaluateBatteryPermission(Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return ONBOARDING_PERMISSION_GRANTED;
-        }
-        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        if (powerManager == null) {
-            return ONBOARDING_PERMISSION_FAILED;
-        }
-        return powerManager.isIgnoringBatteryOptimizations(context.getPackageName())
-                ? ONBOARDING_PERMISSION_GRANTED
-                : ONBOARDING_PERMISSION_FAILED;
-    }
-
-    private static String evaluateOverlayPermission(Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return ONBOARDING_PERMISSION_GRANTED;
-        }
-        return Settings.canDrawOverlays(context)
-                ? ONBOARDING_PERMISSION_GRANTED
-                : ONBOARDING_PERMISSION_FAILED;
-    }
-
-    private static String evaluateMediaReadPermission(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            boolean mediaGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES)
-                    == PackageManager.PERMISSION_GRANTED
-                    || ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO)
-                    == PackageManager.PERMISSION_GRANTED
-                    || ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO)
-                    == PackageManager.PERMISSION_GRANTED;
-            return mediaGranted ? ONBOARDING_PERMISSION_GRANTED : ONBOARDING_PERMISSION_FAILED;
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED
-                    ? ONBOARDING_PERMISSION_GRANTED
-                    : ONBOARDING_PERMISSION_FAILED;
-        }
-        return ONBOARDING_PERMISSION_GRANTED;
-    }
-
-    private static String normalizeOnboardingPermissionStatus(String status) {
-        if (ONBOARDING_PERMISSION_GRANTED.equals(status)
-                || ONBOARDING_PERMISSION_SKIPPED.equals(status)
-                || ONBOARDING_PERMISSION_FAILED.equals(status)) {
-            return status;
-        }
-        return ONBOARDING_PERMISSION_SKIPPED;
     }
 }
