@@ -26,6 +26,18 @@ jobs:
           yes | sdkmanager --licenses >/dev/null
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
 
+      - name: Validate Android and native toolchain dependencies
+        run: |
+          set -euo pipefail
+          required_tools=(java javac sdkmanager cmake ninja make python3)
+          for tool in "${required_tools[@]}"; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+              echo "Missing required tool: $tool" >&2
+              exit 1
+            fi
+            echo "OK: $tool -> $(command -v "$tool")"
+          done
+
       - name: Verify Gradle baseline
         run: |
           chmod +x gradlew

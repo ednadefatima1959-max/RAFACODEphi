@@ -45,7 +45,19 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential cmake make graphviz
+          sudo apt-get install -y --no-install-recommends build-essential cmake make ninja-build pkg-config graphviz python3
+
+      - name: Validate native toolchain dependencies
+        run: |
+          set -euo pipefail
+          required_tools=(cc gcc as ld ar nm make cmake ninja python3 dot)
+          for tool in "${required_tools[@]}"; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+              echo "Missing required tool: $tool" >&2
+              exit 1
+            fi
+            echo "OK: $tool -> $(command -v "$tool")"
+          done
 
       - name: Prepare output directories
         run: |
