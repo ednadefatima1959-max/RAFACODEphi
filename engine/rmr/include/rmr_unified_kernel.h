@@ -60,6 +60,7 @@ typedef struct {
 typedef struct {
   uint32_t route_id;
   uint64_t route_signature;
+  RmR_ToroidalAddr7D toroidal;
 } rmr_legacy_kernel_route_result_t;
 
 typedef struct {
@@ -79,6 +80,7 @@ typedef struct {
 typedef struct {
   uint64_t audit_signature;
   uint32_t audit_code;
+  RmR_ToroidalAddr7D toroidal;
 } rmr_legacy_kernel_audit_result_t;
 
 typedef struct {
