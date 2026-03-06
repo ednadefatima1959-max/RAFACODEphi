@@ -88,6 +88,10 @@ Resumo de status:
 
 | Diretório | Par canônico | Observação |
 |---|---|---|
+| `issues/` | Issues técnicas por bug. | `issues/README.md`, `issues/FILES_MAP.md` |
+| `prioridade/` | Triagem/priorização de correções. | `prioridade/README.md`, `prioridade/FILES_MAP.md` |
+| `fazer hotfix/` | Fila de correção imediata. | `fazer hotfix/README.md`, `fazer hotfix/FILES_MAP.md` |
+| `feito/` | Histórico de hotfix concluído. | `feito/README.md`, `feito/FILES_MAP.md` |
 | `core/` | `core/README.md` + `core/FILES_MAP.md` | Núcleo low-level C/ASM/Java. |
 | `issues/` | `issues/README.md` + `issues/FILES_MAP.md` | Issues técnicas atômicas. |
 | `prioridade/` | `prioridade/README.md` + `prioridade/FILES_MAP.md` | Priorização (mantém `readme.md` legado). |
