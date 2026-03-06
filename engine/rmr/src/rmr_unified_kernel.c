@@ -213,18 +213,39 @@ rmr_status_t rmr_legacy_kernel_route(rmr_legacy_kernel_t *kernel,
                                      const rmr_legacy_kernel_process_result_t *process,
                                      rmr_legacy_kernel_route_result_t *out_result) {
   uint32_t route;
+  uint32_t cpu_score;
+  uint32_t ram_score;
+  uint32_t disk_score;
+  RmR_ToroidalAddr7D toroidal;
+  uint64_t toroidal_tag;
   if (!rmr_legacy_is_ready(kernel) || !process || !out_result) return RMR_STATUS_ERR_ARG;
 
+  toroidal = RmR_Toroidal_Map(kernel->seed,
+                              kernel->rolling_bitraf_hash ^ ((uint64_t)kernel->rolling_crc32c << 32u),
+                              process->cpu_pressure ^ process->storage_pressure ^ process->io_pressure,
+                              kernel->stage_counter + 1u,
+                              process->cpu_pressure,
+                              process->storage_pressure,
+                              process->io_pressure,
+                              process->matrix_determinant);
+  toroidal_tag = rmr_toroidal_route_tag(&toroidal);
+
+  cpu_score = process->cpu_pressure + (((uint32_t)toroidal_tag) & 0x3FFu) + (toroidal.u & 0x1FFu);
+  ram_score = process->storage_pressure + ((uint32_t)(toroidal_tag >> 10u) & 0x3FFu) + (toroidal.v & 0x1FFu);
+  disk_score = process->io_pressure + ((uint32_t)(toroidal_tag >> 20u) & 0x3FFu) + (toroidal.sigma & 0x1FFu);
+
   route = RMR_ROUTE_DISK;
-  if (process->cpu_pressure >= process->storage_pressure && process->cpu_pressure >= process->io_pressure) {
+  if (cpu_score >= ram_score && cpu_score >= disk_score) {
     route = RMR_ROUTE_CPU;
-  } else if (process->storage_pressure >= process->io_pressure) {
+  } else if (ram_score >= disk_score) {
     route = RMR_ROUTE_RAM;
   }
 
   out_result->route_id = route;
-  out_result->route_signature = ((uint64_t)kernel->rolling_crc32c << 32) ^ kernel->rolling_bitraf_hash ^
-                                (uint64_t)process->matrix_determinant ^ (uint64_t)route;
+  out_result->toroidal = toroidal;
+  out_result->route_signature = toroidal_tag ^ ((uint64_t)kernel->rolling_crc32c << 32) ^
+                                kernel->rolling_bitraf_hash ^ (uint64_t)process->matrix_determinant ^
+                                ((uint64_t)route << 48u);
   kernel->last_route_signature = out_result->route_signature;
   kernel->stage_counter += 1u;
   return RMR_STATUS_OK;
@@ -265,6 +286,12 @@ rmr_status_t rmr_legacy_kernel_audit(rmr_legacy_kernel_t *kernel,
   signature ^= route->route_signature;
   signature ^= ((uint64_t)verify->computed_crc32c << 1) ^ verify->computed_bitraf_hash;
   signature ^= ((uint64_t)verify->crc_ok << 2) ^ ((uint64_t)verify->hash_ok << 3);
+
+  out_result->toroidal = route->toroidal;
+  signature ^= ((uint64_t)out_result->toroidal.u << 1u) ^ ((uint64_t)out_result->toroidal.v << 3u) ^
+               ((uint64_t)out_result->toroidal.psi << 5u) ^ ((uint64_t)out_result->toroidal.chi << 7u) ^
+               ((uint64_t)out_result->toroidal.rho << 11u) ^ ((uint64_t)out_result->toroidal.delta << 13u) ^
+               ((uint64_t)out_result->toroidal.sigma << 17u);
 
   out_result->audit_signature = signature;
   out_result->audit_code = (verify->crc_ok && verify->hash_ok) ? 0u : 1u;

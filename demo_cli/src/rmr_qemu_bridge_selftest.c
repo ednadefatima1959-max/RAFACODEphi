@@ -1,5 +1,6 @@
 #include "rmr_qemu_bridge.h"
 #include "rmr_unified_jni_base.h"
+#include "rmr_unified_kernel.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -67,6 +68,44 @@ int main(void) {
 
   failed += expect(RmR_QmpTelemetry_Parse("{\"return\":{\"cpus\":999999999999}}", &tele) == 0, "parse cpus overflow clamp");
   failed += expect(tele.vcpu_count == 0xFFFFFFFFu, "cpus overflow clamps to u32 max");
+
+
+  {
+    rmr_legacy_kernel_t *legacy = NULL;
+    rmr_legacy_kernel_init_desc_t init_desc;
+    rmr_legacy_kernel_process_result_t process;
+    rmr_legacy_kernel_route_result_t route_ref;
+    rmr_legacy_kernel_route_result_t route_run;
+    uint32_t i;
+
+    memset(&init_desc, 0, sizeof(init_desc));
+    init_desc.seed = 0xC0FFEE11u;
+    failed += expect(rmr_legacy_kernel_init(&legacy, &init_desc) == RMR_STATUS_OK, "legacy init");
+    memset(&process, 0, sizeof(process));
+    process.cpu_pressure = 2411u;
+    process.storage_pressure = 1777u;
+    process.io_pressure = 1888u;
+    process.matrix_determinant = 0x1234ABCD13572468LL;
+    failed += expect(rmr_legacy_kernel_route(legacy, &process, &route_ref) == RMR_STATUS_OK, "legacy first route");
+
+    for (i = 0u; i < 16u; ++i) {
+      rmr_legacy_kernel_t *replay = NULL;
+      failed += expect(rmr_legacy_kernel_init(&replay, &init_desc) == RMR_STATUS_OK, "legacy replay init");
+      failed += expect(rmr_legacy_kernel_route(replay, &process, &route_run) == RMR_STATUS_OK, "legacy replay route");
+      failed += expect(route_run.route_id == route_ref.route_id, "legacy route id stable");
+      failed += expect(route_run.route_signature == route_ref.route_signature, "legacy route signature stable");
+      failed += expect(route_run.toroidal.u == route_ref.toroidal.u, "legacy toroidal u stable");
+      failed += expect(route_run.toroidal.v == route_ref.toroidal.v, "legacy toroidal v stable");
+      failed += expect(route_run.toroidal.psi == route_ref.toroidal.psi, "legacy toroidal psi stable");
+      failed += expect(route_run.toroidal.chi == route_ref.toroidal.chi, "legacy toroidal chi stable");
+      failed += expect(route_run.toroidal.rho == route_ref.toroidal.rho, "legacy toroidal rho stable");
+      failed += expect(route_run.toroidal.delta == route_ref.toroidal.delta, "legacy toroidal delta stable");
+      failed += expect(route_run.toroidal.sigma == route_ref.toroidal.sigma, "legacy toroidal sigma stable");
+      failed += expect(rmr_legacy_kernel_shutdown(&replay) == RMR_STATUS_OK, "legacy replay shutdown");
+    }
+
+    failed += expect(rmr_legacy_kernel_shutdown(&legacy) == RMR_STATUS_OK, "legacy shutdown");
+  }
 
   {
     RmR_UnifiedKernel kernel;
