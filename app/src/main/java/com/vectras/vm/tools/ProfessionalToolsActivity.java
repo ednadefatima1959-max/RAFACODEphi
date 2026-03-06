@@ -286,6 +286,14 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
         tvStatReproducibility.setText(R.string.pro_tools_stat_placeholder);
     }
 
+    private void applyStatisticsCollectionError() {
+        tvStatMean.setText(R.string.pro_tools_stat_error);
+        tvStatMedian.setText(R.string.pro_tools_stat_error);
+        tvStatStdDev.setText(R.string.pro_tools_stat_error);
+        tvStatConfidence.setText(R.string.pro_tools_confidence_unavailable);
+        tvStatReproducibility.setText(R.string.pro_tools_stat_error);
+    }
+
     private void updateEstimatedTime() {
         int totalSeconds = 0;
         int selectedCategories = 0;
@@ -444,6 +452,8 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
             } catch (Exception e) {
                 mainHandler.post(() -> {
                     layoutProgress.setVisibility(View.GONE);
+                    layoutResults.setVisibility(View.VISIBLE);
+                    applyStatisticsCollectionError();
                     btnRunAnalysis.setEnabled(true);
                     chipValidationStatus.setText(R.string.pro_tools_status_error);
                     Toast.makeText(this, getString(R.string.pro_tools_analysis_failed, e.getMessage()), 
@@ -680,19 +690,30 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
         tvGradeJustification.setText(report.gradeJustification);
         
         // Statistical Analysis - Display with proper SI units
-        tvStatMean.setText(VectraBenchmark.formatTime((long) report.mean));
-        tvStatMedian.setText(VectraBenchmark.formatTime((long) report.median));
-        tvStatStdDev.setText(VectraBenchmark.formatTime((long) report.stdDev));
+        tvStatMean.setText(formatStatValueOrMissing(report.mean));
+        tvStatMedian.setText(formatStatValueOrMissing(report.median));
+        tvStatStdDev.setText(formatStatValueOrMissing(report.stdDev));
         
         if (report.confidenceInterval95 != null) {
             String ciLow = VectraBenchmark.formatTime((long) report.confidenceInterval95[0]);
             String ciHigh = VectraBenchmark.formatTime((long) report.confidenceInterval95[1]);
             tvStatConfidence.setText(getString(R.string.pro_tools_confidence_template, 95, String.format(Locale.US, "[%s, %s]", ciLow, ciHigh)));
         } else {
-            tvStatConfidence.setText(R.string.pro_tools_confidence_placeholder);
+            tvStatConfidence.setText(R.string.pro_tools_confidence_unavailable);
         }
 
-        tvStatReproducibility.setText(getString(R.string.pro_tools_reproducibility_template, report.reproducibilityScore));
+        if (report.reproducibilityScore > 0) {
+            tvStatReproducibility.setText(getString(R.string.pro_tools_reproducibility_template, report.reproducibilityScore));
+        } else {
+            tvStatReproducibility.setText(R.string.pro_tools_stat_no_data);
+        }
+    }
+
+    private String formatStatValueOrMissing(double value) {
+        if (value <= 0) {
+            return getString(R.string.pro_tools_stat_no_data);
+        }
+        return VectraBenchmark.formatTime((long) value);
     }
     
     private String formatNumber(double value) {

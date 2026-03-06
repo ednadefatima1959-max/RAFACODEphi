@@ -138,7 +138,7 @@
     <string name="vnc_default_port">5900</string>
     <string name="tab_key">TAB</string>
 
-    <string name="rom_info_name_placeholder">—</string>
+    <string name="rom_info_name_placeholder">Aucune donnée collectée</string>
     <string name="rom_info_size_placeholder">Non renseigné</string>
 
     <string name="pro_tools_methodology_iso">ISO/IEC 25010</string>
@@ -148,10 +148,13 @@
     <string name="pro_tools_methodology_spec">SPEC</string>
     <string name="pro_tools_methodology_mlperf">MLPerf</string>
 
-    <string name="pro_tools_estimated_time_item_placeholder">—</string>
+    <string name="pro_tools_estimated_time_item_placeholder">Non disponible pour ce profil</string>
     <string name="pro_tools_estimated_time_item_format">~%1$ds</string>
-    <string name="pro_tools_stat_placeholder">—</string>
-    <string name="pro_tools_confidence_placeholder">95% : —</string>
+    <string name="pro_tools_stat_placeholder">En attente d’exécution</string>
+    <string name="pro_tools_confidence_placeholder">95%% : En attente d’exécution</string>
+    <string name="pro_tools_stat_no_data">Aucune donnée collectée</string>
+    <string name="pro_tools_stat_error">Benchmark interrompu</string>
+    <string name="pro_tools_confidence_unavailable">95%% : Intervalle de confiance indisponible</string>
     <string name="pro_tools_confidence_template">%1$d%% : %2$s</string>
     <string name="pro_tools_reproducibility_template">%1$.1f%%</string>
 
