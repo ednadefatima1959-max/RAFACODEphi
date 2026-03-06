@@ -1076,7 +1076,7 @@ CPU1 %3$d%% · CPUm %4$d%% · MEM %5$d%% · IO %6$d%% · INT %7$d%% · EMU %8$d%
     <string name="vnc_default_port">5900</string>
     <string name="tab_key">TAB</string>
 
-    <string name="rom_info_name_placeholder">—</string>
+    <string name="rom_info_name_placeholder">No data collected</string>
     <string name="rom_info_size_placeholder">Not informed</string>
 
     <string name="pro_tools_methodology_iso">ISO/IEC 25010</string>
@@ -1086,10 +1086,13 @@ CPU1 %3$d%% · CPUm %4$d%% · MEM %5$d%% · IO %6$d%% · INT %7$d%% · EMU %8$d%
     <string name="pro_tools_methodology_spec">SPEC</string>
     <string name="pro_tools_methodology_mlperf">MLPerf</string>
 
-    <string name="pro_tools_estimated_time_item_placeholder">—</string>
+    <string name="pro_tools_estimated_time_item_placeholder">Not available for this profile</string>
     <string name="pro_tools_estimated_time_item_format">~%1$ds</string>
-    <string name="pro_tools_stat_placeholder">—</string>
-    <string name="pro_tools_confidence_placeholder">95%%: —</string>
+    <string name="pro_tools_stat_placeholder">Awaiting execution</string>
+    <string name="pro_tools_confidence_placeholder">95%%: Awaiting execution</string>
+    <string name="pro_tools_stat_no_data">No data collected</string>
+    <string name="pro_tools_stat_error">Benchmark interrupted</string>
+    <string name="pro_tools_confidence_unavailable">95%%: Confidence interval unavailable</string>
     <string name="pro_tools_confidence_template">%1$d%%: %2$s</string>
     <string name="pro_tools_reproducibility_template">%1$.1f%%</string>
 
