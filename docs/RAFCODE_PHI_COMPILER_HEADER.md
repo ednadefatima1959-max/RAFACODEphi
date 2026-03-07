@@ -65,3 +65,12 @@ Este cabeçalho existe para impedir desvio de direção técnica:
   - Casca em C: `tools/baremetal/rafcode_phi/c/rafcode_phi_front_shell.c`
   - Núcleo ASM de emissão: `tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S`
 - Política da base: token em C -> opcode em hexadecimal -> gravação determinística via ASM.
+
+
+## 9) Casca de build para instalação multiplataforma
+- Scripts de casca no módulo:
+  - `tools/baremetal/rafcode_phi/build_rafcode_phi.sh`
+  - `tools/baremetal/rafcode_phi/demo_emit_hex.sh`
+- Meta operacional: permitir bootstrap de teste em PC/cell/server.
+- Plataformas de execução da casca: Linux, Android/Termux, macOS, BSD, Raspberry Pi e Windows com toolchain compatível.
+- Regra mantida: build/execução como casca; núcleo semântico preservado em C→ASM.
