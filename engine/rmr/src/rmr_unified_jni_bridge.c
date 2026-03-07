@@ -123,12 +123,18 @@ int rmr_jni_kernel_route(rmr_jni_kernel_state_t *state, const rmr_jni_route_inpu
   out->bitomega_operational_state = state->bitomega_operational_state;
   out->bitomega_invariant_ok = state->bitomega_invariant_ok;
   out->bitomega_fallback_safe = state->bitomega_fallback_safe;
-  out->bitomega_coherence = state->bitomega_node.coherence;
-  out->bitomega_entropy = state->bitomega_node.entropy;
-  out->bitomega_ctx_coherence_in = state->bitomega_ctx.coherence_in;
-  out->bitomega_ctx_entropy_in = state->bitomega_ctx.entropy_in;
-  out->bitomega_ctx_noise_in = state->bitomega_ctx.noise_in;
-  out->bitomega_ctx_load = state->bitomega_ctx.load;
+  out->bitomega_coherence_q16 = state->bitomega_node.coherence;
+  out->bitomega_entropy_q16 = state->bitomega_node.entropy;
+  out->bitomega_ctx_coherence_in_q16 = state->bitomega_ctx.coherence_in;
+  out->bitomega_ctx_entropy_in_q16 = state->bitomega_ctx.entropy_in;
+  out->bitomega_ctx_noise_in_q16 = state->bitomega_ctx.noise_in;
+  out->bitomega_ctx_load_q16 = state->bitomega_ctx.load;
+  out->bitomega_coherence = bitomega_q16_to_float(state->bitomega_node.coherence);
+  out->bitomega_entropy = bitomega_q16_to_float(state->bitomega_node.entropy);
+  out->bitomega_ctx_coherence_in = bitomega_q16_to_float(state->bitomega_ctx.coherence_in);
+  out->bitomega_ctx_entropy_in = bitomega_q16_to_float(state->bitomega_ctx.entropy_in);
+  out->bitomega_ctx_noise_in = bitomega_q16_to_float(state->bitomega_ctx.noise_in);
+  out->bitomega_ctx_load = bitomega_q16_to_float(state->bitomega_ctx.load);
   return RMR_KERNEL_OK;
 }
 

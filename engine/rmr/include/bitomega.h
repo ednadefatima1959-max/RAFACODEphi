@@ -50,19 +50,19 @@ typedef struct {
   /* direction channel */
   bitomega_dir_t dir;
 
-  /* scalar fields used by Δ — all normalized to [0,1] by convention */
-  float coherence; /* higher = more stable */
-  float entropy;   /* higher = more noisy */
+  /* scalar fields used by Δ — normalized Q16.16 in [0, 0x00010000] */
+  uint32_t coherence; /* higher = more stable */
+  uint32_t entropy;   /* higher = more noisy */
 } bitomega_node_t;
 
 typedef struct {
-  /* normalized context signals in [0,1] */
-  float coherence_in;
-  float entropy_in;
-  float noise_in;
+  /* normalized context signals in Q16.16 [0, 0x00010000] */
+  uint32_t coherence_in;
+  uint32_t entropy_in;
+  uint32_t noise_in;
 
-  /* optional: system load proxy in [0,1] */
-  float load;
+  /* optional: system load proxy in Q16.16 [0, 0x00010000] */
+  uint32_t load;
 
   /* deterministic seed (may be 0) */
   uint64_t seed;
@@ -78,8 +78,16 @@ typedef enum {
 const char *bitomega_state_name(bitomega_state_t s);
 const char *bitomega_dir_name(bitomega_dir_t d);
 
-/* Normalize a float to [0,1] safely (NaN -> 0). */
-float bitomega_norm01(float x);
+/* Q16.16 helpers. */
+#define BITOMEGA_Q16_ONE 0x00010000u
+#define BITOMEGA_Q16_HALF 0x00008000u
+
+/* Normalize a Q16.16 value to [0, BITOMEGA_Q16_ONE]. */
+uint32_t bitomega_norm01(uint32_t x);
+
+/* Optional edge conversion helpers (for JNI/Java boundary only). */
+uint32_t bitomega_float_to_q16(float x);
+float bitomega_q16_to_float(uint32_t x);
 
 /* Canonical context constructor (all zeros, seed kept). */
 bitomega_ctx_t bitomega_ctx_default(uint64_t seed);

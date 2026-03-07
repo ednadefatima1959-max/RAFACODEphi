@@ -1,11 +1,13 @@
 #include "bitomega.h"
 
 
-static float clamp01(float x) {
-  if (!(x == x)) return 0.0f; /* NaN -> 0 */
-  if (x < 0.0f) return 0.0f;
-  if (x > 1.0f) return 1.0f;
+static uint32_t clamp01_q16(uint32_t x) {
+  if (x > BITOMEGA_Q16_ONE) return BITOMEGA_Q16_ONE;
   return x;
+}
+
+static uint32_t q16_mul(uint32_t a, uint32_t b) {
+  return (uint32_t)(((uint64_t)a * (uint64_t)b) >> 16u);
 }
 
 const char *bitomega_state_name(bitomega_state_t s) {
@@ -36,125 +38,138 @@ const char *bitomega_dir_name(bitomega_dir_t d) {
   }
 }
 
-float bitomega_norm01(float x) { return clamp01(x); }
+uint32_t bitomega_norm01(uint32_t x) { return clamp01_q16(x); }
+
+uint32_t bitomega_float_to_q16(float x) {
+  if (!(x == x)) return 0u;
+  if (x <= 0.0f) return 0u;
+  if (x >= 1.0f) return BITOMEGA_Q16_ONE;
+  return (uint32_t)(x * (float)BITOMEGA_Q16_ONE + 0.5f);
+}
+
+float bitomega_q16_to_float(uint32_t x) {
+  return (float)clamp01_q16(x) / (float)BITOMEGA_Q16_ONE;
+}
 
 bitomega_ctx_t bitomega_ctx_default(uint64_t seed) {
   bitomega_ctx_t c;
-  c.coherence_in = 0.0f;
-  c.entropy_in = 0.0f;
-  c.noise_in = 0.0f;
-  c.load = 0.0f;
+  c.coherence_in = 0u;
+  c.entropy_in = 0u;
+  c.noise_in = 0u;
+  c.load = 0u;
   c.seed = seed;
   return c;
 }
 
 int bitomega_invariant_ok(const bitomega_node_t *node) {
   if (!node) return 0;
-  if (node->coherence < 0.0f || node->coherence > 1.0f) return 0;
-  if (node->entropy < 0.0f || node->entropy > 1.0f) return 0;
+  if (node->coherence > BITOMEGA_Q16_ONE) return 0;
+  if (node->entropy > BITOMEGA_Q16_ONE) return 0;
 
   if (node->state == BITOMEGA_VOID) {
     if (!(node->dir == BITOMEGA_DIR_NONE || node->dir == BITOMEGA_DIR_NULL)) return 0;
   }
   if (node->state == BITOMEGA_META) {
-    if (node->coherence + 1e-6f < node->entropy) return 0;
+    if (node->coherence < node->entropy) return 0;
   }
   return 1;
 }
 
 static void update_fields(bitomega_node_t *n, const bitomega_ctx_t *c) {
-  /* conservative smoothing toward inputs */
-  const float a = 0.25f; /* smoothing factor */
-  n->coherence = clamp01((1.0f - a) * clamp01(n->coherence) + a * clamp01(c->coherence_in));
-  n->entropy   = clamp01((1.0f - a) * clamp01(n->entropy)   + a * clamp01(c->entropy_in));
+  const uint32_t a = 0x00004000u;      /* 0.25 */
+  const uint32_t inv_a = 0x0000C000u;  /* 0.75 */
+  uint32_t ncoh = clamp01_q16(n->coherence);
+  uint32_t nent = clamp01_q16(n->entropy);
+  uint32_t ccoh = clamp01_q16(c->coherence_in);
+  uint32_t cent = clamp01_q16(c->entropy_in);
+  n->coherence = clamp01_q16(q16_mul(inv_a, ncoh) + q16_mul(a, ccoh));
+  n->entropy = clamp01_q16(q16_mul(inv_a, nent) + q16_mul(a, cent));
 }
 
 bitomega_status_t bitomega_transition(bitomega_node_t *node, const bitomega_ctx_t *ctx) {
+  bitomega_ctx_t c;
+  uint32_t coh;
+  uint32_t ent;
+  uint32_t noi;
+  uint32_t ld;
   if (!node || !ctx) return BITOMEGA_ERR_ARG;
 
-  /* normalize context and node fields */
-  bitomega_ctx_t c = *ctx;
-  c.coherence_in = clamp01(c.coherence_in);
-  c.entropy_in   = clamp01(c.entropy_in);
-  c.noise_in     = clamp01(c.noise_in);
-  c.load         = clamp01(c.load);
+  c = *ctx;
+  c.coherence_in = clamp01_q16(c.coherence_in);
+  c.entropy_in = clamp01_q16(c.entropy_in);
+  c.noise_in = clamp01_q16(c.noise_in);
+  c.load = clamp01_q16(c.load);
 
-  node->coherence = clamp01(node->coherence);
-  node->entropy   = clamp01(node->entropy);
+  node->coherence = clamp01_q16(node->coherence);
+  node->entropy = clamp01_q16(node->entropy);
 
   update_fields(node, &c);
 
-  /* Derived signals */
-  const float coh = node->coherence;
-  const float ent = node->entropy;
-  const float noi = c.noise_in;
-  const float ld  = c.load;
+  coh = node->coherence;
+  ent = node->entropy;
+  noi = c.noise_in;
+  ld = c.load;
 
-  /* Δ rules (minimal, deterministic) */
   switch (node->state) {
     case BITOMEGA_FLOW:
-      if (coh > 0.80f && noi < 0.30f) { node->state = BITOMEGA_LOCK; node->dir = BITOMEGA_DIR_RECURSE; }
-      else if (noi > 0.70f || ent > 0.70f) { node->state = BITOMEGA_NOISE; node->dir = BITOMEGA_DIR_NONE; }
+      if (coh > 0x0000CCCDu && noi < 0x00004CCDu) { node->state = BITOMEGA_LOCK; node->dir = BITOMEGA_DIR_RECURSE; }
+      else if (noi > 0x0000B333u || ent > 0x0000B333u) { node->state = BITOMEGA_NOISE; node->dir = BITOMEGA_DIR_NONE; }
       break;
 
     case BITOMEGA_LOCK:
-      if (noi > 0.55f || ent > 0.65f) { node->state = BITOMEGA_MIX; node->dir = BITOMEGA_DIR_RECURSE; }
-      else if (ld > 0.85f) { node->state = BITOMEGA_EDGE; node->dir = BITOMEGA_DIR_FORWARD; }
+      if (noi > 0x00008CCDu || ent > 0x0000A666u) { node->state = BITOMEGA_MIX; node->dir = BITOMEGA_DIR_RECURSE; }
+      else if (ld > 0x0000D99Au) { node->state = BITOMEGA_EDGE; node->dir = BITOMEGA_DIR_FORWARD; }
       break;
 
     case BITOMEGA_MIX:
-      if (coh > ent + 0.10f) { node->state = BITOMEGA_POS; node->dir = BITOMEGA_DIR_UP; }
-      else if (ent > coh + 0.10f) { node->state = BITOMEGA_NEG; node->dir = BITOMEGA_DIR_DOWN; }
+      if (coh > ent + 0x0000199Au) { node->state = BITOMEGA_POS; node->dir = BITOMEGA_DIR_UP; }
+      else if (ent > coh + 0x0000199Au) { node->state = BITOMEGA_NEG; node->dir = BITOMEGA_DIR_DOWN; }
       else { node->state = BITOMEGA_ZERO; node->dir = BITOMEGA_DIR_NONE; }
       break;
 
     case BITOMEGA_POS:
-      if (ld > 0.90f) { node->state = BITOMEGA_EDGE; node->dir = BITOMEGA_DIR_FORWARD; }
-      else if (noi > 0.60f) { node->state = BITOMEGA_MIX; node->dir = BITOMEGA_DIR_RECURSE; }
+      if (ld > 0x0000E666u) { node->state = BITOMEGA_EDGE; node->dir = BITOMEGA_DIR_FORWARD; }
+      else if (noi > 0x0000999Au) { node->state = BITOMEGA_MIX; node->dir = BITOMEGA_DIR_RECURSE; }
       break;
 
     case BITOMEGA_NEG:
-      if (noi < 0.20f && coh > 0.60f) { node->state = BITOMEGA_ZERO; node->dir = BITOMEGA_DIR_NONE; }
-      else if (ent > 0.80f) { node->state = BITOMEGA_VOID; node->dir = BITOMEGA_DIR_NULL; }
+      if (noi < 0x00003333u && coh > 0x0000999Au) { node->state = BITOMEGA_ZERO; node->dir = BITOMEGA_DIR_NONE; }
+      else if (ent > 0x0000CCCDu) { node->state = BITOMEGA_VOID; node->dir = BITOMEGA_DIR_NULL; }
       break;
 
     case BITOMEGA_ZERO:
-      if (coh > 0.70f && noi < 0.40f) { node->state = BITOMEGA_FLOW; node->dir = BITOMEGA_DIR_FORWARD; }
-      else if (noi > 0.80f) { node->state = BITOMEGA_NOISE; node->dir = BITOMEGA_DIR_NONE; }
+      if (coh > 0x0000B333u && noi < 0x00006666u) { node->state = BITOMEGA_FLOW; node->dir = BITOMEGA_DIR_FORWARD; }
+      else if (noi > 0x0000CCCDu) { node->state = BITOMEGA_NOISE; node->dir = BITOMEGA_DIR_NONE; }
       break;
 
     case BITOMEGA_EDGE:
-      if (ld < 0.60f && coh > 0.60f) { node->state = BITOMEGA_FLOW; node->dir = BITOMEGA_DIR_FORWARD; }
-      else if (noi > 0.70f) { node->state = BITOMEGA_MIX; node->dir = BITOMEGA_DIR_RECURSE; }
+      if (ld < 0x0000999Au && coh > 0x0000999Au) { node->state = BITOMEGA_FLOW; node->dir = BITOMEGA_DIR_FORWARD; }
+      else if (noi > 0x0000B333u) { node->state = BITOMEGA_MIX; node->dir = BITOMEGA_DIR_RECURSE; }
       break;
 
     case BITOMEGA_NOISE:
-      if (noi < 0.35f && coh > 0.55f) { node->state = BITOMEGA_ZERO; node->dir = BITOMEGA_DIR_NONE; }
-      else if (ent > 0.90f) { node->state = BITOMEGA_VOID; node->dir = BITOMEGA_DIR_NULL; }
+      if (noi < 0x0000599Au && coh > 0x00008CCDu) { node->state = BITOMEGA_ZERO; node->dir = BITOMEGA_DIR_NONE; }
+      else if (ent > 0x0000E666u) { node->state = BITOMEGA_VOID; node->dir = BITOMEGA_DIR_NULL; }
       break;
 
     case BITOMEGA_VOID:
-      /* VOID stays VOID unless coherence reappears */
-      if (coh > 0.80f && noi < 0.20f) { node->state = BITOMEGA_ZERO; node->dir = BITOMEGA_DIR_NONE; }
+      if (coh > 0x0000CCCDu && noi < 0x00003333u) { node->state = BITOMEGA_ZERO; node->dir = BITOMEGA_DIR_NONE; }
       break;
 
     case BITOMEGA_META:
-      /* META steers toward coherence */
       if (ent > coh) { node->state = BITOMEGA_MIX; node->dir = BITOMEGA_DIR_RECURSE; }
-      else if (coh > 0.85f) { node->state = BITOMEGA_LOCK; node->dir = BITOMEGA_DIR_RECURSE; }
+      else if (coh > 0x0000D99Au) { node->state = BITOMEGA_LOCK; node->dir = BITOMEGA_DIR_RECURSE; }
       break;
 
     default:
       return BITOMEGA_ERR_RANGE;
   }
 
-  /* final invariant clamp */
   if (!bitomega_invariant_ok(node)) {
-    /* self-heal: drop to ZERO in safe mode */
     node->state = BITOMEGA_ZERO;
     node->dir = BITOMEGA_DIR_NONE;
-    node->coherence = clamp01(node->coherence);
-    node->entropy = clamp01(node->entropy);
+    node->coherence = clamp01_q16(node->coherence);
+    node->entropy = clamp01_q16(node->entropy);
   }
   return BITOMEGA_OK;
 }

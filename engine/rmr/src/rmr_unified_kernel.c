@@ -548,8 +548,8 @@ int RmR_UnifiedKernel_Init(RmR_UnifiedKernel *kernel, const RmR_UnifiedConfig *c
   kernel->entropy = config->seed;
   kernel->bitomega_node.state = BITOMEGA_ZERO;
   kernel->bitomega_node.dir = BITOMEGA_DIR_NONE;
-  kernel->bitomega_node.coherence = 0.5f;
-  kernel->bitomega_node.entropy = 0.5f;
+  kernel->bitomega_node.coherence = BITOMEGA_Q16_HALF;
+  kernel->bitomega_node.entropy = BITOMEGA_Q16_HALF;
   kernel->bitomega_ctx = bitomega_ctx_default((uint64_t)kernel->seed);
   kernel->bitomega_operational_state = RMR_UK_BITOMEGA_OP_ISOLATED;
   kernel->bitomega_invariant_ok = 1u;
@@ -588,18 +588,18 @@ int RmR_UnifiedKernel_Ingest(RmR_UnifiedKernel *kernel, const uint8_t *data, siz
   kernel->entropy = RmR_EntropyEstimateMilli(data, len);
 
   ctx = bitomega_ctx_default((uint64_t)kernel->seed ^ (uint64_t)kernel->stage_counter ^ (uint64_t)kernel->crc32c);
-  ctx.entropy_in = bitomega_norm01((float)kernel->entropy / 1000.0f);
-  ctx.load = bitomega_norm01((float)(len & 0xFFFFu) / 65535.0f);
-  ctx.coherence_in = bitomega_norm01(((1.0f - ctx.entropy_in) * 0.58f) + ((1.0f - ctx.load) * 0.42f));
-  ctx.noise_in = bitomega_norm01(1.0f - ctx.coherence_in);
+  ctx.entropy_in = bitomega_norm01((kernel->entropy >= 1000u) ? BITOMEGA_Q16_ONE : (kernel->entropy * BITOMEGA_Q16_ONE) / 1000u);
+  ctx.load = bitomega_norm01((uint32_t)((((uint64_t)(len & 0xFFFFu)) * BITOMEGA_Q16_ONE) / 65535u));
+  ctx.coherence_in = bitomega_norm01((uint32_t)((((uint64_t)(BITOMEGA_Q16_ONE - ctx.entropy_in) * 0x0000947Bu) + ((uint64_t)(BITOMEGA_Q16_ONE - ctx.load) * 0x00006B85u)) >> 16u));
+  ctx.noise_in = bitomega_norm01(BITOMEGA_Q16_ONE - ctx.coherence_in);
 
   kernel->bitomega_ctx = ctx;
   bo_rc = bitomega_transition(&kernel->bitomega_node, &kernel->bitomega_ctx);
   if (bo_rc != BITOMEGA_OK) {
     kernel->bitomega_node.state = BITOMEGA_ZERO;
     kernel->bitomega_node.dir = BITOMEGA_DIR_NONE;
-    kernel->bitomega_node.coherence = 0.5f;
-    kernel->bitomega_node.entropy = 0.5f;
+    kernel->bitomega_node.coherence = BITOMEGA_Q16_HALF;
+    kernel->bitomega_node.entropy = BITOMEGA_Q16_HALF;
     kernel->bitomega_operational_state = RMR_UK_BITOMEGA_OP_SAFE_FALLBACK;
     kernel->bitomega_fallback_safe = 1u;
   } else {
