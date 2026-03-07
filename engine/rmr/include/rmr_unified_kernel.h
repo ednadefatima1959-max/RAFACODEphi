@@ -183,6 +183,12 @@ typedef struct {
   uint32_t bitomega_operational_state;
   uint32_t bitomega_invariant_ok;
   uint32_t bitomega_fallback_safe;
+  uint32_t bitomega_coherence_q16;
+  uint32_t bitomega_entropy_q16;
+  uint32_t bitomega_ctx_coherence_in_q16;
+  uint32_t bitomega_ctx_entropy_in_q16;
+  uint32_t bitomega_ctx_noise_in_q16;
+  uint32_t bitomega_ctx_load_q16;
   float bitomega_coherence;
   float bitomega_entropy;
   float bitomega_ctx_coherence_in;

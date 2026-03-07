@@ -7,8 +7,8 @@ typedef struct {
   const char *name;
   bitomega_state_t start_state;
   bitomega_dir_t start_dir;
-  float start_coh;
-  float start_ent;
+  uint32_t start_coh_q16;
+  uint32_t start_ent_q16;
   bitomega_ctx_t ctx;
   bitomega_state_t expected_state;
   bitomega_dir_t expected_dir;
@@ -27,10 +27,10 @@ static int append_transition_csv(FILE *fp,
               "%s,%s,coh=%.2f|ent=%.2f|noi=%.2f|load=%.2f,%s,%s\n",
               scenario,
               bitomega_state_name(state_prev),
-              (double)ctx->coherence_in,
-              (double)ctx->entropy_in,
-              (double)ctx->noise_in,
-              (double)ctx->load,
+              (double)bitomega_q16_to_float(ctx->coherence_in),
+              (double)bitomega_q16_to_float(ctx->entropy_in),
+              (double)bitomega_q16_to_float(ctx->noise_in),
+              (double)bitomega_q16_to_float(ctx->load),
               bitomega_state_name(state_new),
               bitomega_dir_name(dir)) < 0) {
     return 0;
@@ -44,9 +44,9 @@ int main(void) {
           "FLOW→LOCK",
           BITOMEGA_FLOW,
           BITOMEGA_DIR_FORWARD,
-          0.92f,
-          0.10f,
-          {0.95f, 0.10f, 0.10f, 0.25f, 0xB001u},
+          0x0000EB85u,
+          0x0000199Au,
+          {0x0000F333u, 0x0000199Au, 0x0000199Au, 0x00004000u, 0xB001u},
           BITOMEGA_LOCK,
           BITOMEGA_DIR_RECURSE,
       },
@@ -54,9 +54,9 @@ int main(void) {
           "NOISE→VOID",
           BITOMEGA_NOISE,
           BITOMEGA_DIR_NONE,
-          0.20f,
-          0.95f,
-          {0.15f, 0.98f, 0.95f, 0.40f, 0xB002u},
+          0x00003333u,
+          0x0000F333u,
+          {0x00002666u, 0x0000FAE1u, 0x0000F333u, 0x00006666u, 0xB002u},
           BITOMEGA_VOID,
           BITOMEGA_DIR_NULL,
       },
@@ -64,9 +64,9 @@ int main(void) {
           "VOID_DETERMINISTIC_RECOVERY",
           BITOMEGA_VOID,
           BITOMEGA_DIR_NULL,
-          0.95f,
-          0.08f,
-          {0.95f, 0.08f, 0.05f, 0.20f, 0xB003u},
+          0x0000F333u,
+          0x0000147Bu,
+          {0x0000F333u, 0x0000147Bu, 0x00000CCDu, 0x00003333u, 0xB003u},
           BITOMEGA_ZERO,
           BITOMEGA_DIR_NONE,
       },
@@ -89,8 +89,8 @@ int main(void) {
 
     node.state = cases[i].start_state;
     node.dir = cases[i].start_dir;
-    node.coherence = cases[i].start_coh;
-    node.entropy = cases[i].start_ent;
+    node.coherence = cases[i].start_coh_q16;
+    node.entropy = cases[i].start_ent_q16;
 
     status = bitomega_transition(&node, &cases[i].ctx);
     if (status != BITOMEGA_OK) {
@@ -119,8 +119,8 @@ int main(void) {
       bitomega_node_t replay = {
           cases[i].start_state,
           cases[i].start_dir,
-          cases[i].start_coh,
-          cases[i].start_ent,
+          cases[i].start_coh_q16,
+          cases[i].start_ent_q16,
       };
       if (bitomega_transition(&replay, &cases[i].ctx) != BITOMEGA_OK || replay.state != node.state || replay.dir != node.dir) {
         fprintf(stderr, "bitomega_smoketest: deterministic recovery replay mismatch for %s\n", cases[i].name);

@@ -60,8 +60,8 @@ void RmR_VcpuScheduler_Init(RmR_VcpuScheduler *sched, uint32_t vcpu_count) {
   for (uint32_t i = 0u; i < sched->vcpu_count; ++i) {
     sched->nodes[i].state = BITOMEGA_ZERO;
     sched->nodes[i].dir = BITOMEGA_DIR_NONE;
-    sched->nodes[i].coherence = 0.5f;
-    sched->nodes[i].entropy = 0.5f;
+    sched->nodes[i].coherence = BITOMEGA_Q16_HALF;
+    sched->nodes[i].entropy = BITOMEGA_Q16_HALF;
   }
 }
 
@@ -88,7 +88,7 @@ uint32_t RmR_VcpuScheduler_Next(RmR_VcpuScheduler *sched, const bitomega_ctx_t *
     else if (n->state == BITOMEGA_VOID) score = 0u;
     else score = 200u;
 
-    score = (uint32_t)(((uint64_t)score * (uint64_t)(uint32_t)(n->coherence * 65536.0f)) >> 16u);
+    score = (uint32_t)(((uint64_t)score * (uint64_t)n->coherence) >> 16u);
 
     if (score > best_score) {
       best_score = score;
