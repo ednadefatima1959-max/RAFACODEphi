@@ -68,7 +68,6 @@ function(rmr_apply_common_flags target_name)
     RMR_ASM_CORE_X86_64_VALIDATED=${RMR_ASM_CORE_X86_64_VALIDATED_VALUE}
     RMR_ASM_CORE_ARM64_VALIDATED=${RMR_ASM_CORE_ARM64_VALIDATED_VALUE}
     RMR_ASM_CORE_RISCV64_VALIDATED=${RMR_ASM_CORE_RISCV64_VALIDATED_VALUE}
-    RMR_BUILD_HOST_TOOLING=${RMR_JNI_BUILD_VALUE}
   )
   target_include_directories(${target_name} PRIVATE ${CMAKE_SOURCE_DIR}/engine/rmr/include)
 endfunction()
@@ -202,7 +201,7 @@ add_executable(rmr_legacy_kernel_selftest demo_cli/src/rmr_legacy_kernel_selftes
 target_link_libraries(rmr_legacy_kernel_selftest PRIVATE rmr)
 rmr_apply_common_flags(rmr_legacy_kernel_selftest)
 
-add_executable(rmr_hw_detect_selftest engine/rmr/src/rmr_hw_detect_selftest.c)
+add_executable(rmr_hw_detect_selftest demo_cli/src/rmr_hw_detect_selftest.c)
 target_link_libraries(rmr_hw_detect_selftest PRIVATE rmr)
 rmr_apply_common_flags(rmr_hw_detect_selftest)
 
