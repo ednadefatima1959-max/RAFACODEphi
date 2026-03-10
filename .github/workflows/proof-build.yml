@@ -47,15 +47,18 @@ jobs:
         run: make clean && make -j"$(nproc)"
 
       - name: Selftests
-        run: make run-selftest
+        run: |
+          set -euo pipefail
+          mkdir -p bench/results
+          make run-selftest 2>&1 | tee bench/results/proof-selftest.log
 
       - name: Root CMake configure + build
         run: |
           cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
           cmake --build build-cmake -j"$(nproc)"
 
-      - name: Upload host logs if failure
-        if: failure()
+      - name: Upload host logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: host-proof-logs
@@ -63,3 +66,4 @@ jobs:
             build
             build-cmake
             bench/results
+            reports

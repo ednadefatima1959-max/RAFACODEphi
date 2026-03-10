@@ -42,7 +42,10 @@ if [[ "$IN_GIT" -eq 1 ]]; then
     mapfile -t ADDED_FILES < <(git ls-files)
   fi
 else
-  mapfile -t ADDED_FILES < <(cd "$REPO_ROOT" && find . -type f | sed "s#^\./##")
+  mapfile -t ADDED_FILES < <(cd "$REPO_ROOT" && find . \
+    -type d \
+    \( -name .git -o -name build -o -name build-cmake -o -name build-sanitizers -o -name .gradle \) -prune -o \
+    -type f -print | sed "s#^\./##")
 fi
 
 for file in "${ADDED_FILES[@]}"; do

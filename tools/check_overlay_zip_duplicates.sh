@@ -7,6 +7,11 @@ else
   REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi
 
+if ! command -v zipinfo >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
+  echo "Overlay ZIP check skipped: zipinfo/unzip unavailable on host."
+  exit 0
+fi
+
 is_source_entry() {
   local entry="$1"
   case "$entry" in

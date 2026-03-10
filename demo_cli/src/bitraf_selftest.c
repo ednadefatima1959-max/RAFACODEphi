@@ -65,6 +65,7 @@ int main(void) {
       & (d1.error_offset == 0u)
       & (d1.chunk_index == 0u)
       & (report_len == sizeof(payload))
+      & (!equal_buf(out_good, out_bad, sizeof(payload)))
       & (d2.status == BITRAF_RECON_STATUS_CHUNK)
       & (d2.error_offset == 0u)
       & (d2.chunk_index == 0u)
@@ -73,7 +74,7 @@ int main(void) {
       & (RmR_ISOraf_GetBit(&st, 63u) == 1u)
       & (RmR_ISOraf_GetBit(&st, 4097u) == 1u);
 
-  printf("bitraf_selftest frame=%zu plain=%zu strict=%zu report=%zu off=%zu ok=%d\n",
-         frame_len, plain_len, strict_len, report_len, d2.error_offset, ok);
+  printf("bitraf_selftest frame=%zu plain=%zu strict=%zu report=%zu off=%zu bad_chunks=%u ok=%d\n",
+         frame_len, plain_len, strict_len, report_len, d2.error_offset, (unsigned)d2.bad_chunk_count, ok);
   return ok ? 0 : 1;
 }
