@@ -79,6 +79,8 @@ static __attribute__((aligned(64))) uint8_t rmr_unified_host_arena[RMR_UNIFIED_F
 #define RMR_UNIFIED_FALLBACK_ARENA_PTR rmr_arena
 #endif
 
+_Static_assert(RMR_UNIFIED_FALLBACK_ARENA_BYTES >= RMR_UNIFIED_ARENA_MIN_BYTES,
+               "RmR unified fallback arena must satisfy minimum arena contract");
 
 static uint64_t rmr_rotl64(uint64_t x, uint32_t n) {
   uint32_t s = n & 63u;

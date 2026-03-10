@@ -101,7 +101,10 @@ jobs:
       - name: Generate BitΩ transition graph
         run: cmake --build build-cmake --target bitomega_transition_graph
       - name: Run release gate (selftest + bench + summary)
-        run: make run-release-gate
+        run: |
+          set -euo pipefail
+          mkdir -p bench/results
+          make run-release-gate 2>&1 | tee bench/results/release-gate.log
 
       - name: Upload BitΩ smoke artifacts
         if: always()
@@ -119,7 +122,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bench-summary
-          path: bench/results/summary.json
+          path: |
+            bench/results/summary.json
+            bench/results/release-gate.log
           if-no-files-found: warn
 
       - name: Upload baremetal reports artifact
