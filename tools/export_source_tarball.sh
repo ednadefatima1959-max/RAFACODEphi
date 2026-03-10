@@ -39,12 +39,29 @@ printf 'root_dir=%s\n' "$ROOT_DIR" >> "$MANIFEST"
 printf 'android_sdk_root=%s\n' "$ANDROID_SDK_ROOT" >> "$MANIFEST"
 printf 'android_cache_home=%s\n' "$ANDROID_CACHE_HOME" >> "$MANIFEST"
 
-# 1) Repo sources versionados
-git ls-files | awk '
-  /\.(java|kt|kts|c|cc|cpp|cxx|h|hh|hpp|hxx|s|S|asm|aidl|rs|proto|gradle|properties|xml|json|yml|yaml|sh|mk|cmake|txt|md)$/ {
-    print
-  }
-' > "$REPO_LIST"
+# 1) Repo sources versionados (ou fallback por filesystem quando não há metadados git)
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git ls-files | awk '
+    /\.(java|kt|kts|c|cc|cpp|cxx|h|hh|hpp|hxx|s|S|asm|aidl|rs|proto|gradle|properties|xml|json|yml|yaml|sh|mk|cmake|txt|md)$/ {
+      print
+    }
+  ' > "$REPO_LIST"
+else
+  find . -type f \( \
+      -name '*.java' -o -name '*.kt' -o -name '*.kts' -o -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o \
+      -name '*.h' -o -name '*.hh' -o -name '*.hpp' -o -name '*.hxx' -o -name '*.s' -o -name '*.S' -o -name '*.asm' -o \
+      -name '*.aidl' -o -name '*.rs' -o -name '*.proto' -o -name '*.gradle' -o -name '*.properties' -o -name '*.xml' -o \
+      -name '*.json' -o -name '*.yml' -o -name '*.yaml' -o -name '*.sh' -o -name '*.mk' -o -name '*.cmake' -o -name '*.txt' -o -name '*.md' \
+    \) \
+    -not -path './.git/*' \
+    -not -path './build/*' \
+    -not -path './build-cmake/*' \
+    -not -path './.gradle/*' \
+    -not -path './.idea/*' \
+    -not -path './.vscode/*' \
+    -not -path './archive/source-export/*' \
+    -printf '%P\n' | sort > "$REPO_LIST"
+fi
 
 if [[ -s "$REPO_LIST" ]]; then
   while IFS= read -r file; do
