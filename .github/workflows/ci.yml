@@ -42,6 +42,9 @@ jobs:
       - name: Show hosted engine config
         run: make print-build-config
 
+      - name: Export Make resolved build config
+        run: make print-build-config-env
+
       - name: Build engine with Makefile
         run: make -j"$(nproc)"
 
