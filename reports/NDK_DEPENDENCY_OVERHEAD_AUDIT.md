@@ -91,28 +91,3 @@ Inventário atual do módulo `app` (escopo runtime):
 4. Reavaliar dependências externas após cada migração (evitar remoção prematura).
 
 > Observação: o objetivo é **reduzir abstrações nos hot paths**, sem quebrar compatibilidade de UI e ciclo de release Android.
-
----
-
-## 6) Execução real aplicada (code-first)
-Implementação aplicada antes da documentação:
-- `SetupStateValidator` migrou de `Gson` para parser nativo `org.json.JSONObject` para validar payload de estado sem reflexão/generics no caminho crítico.
-- Mantida compatibilidade de regra de negócio (campos obrigatórios e transições).
-- Adicionados testes unitários do validador para payload válido e cenários inválidos.
-
-Arquivos:
-- `app/src/main/java/com/vectras/vm/setupwizard/SetupStateValidator.java`
-- `app/src/test/java/com/vectras/vm/setupwizard/SetupStateValidatorTest.java`
-
----
-
-## 7) Licenciamento e documentação de origem (Gradle/JNI/AndroidX/outros)
-- Fonte oficial de notices/licenças de terceiros: `THIRD_PARTY_NOTICES.md`.
-- Dependências do app declaradas em: `app/build.gradle` (bloco `dependencies`).
-- Toolchain nativa declarada em: `build.gradle` raiz + `gradle.properties` + `app/build.gradle` (`externalNativeBuild`).
-
-Checklist para cada reescrita/remoção futura de dependência externa:
-1. Atualizar uso de código (Java/Kotlin/JNI).
-2. Atualizar `app/build.gradle` removendo/ajustando a dependência.
-3. Atualizar `THIRD_PARTY_NOTICES.md` com inclusão/remoção de componente e licença.
-4. Rodar validação de build e testes.
