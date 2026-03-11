@@ -10,14 +10,15 @@ ENABLE_SPILL="${ENABLE_SPILL:-1}"
 CI_DRY_RUN="${CI_DRY_RUN:-0}"
 BOOTSTRAP_ANDROID="${BOOTSTRAP_ANDROID:-1}"
 ANDROID_API_LEVEL="${ANDROID_API_LEVEL:-35}"
-VECTRAS_RELEASE_STORE_FILE="${VECTRAS_RELEASE_STORE_FILE:-}"
-VECTRAS_RELEASE_STORE_PASSWORD="${VECTRAS_RELEASE_STORE_PASSWORD:-}"
-VECTRAS_RELEASE_KEY_ALIAS="${VECTRAS_RELEASE_KEY_ALIAS:-}"
-VECTRAS_RELEASE_KEY_PASSWORD="${VECTRAS_RELEASE_KEY_PASSWORD:-}"
+VECTRAS_KEY_ALIAS="${VECTRAS_KEY_ALIAS:-vectras}"
+VECTRAS_STORE_PASSWORD="${VECTRAS_STORE_PASSWORD:-856856}"
+VECTRAS_KEY_PASSWORD="${VECTRAS_KEY_PASSWORD:-856856}"
 APK_PATH="${APK_PATH:-$ROOT_DIR/app/build/outputs/apk/release/app-release.apk}"
 GRADLE_WRAPPER="$ROOT_DIR/tools/gradle_with_jdk21.sh"
 
 SPILL_ALLOC_MB="${SPILL_ALLOC_MB:-256}"
+
+source "$ROOT_DIR/tools/termux-arm64-orchestrator/resolve-release-keystore.sh"
 
 run_native_helpers() {
   if [[ ! -x tools/termux-arm64-orchestrator/build-native-helpers.sh ]]; then
@@ -169,10 +170,7 @@ run_build() {
   log "running legal compliance gate"
   bash tools/termux-arm64-orchestrator/legal-compliance-check.sh
 
-  if [[ ! -f "$VECTRAS_RELEASE_STORE_FILE" ]]; then
-    echo "$LOG_PREFIX keystore not found: $VECTRAS_RELEASE_STORE_FILE" >&2
-    exit 1
-  fi
+  resolve_release_keystore "$ROOT_DIR" "$LOG_PREFIX"
 
   if [[ "$CI_DRY_RUN" == "1" ]]; then
     log "CI_DRY_RUN=1; skipping real Gradle build"
@@ -181,14 +179,14 @@ run_build() {
 
   chmod +x "$GRADLE_WRAPPER"
 
-  log "starting arm64-v8a release build using repository jks"
+  log "starting arm64-v8a release build"
   "$GRADLE_WRAPPER" --no-daemon :app:clean :app:assembleRelease \
     -Pandroid.injected.build.abi=arm64-v8a \
     -Pandroid.injected.build.api="$ANDROID_API_LEVEL" \
     -Pandroid.injected.signing.store.file="$VECTRAS_RELEASE_STORE_FILE" \
-    -Pandroid.injected.signing.store.password="$VECTRAS_RELEASE_STORE_PASSWORD" \
-    -Pandroid.injected.signing.key.alias="$VECTRAS_RELEASE_KEY_ALIAS" \
-    -Pandroid.injected.signing.key.password="$VECTRAS_RELEASE_KEY_PASSWORD" \
+    -Pandroid.injected.signing.store.password="$VECTRAS_STORE_PASSWORD" \
+    -Pandroid.injected.signing.key.alias="$VECTRAS_KEY_ALIAS" \
+    -Pandroid.injected.signing.key.password="$VECTRAS_KEY_PASSWORD" \
     -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseSerialGC"
 
   verify_signing "$APK_PATH"
