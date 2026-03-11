@@ -1,9 +1,14 @@
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <jni.h>
 #include <stdint.h>
-#include "zero_compat.h"
+#include <stdio.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <time.h>
+#include "zero_compat.h"
 #include "rmr_unified_kernel.h"
 #include "rmr_lowlevel.h"
 #if defined(RMR_ENABLE_POLICY_MODULE)
@@ -481,11 +486,8 @@ JNIEXPORT jstring JNICALL Java_com_vectras_vm_core_NativeLogcatBridge_nativeRead
     if(maxEvents<=0)maxEvents=1;
     if(maxEvents>256)maxEvents=256;
 
-    const size_t payloadBytes = (size_t)LOGCAT_BATCH_PAYLOAD_BYTES;
-    char* payload = (char*)malloc(payloadBytes);
-    if(!payload){
-        return (*env)->NewStringUTF(env, "");
-    }
+    const uint32_t payloadBytes = (uint32_t)LOGCAT_BATCH_PAYLOAD_BYTES;
+    char payload[LOGCAT_BATCH_PAYLOAD_BYTES];
 
     uint32_t out=0;
     int count=0;
@@ -495,7 +497,7 @@ JNIEXPORT jstring JNICALL Java_com_vectras_vm_core_NativeLogcatBridge_nativeRead
         if(s->len>0){
             uint32_t copy=s->len;
             if(out+copy+1>=payloadBytes) copy=(uint32_t)(payloadBytes-out-2);
-            memcpy(payload+out,s->text,copy);
+            for(uint32_t j=0; j<copy; j++){ payload[out+j]=s->text[j]; }
             out+=copy;
             payload[out++]='\n';
             count++;
@@ -508,9 +510,7 @@ JNIEXPORT jstring JNICALL Java_com_vectras_vm_core_NativeLogcatBridge_nativeRead
     pthread_mutex_unlock(&g_ring_lock);
 
     payload[out]='\0';
-    jstring result = (*env)->NewStringUTF(env,payload);
-    free(payload);
-    return result;
+    return (*env)->NewStringUTF(env,payload);
 }
 JNIEXPORT void JNICALL Java_com_vectras_vm_core_NativeLogcatBridge_nativeShutdownCapture(JNIEnv* env, jclass clazz){(void)env;(void)clazz; if(atomic_exchange(&g_capture_running,0)==1) pthread_join(g_capture_thread,NULL);}
 
