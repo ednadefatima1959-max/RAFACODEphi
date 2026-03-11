@@ -10,9 +10,10 @@ ENABLE_SPILL="${ENABLE_SPILL:-1}"
 CI_DRY_RUN="${CI_DRY_RUN:-0}"
 BOOTSTRAP_ANDROID="${BOOTSTRAP_ANDROID:-1}"
 ANDROID_API_LEVEL="${ANDROID_API_LEVEL:-35}"
-VECTRAS_KEY_ALIAS="${VECTRAS_KEY_ALIAS:-vectras}"
-VECTRAS_STORE_PASSWORD="${VECTRAS_STORE_PASSWORD:-856856}"
-VECTRAS_KEY_PASSWORD="${VECTRAS_KEY_PASSWORD:-856856}"
+VECTRAS_RELEASE_STORE_FILE="${VECTRAS_RELEASE_STORE_FILE:-}"
+VECTRAS_RELEASE_KEY_ALIAS="${VECTRAS_RELEASE_KEY_ALIAS:-}"
+VECTRAS_RELEASE_STORE_PASSWORD="${VECTRAS_RELEASE_STORE_PASSWORD:-}"
+VECTRAS_RELEASE_KEY_PASSWORD="${VECTRAS_RELEASE_KEY_PASSWORD:-}"
 APK_PATH="${APK_PATH:-$ROOT_DIR/app/build/outputs/apk/release/app-release.apk}"
 GRADLE_WRAPPER="$ROOT_DIR/tools/gradle_with_jdk21.sh"
 
@@ -186,11 +187,6 @@ verify_signing() {
 }
 
 run_build() {
-  log "running legal compliance gate"
-  bash tools/termux-arm64-orchestrator/legal-compliance-check.sh
-
-  resolve_release_keystore "$ROOT_DIR" "$LOG_PREFIX"
-
   if [[ "$CI_DRY_RUN" == "1" ]]; then
     log "CI_DRY_RUN=1; skipping real Gradle build"
     return
@@ -198,14 +194,14 @@ run_build() {
 
   chmod +x "$GRADLE_WRAPPER"
 
-  log "starting arm64-v8a release build"
+  log "starting arm64-v8a release build using injected signing credentials"
   "$GRADLE_WRAPPER" --no-daemon :app:clean :app:assembleRelease \
     -Pandroid.injected.build.abi=arm64-v8a \
     -Pandroid.injected.build.api="$ANDROID_API_LEVEL" \
     -Pandroid.injected.signing.store.file="$VECTRAS_RELEASE_STORE_FILE" \
-    -Pandroid.injected.signing.store.password="$VECTRAS_STORE_PASSWORD" \
-    -Pandroid.injected.signing.key.alias="$VECTRAS_KEY_ALIAS" \
-    -Pandroid.injected.signing.key.password="$VECTRAS_KEY_PASSWORD" \
+    -Pandroid.injected.signing.store.password="$VECTRAS_RELEASE_STORE_PASSWORD" \
+    -Pandroid.injected.signing.key.alias="$VECTRAS_RELEASE_KEY_ALIAS" \
+    -Pandroid.injected.signing.key.password="$VECTRAS_RELEASE_KEY_PASSWORD" \
     -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseSerialGC"
 
   verify_signing "$APK_PATH"
@@ -216,6 +212,9 @@ require_cmd bash
 require_cmd rg
 require_cmd uname
 require_cmd "$GRADLE_WRAPPER"
+
+log "running legal compliance gate"
+bash tools/termux-arm64-orchestrator/legal-compliance-check.sh
 
 detect_arch
 configure_memory_spill
