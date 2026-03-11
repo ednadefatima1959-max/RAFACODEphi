@@ -66,6 +66,18 @@ Relatório gerado automaticamente a partir de `app/build.gradle` + imports em `a
 - `androidx.test.ext:junit:1.3.0`: Jetpack/AndroidX: bibliotecas oficiais de alto nível para UI, ciclo de vida, storage e compatibilidade Android.
 - `androidx.test.espresso:espresso-core:3.7.0`: Jetpack/AndroidX: bibliotecas oficiais de alto nível para UI, ciclo de vida, storage e compatibilidade Android.
 
+## Arquivos críticos (o 1-2 que mais fazem diferença)
+
+### arquivo-crítico #1 | score=682
+- Arquivo: `app/src/main/java/com/vectras/vm/RomInfo.java`
+- Dependências críticas relacionadas: `com.github.bumptech.glide:glide:4.16.0`, `com.google.code.gson:gson:2.13.2`, `com.squareup.okhttp3:okhttp:4.12.0`
+- Ação low-level direta: concentrar migração autoral primeiro neste arquivo para maximizar redução de GC/overhead.
+
+### arquivo-crítico #2 | score=456
+- Arquivo: `app/src/main/java/com/vectras/vm/VMCreatorActivity.java`
+- Dependências críticas relacionadas: `androidx.work:work-runtime:2.9.1`, `com.github.bumptech.glide:glide:4.16.0`
+- Ação low-level direta: concentrar migração autoral primeiro neste arquivo para maximizar redução de GC/overhead.
+
 ## Itens priorizados para refatoração low-level autoral
 
 ### #1 `com.google.code.gson:gson:2.13.2` | prioridade=230

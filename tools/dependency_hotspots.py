@@ -179,6 +179,27 @@ def score_priority(dep: DependencyEntry, impacted_count: int) -> int:
     return runtime_weight + strategic_bonus + impacted_count
 
 
+
+FILE_CRITICAL_LIMIT = 2
+
+
+def build_critical_files(prioritized_entries: list[tuple[int, DependencyEntry, list[Path]]]) -> list[tuple[int, Path, list[str]]]:
+    file_scores: dict[Path, int] = {}
+    file_reasons: dict[Path, list[str]] = {}
+    for score, dep, impacted in prioritized_entries:
+        if dep.ga not in LOW_LEVEL_PLAN:
+            continue
+        for path in impacted:
+            file_scores[path] = file_scores.get(path, 0) + score
+            reasons = file_reasons.setdefault(path, [])
+            reasons.append(dep.coord)
+
+    ranked = sorted(file_scores.items(), key=lambda item: item[1], reverse=True)
+    out: list[tuple[int, Path, list[str]]] = []
+    for path, score in ranked[:FILE_CRITICAL_LIMIT]:
+        out.append((score, path, sorted(set(file_reasons.get(path, [])))))
+    return out
+
 def concept_for(dep: DependencyEntry) -> str:
     for prefix, text in DEPENDENCY_CONCEPTS.items():
         if dep.group.startswith(prefix):
@@ -219,13 +240,28 @@ def main() -> None:
         lines.append(f"- `{dep.coord}`: {concept_for(dep)}")
 
     lines.append("")
-    lines.append("## Itens priorizados para refatoração low-level autoral")
-    lines.append("")
     prioritized = []
     for dep in deps:
         impacted = matches[dep.coord]
         prioritized.append((score_priority(dep, len(impacted)), dep, impacted))
     prioritized.sort(key=lambda x: x[0], reverse=True)
+
+    lines.append("## Arquivos críticos (o 1-2 que mais fazem diferença)")
+    lines.append("")
+    critical_files = build_critical_files(prioritized)
+    if critical_files:
+        for idx, (file_score, file_path, reasons) in enumerate(critical_files, start=1):
+            lines.append(f"### arquivo-crítico #{idx} | score={file_score}")
+            lines.append(f"- Arquivo: `{file_path.as_posix()}`")
+            lines.append(f"- Dependências críticas relacionadas: {', '.join(f'`{r}`' for r in reasons)}")
+            lines.append("- Ação low-level direta: concentrar migração autoral primeiro neste arquivo para maximizar redução de GC/overhead.")
+            lines.append("")
+    else:
+        lines.append("- Nenhum arquivo crítico identificado para dependências com plano low-level.")
+        lines.append("")
+
+    lines.append("## Itens priorizados para refatoração low-level autoral")
+    lines.append("")
 
     rank = 1
     for score, dep, impacted in prioritized:
