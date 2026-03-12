@@ -37,6 +37,8 @@ TOOLCHAIN_CORE_DIR="$ROOT_DIR/tools/termux-arm64-orchestrator/toolchain-core"
 
 SPILL_ALLOC_MB="${SPILL_ALLOC_MB:-256}"
 
+source "$ROOT_DIR/tools/termux-arm64-orchestrator/resolve-release-keystore.sh"
+
 run_native_helpers() {
   if [[ ! -x tools/termux-arm64-orchestrator/build-native-helpers.sh ]]; then
     warn "build-native-helpers.sh ausente"
@@ -59,6 +61,41 @@ mkdir -p "$BUILD_SPILL_DIR"
 
 log() { echo "$LOG_PREFIX $*"; }
 warn() { echo "$LOG_PREFIX WARN: $*"; }
+
+resolve_signing_var() {
+  local canonical_name="$1"
+  local legacy_name="$2"
+  local default_value="${3:-}"
+  local canonical_value legacy_value
+
+  canonical_value="$(printenv "$canonical_name" 2>/dev/null || true)"
+  legacy_value="$(printenv "$legacy_name" 2>/dev/null || true)"
+
+  if [[ -n "$canonical_value" ]]; then
+    printf '%s\n' "$canonical_value"
+    return 0
+  fi
+
+  if [[ -n "$legacy_value" ]]; then
+    warn "variável legada detectada: $legacy_name. Migre para $canonical_name (ponte temporária de retrocompatibilidade)."
+    printf '%s\n' "$legacy_value"
+    return 0
+  fi
+
+  printf '%s\n' "$default_value"
+}
+
+configure_signing_env() {
+  VECTRAS_RELEASE_STORE_FILE="$(resolve_signing_var VECTRAS_RELEASE_STORE_FILE VECTRAS_KEYSTORE "$ROOT_DIR/vectras.jks")"
+  VECTRAS_RELEASE_STORE_PASSWORD="$(resolve_signing_var VECTRAS_RELEASE_STORE_PASSWORD VECTRAS_STORE_PASSWORD "856856")"
+  VECTRAS_RELEASE_KEY_ALIAS="$(resolve_signing_var VECTRAS_RELEASE_KEY_ALIAS VECTRAS_KEY_ALIAS "vectras")"
+  VECTRAS_RELEASE_KEY_PASSWORD="$(resolve_signing_var VECTRAS_RELEASE_KEY_PASSWORD VECTRAS_KEY_PASSWORD "856856")"
+
+  export VECTRAS_RELEASE_STORE_FILE
+  export VECTRAS_RELEASE_STORE_PASSWORD
+  export VECTRAS_RELEASE_KEY_ALIAS
+  export VECTRAS_RELEASE_KEY_PASSWORD
+}
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -149,6 +186,7 @@ bootstrap_android_env() {
 
 verify_signing() {
   local apk="$1"
+  local verify_rc=0
 
   if [[ ! -f "$apk" ]]; then
     echo "$LOG_PREFIX release APK not found: $apk" >&2
@@ -157,21 +195,39 @@ verify_signing() {
 
   if command -v apksigner >/dev/null 2>&1; then
     log "verificando assinatura com apksigner"
-    apksigner verify --verbose --print-certs "$apk" | tee "$BUILD_SPILL_DIR/apk-signature.txt"
-    if ! rg -n "Verified" "$BUILD_SPILL_DIR/apk-signature.txt" >/dev/null; then
-      echo "$LOG_PREFIX apksigner verification failed" >&2
+    set +e
+    apksigner verify --verbose --print-certs "$apk" 2>&1 | tee "$BUILD_SPILL_DIR/apk-signature.txt"
+    verify_rc=${PIPESTATUS[0]}
+    set -e
+
+    if [[ $verify_rc -ne 0 ]]; then
+      echo "$LOG_PREFIX apksigner verification failed with exit code $verify_rc" >&2
       exit 1
     fi
+
+    if ! rg -n "Verified" "$BUILD_SPILL_DIR/apk-signature.txt" >/dev/null; then
+      warn "apksigner retornou sucesso, mas texto esperado ('Verified') não foi encontrado no log"
+    fi
+
     return
   fi
 
   if command -v jarsigner >/dev/null 2>&1; then
     log "apksigner não encontrado; fallback para jarsigner"
-    jarsigner -verify -verbose -certs "$apk" | tee "$BUILD_SPILL_DIR/apk-signature.txt"
-    if ! rg -n "jar verified" "$BUILD_SPILL_DIR/apk-signature.txt" >/dev/null; then
-      echo "$LOG_PREFIX jarsigner verification failed" >&2
+    set +e
+    jarsigner -verify -verbose -certs "$apk" 2>&1 | tee "$BUILD_SPILL_DIR/apk-signature.txt"
+    verify_rc=${PIPESTATUS[0]}
+    set -e
+
+    if [[ $verify_rc -ne 0 ]]; then
+      echo "$LOG_PREFIX jarsigner verification failed with exit code $verify_rc" >&2
       exit 1
     fi
+
+    if ! rg -n "jar verified" "$BUILD_SPILL_DIR/apk-signature.txt" >/dev/null; then
+      warn "jarsigner retornou sucesso, mas texto esperado ('jar verified') não foi encontrado no log"
+    fi
+
     return
   fi
 
@@ -212,6 +268,7 @@ run_toolchain_core_probe
 detect_arch
 configure_memory_spill
 configure_toolchain_flags
+configure_signing_env
 run_native_helpers
 sync_required_forks
 bootstrap_android_env
