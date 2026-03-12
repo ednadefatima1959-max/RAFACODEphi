@@ -27,6 +27,8 @@ Este módulo é para **build local no terminal**, sem depender de GitHub Actions
 - `TOOLCHAIN_LICENSES.md`: inventário mínimo de licenças/proveniência da toolchain externa.
 - `toolchain-core/*.sh`: detecção de host, resolução de ambiente, ativação e verificação da toolchain.
 - `toolchain-manifests/toolchain-bom.json`: BOM de componentes JDK/SDK/NDK/CMake usados no fluxo.
+- `forks-sync.sh`: sincroniza fontes de forks externos (GitHub codeload) declarados em manifesto.
+- `fork-manifests/forks-sources.json`: manifesto de forks necessários/opcionais para composição local.
 
 ## Execução local (recomendada)
 
@@ -57,5 +59,7 @@ bash tools/termux-arm64-orchestrator/orchestrate-build.sh
 - `VECTRAS_RELEASE_KEY_PASSWORD` (obrigatória para release; compatível com legado `VECTRAS_KEY_PASSWORD`)
 - `TOOLCHAIN_PACK_DIR` (default `.toolchain-packs`)
 - `ALLOW_NETWORK_TOOLCHAIN=0|1` (quando `0`, exige pack local de cmdline-tools)
+- `ENABLE_FORK_SYNC=0|1` (sincroniza forks externos declarados antes do bootstrap)
+- `ALLOW_NETWORK_FORKS=0|1` (quando `0`, não baixa forks; forks obrigatórios ausentes geram erro)
 - `BOOTSTRAP_ANDROID=0|1`
 - `CI_DRY_RUN=0|1`

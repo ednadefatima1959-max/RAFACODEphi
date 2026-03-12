@@ -25,6 +25,8 @@ required_files=(
   "tools/gradle_with_jdk21.sh"
   "tools/termux-arm64-orchestrator/bootstrap-termux-android15.sh"
   "tools/termux-arm64-orchestrator/toolchain-pack.sh"
+  "tools/termux-arm64-orchestrator/forks-sync.sh"
+  "tools/termux-arm64-orchestrator/fork-manifests/forks-sources.json"
   "tools/termux-arm64-orchestrator/TOOLCHAIN_LICENSES.md"
   "tools/termux-arm64-orchestrator/TOOLCHAIN_CORE.md"
   "tools/termux-arm64-orchestrator/toolchain-manifests/toolchain-bom.json"
@@ -108,6 +110,12 @@ fi
 
 if ! rg -n '"version"\s*:|"source"\s*:|"sha256"\s*:|"license"\s*:' tools/termux-arm64-orchestrator/toolchain-manifests/toolchain-bom.json >/dev/null; then
   echo "[compliance] toolchain-bom.json missing mandatory metadata keys (version/source/sha256/license)" >&2
+  exit 1
+fi
+
+
+if ! rg -n '"schema"\s*:\s*"vectras-termux-forks/v1"|"forks"\s*:' tools/termux-arm64-orchestrator/fork-manifests/forks-sources.json >/dev/null; then
+  echo "[compliance] forks-sources.json must declare schema vectras-termux-forks/v1 and forks array" >&2
   exit 1
 fi
 

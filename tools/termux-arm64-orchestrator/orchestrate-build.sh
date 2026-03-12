@@ -9,6 +9,7 @@ BUILD_SPILL_DIR="${BUILD_SPILL_DIR:-$ROOT_DIR/.build-spill}"
 ENABLE_SPILL="${ENABLE_SPILL:-1}"
 CI_DRY_RUN="${CI_DRY_RUN:-0}"
 BOOTSTRAP_ANDROID="${BOOTSTRAP_ANDROID:-1}"
+ENABLE_FORK_SYNC="${ENABLE_FORK_SYNC:-1}"
 ANDROID_API_LEVEL="${ANDROID_API_LEVEL:-35}"
 VECTRAS_RELEASE_STORE_FILE="${VECTRAS_RELEASE_STORE_FILE:-}"
 VECTRAS_RELEASE_KEY_ALIAS="${VECTRAS_RELEASE_KEY_ALIAS:-}"
@@ -116,6 +117,20 @@ configure_toolchain_flags() {
   log "flags de toolchain configuradas"
 }
 
+sync_required_forks() {
+  if [[ "$ENABLE_FORK_SYNC" != "1" ]]; then
+    log "fork sync desabilitado por ENABLE_FORK_SYNC=$ENABLE_FORK_SYNC"
+    return
+  fi
+
+  if [[ -x tools/termux-arm64-orchestrator/forks-sync.sh ]]; then
+    log "sincronizando forks externos necessários"
+    bash tools/termux-arm64-orchestrator/forks-sync.sh
+  else
+    warn "forks-sync.sh ausente"
+  fi
+}
+
 bootstrap_android_env() {
   if [[ "$BOOTSTRAP_ANDROID" != "1" ]]; then
     log "bootstrap Android desabilitado por BOOTSTRAP_ANDROID=$BOOTSTRAP_ANDROID"
@@ -198,5 +213,6 @@ detect_arch
 configure_memory_spill
 configure_toolchain_flags
 run_native_helpers
+sync_required_forks
 bootstrap_android_env
 run_build
