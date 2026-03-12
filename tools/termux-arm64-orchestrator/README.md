@@ -20,9 +20,11 @@ Este módulo é para **build local no terminal**, sem depender de GitHub Actions
 - `c/arm64_neon_probe.c`: detector de HWCAP/NEON/ASIMD/SVE em ARM64.
 - `c/storage_spill_allocator.c`: cria arquivo de spill (`spill.bin`) para suporte de memória por storage.
 - `bootstrap-termux-android15.sh`: instala/prepara cmdline-tools + SDK + NDK + CMake local (`.android-sdk`) e gera `local.properties`.
+- `toolchain-core/`: submódulo com contratos explícitos para detectar host, resolver toolchain, ativar env e validar pré-requisitos.
 - `orchestrate-build.sh`: orquestrador principal (detecção, spill, bootstrap, build e verificação de assinatura).
 - `legal-compliance-check.sh`: valida pré-requisitos legais e metadados de release + contrato de assinatura por variável.
 - `run-local-termux-build.sh`: entrypoint único para execução local no terminal.
+- `TOOLCHAIN_CORE.md`: documentação da API de integração do submódulo `toolchain-core`.
 
 ## Execução local (recomendada)
 
