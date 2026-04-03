@@ -196,6 +196,8 @@ jobs:
       run_native_matrix: true
       signing_mode: unsigned
       abi_policy: arm64-only
+      enable_policy_module: true
+      enable_bitraf_module: true
     secrets: inherit
 
   android-verified:
@@ -215,7 +217,7 @@ jobs:
       run_lint: true
       run_native_matrix: true
       abi_policy: arm64-only
-      signing_mode: auto
+      signing_mode: signed
       enable_policy_module: true
       enable_bitraf_module: true
     secrets: inherit

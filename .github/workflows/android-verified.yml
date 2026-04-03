@@ -390,6 +390,8 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.run_release == 'true'
     runs-on: ubuntu-24.04
+    outputs:
+      release_track: ${{ steps.assemble_release.outputs.release_track }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -428,6 +430,7 @@ jobs:
           ./tools/gradle_with_jdk21.sh verifyBootstrapAssets --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }}
 
       - name: Assemble release (auto/signed/unsigned)
+        id: assemble_release
         shell: bash
         env:
           VECTRAS_RELEASE_STORE_FILE: ${{ secrets.VECTRAS_RELEASE_STORE_FILE }}
@@ -443,9 +446,44 @@ jobs:
           EXTRA_RELEASE_FLAGS=""
           GENERATED_KEYSTORE_PATH="/tmp/release.keystore"
           KEYSTORE_READY="false"
+          RELEASE_TRACK="official-signed"
 
           has_required_signing_secrets() {
             [[ -n "${VECTRAS_RELEASE_STORE_PASSWORD:-}" && -n "${VECTRAS_RELEASE_KEY_ALIAS:-}" && -n "${VECTRAS_RELEASE_KEY_PASSWORD:-}" ]]
+          }
+
+          validate_keystore() {
+            local path="$1"
+            if [[ ! -s "$path" ]]; then
+              echo "::error::Keystore ausente ou vazio: $path"
+              return 1
+            fi
+            if ! keytool -list -keystore "$path" -storepass "${VECTRAS_RELEASE_STORE_PASSWORD}" -alias "${VECTRAS_RELEASE_KEY_ALIAS}" >/dev/null 2>&1; then
+              echo "::error::Keystore inválido, alias ausente, ou senha incorreta para assinatura release."
+              return 1
+            fi
+          }
+
+          validate_google_services_real() {
+            local path="$1"
+            python3 - "$path" <<'PY'
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+if not path.exists() or path.stat().st_size == 0:
+    raise SystemExit("google-services.json ausente ou vazio")
+data = json.loads(path.read_text(encoding="utf-8"))
+project = data.get("project_info", {}) if isinstance(data, dict) else {}
+project_id = str(project.get("project_id", "")).strip().lower()
+project_number = str(project.get("project_number", "")).strip().lower()
+bucket = str(project.get("storage_bucket", "")).strip().lower()
+payload = json.dumps(data).lower()
+markers = ("placeholder", "internal-validation", "example", "dummy")
+if any(m in project_id for m in markers) or any(m in bucket for m in markers) or any(m in payload for m in ("placeholder-internal-validation",)):
+    raise SystemExit("google-services.json contém marcador de placeholder")
+if project_number in {"", "0"}:
+    raise SystemExit("google-services.json possui project_number inválido para trilha oficial")
+PY
           }
 
           resolve_keystore_source() {
@@ -481,6 +519,7 @@ jobs:
           resolve_keystore_source
 
           if [[ "${{ needs.preflight.outputs.signing_mode }}" == "unsigned" ]]; then
+            RELEASE_TRACK="internal-unsigned"
             EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true"
           elif [[ "${{ needs.preflight.outputs.signing_mode }}" == "signed" ]]; then
             if ! has_required_signing_secrets; then
@@ -491,20 +530,36 @@ jobs:
               echo "::error::signing_mode=signed requer keystore válido via VECTRAS_RELEASE_STORE_FILE ou VECTRAS_RELEASE_KEYSTORE_B64 (fallback legado: ANDROID_SIGNING_KEYSTORE)"
               exit 1
             fi
+            validate_keystore "${VECTRAS_RELEASE_STORE_FILE}"
           else
             if ! has_required_signing_secrets || [[ "${KEYSTORE_READY}" != "true" ]]; then
+              RELEASE_TRACK="internal-unsigned"
               EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true"
+            else
+              validate_keystore "${VECTRAS_RELEASE_STORE_FILE}"
             fi
           fi
 
           if [[ -n "${VECTRAS_GOOGLE_SERVICES_JSON_B64:-}" ]]; then
             echo "${VECTRAS_GOOGLE_SERVICES_JSON_B64}" | base64 --decode > app/google-services.json
             echo "Loaded production Firebase config from VECTRAS_GOOGLE_SERVICES_JSON_B64."
+            validate_google_services_real app/google-services.json
+          elif [[ "${{ needs.preflight.outputs.signing_mode }}" == "signed" ]]; then
+            if [[ ! -f app/google-services.json ]]; then
+              echo "::error::signing_mode=signed requer google-services.json real (sem placeholder)."
+              exit 1
+            fi
+            validate_google_services_real app/google-services.json
           elif [[ "${EXTRA_RELEASE_FLAGS}" == *"-PCI_INTERNAL_VALIDATION=true"* ]]; then
             python3 -c 'import json; from pathlib import Path; payload={"project_info":{"project_number":"0","project_id":"placeholder-internal-validation","storage_bucket":"placeholder-internal-validation.appspot.com"},"client":[],"configuration_version":"1"}; Path("app/google-services.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")'
             echo "Using placeholder Firebase config for unsigned internal validation."
           else
             echo "::error::google-services.json de produção ausente para caminho oficial assinado."
+            exit 1
+          fi
+
+          if [[ "${{ needs.preflight.outputs.signing_mode }}" == "signed" && -n "${EXTRA_RELEASE_FLAGS}" ]]; then
+            echo "::error::Fallback unsigned proibido quando signing_mode=signed."
             exit 1
           fi
 
@@ -526,6 +581,7 @@ jobs:
           ./tools/gradle_with_jdk21.sh verifyTargetApiBaseline --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PTARGET_API=${{ env.TARGET_API }} -PRELEASE_MIN_TARGET_API=35
           ./tools/gradle_with_jdk21.sh assembleDebug --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
           ./tools/gradle_with_jdk21.sh assembleRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
+          echo "release_track=${RELEASE_TRACK}" >> "$GITHUB_OUTPUT"
 
           rm -f "${GENERATED_KEYSTORE_PATH}"
 
@@ -567,6 +623,11 @@ jobs:
 
           if [[ "${{ needs.preflight.outputs.signing_mode }}" == "unsigned" ]]; then
             EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
+          elif [[ "${{ needs.preflight.outputs.signing_mode }}" == "signed" ]]; then
+            if [[ "${KEYSTORE_READY}" != "true" ]] || ! has_required_signing_secrets; then
+              echo "::error::Fallback unsigned proibido quando signing_mode=signed (perfRelease)."
+              exit 1
+            fi
           elif [[ "${{ needs.preflight.outputs.signing_mode }}" == "auto" && ( "${KEYSTORE_READY}" != "true" || ! has_required_signing_secrets ) ]]; then
             EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
           fi
@@ -609,6 +670,7 @@ jobs:
           echo " mode:      ${{ needs.preflight.outputs.mode }}"
           echo " debug:     ${{ needs.build_debug.result }}"
           echo " release:   ${{ needs.build_release.result }}"
+          echo " release-track: ${{ needs.build_release.outputs.release_track || (needs.preflight.outputs.signing_mode == 'unsigned' && 'internal-unsigned') || (needs.preflight.outputs.signing_mode == 'signed' && 'official-signed') || 'auto-mixed' }}"
           echo "=============================================="
           D="${{ needs.build_debug.result }}"
           R="${{ needs.build_release.result }}"
