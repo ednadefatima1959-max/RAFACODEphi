@@ -74,9 +74,11 @@ if(ANDROID)
     endif()
 endif()
 
-if(TERMUX_BOOTSTRAP_BUILD_ENABLED)
+if(NOT ANDROID OR CMAKE_ANDROID_ARCH_ABI IN_LIST TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS)
     add_library(termux-bootstrap SHARED
         termux_bootstrap_bridge.c)
+else()
+    message(STATUS "Skipping termux-bootstrap for unsupported ABI: ${CMAKE_ANDROID_ARCH_ABI}")
 endif()
 
 if(VECTRA_CASM_SOURCES)
