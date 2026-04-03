@@ -58,7 +58,7 @@ Java_com_termux_app_TermuxInstaller_nativeGetZip(JNIEnv* env, jclass clazz) {
     if (payload == NULL || payload_size == 0U) {
         LOGE("%s: embedded payload missing payload=%p size=%zu", TERMUX_BOOTSTRAP_SYMBOL,
              (const void*)payload, payload_size);
-        return return_controlled_null("embedded payload missing", "payload-source");
+        return return_controlled_null("bootstrap payload missing (asset not embedded)", "payload-source");
     }
 
 #if !defined(TERMUX_BOOTSTRAP_PAYLOAD_DATA) || !defined(TERMUX_BOOTSTRAP_PAYLOAD_SIZE)
