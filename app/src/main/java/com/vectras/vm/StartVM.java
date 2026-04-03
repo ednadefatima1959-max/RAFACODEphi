@@ -33,12 +33,12 @@ public class StartVM {
     public static volatile boolean lastKvmEnabled = false;
     public static volatile String lastKvmReason = "unknown";
 
-    public static String effectiveArch(Context context) {
-        return QemuBinaryResolver.normalizedArchOrDefault(MainSettingsManager.getArch(context));
+    public static String resolvedArch(Context context) {
+        return QemuBinaryResolver.normalizeArch(MainSettingsManager.getArch(context));
     }
 
     public static String requiredQemuBinary(Context context) {
-        return QemuArgsBuilder.binaryForArch(effectiveArch(context));
+        return QemuArgsBuilder.binaryForArch(resolvedArch(context));
     }
 
     public static String env(Activity activity, String extras, String img, boolean isQuickRun) {
