@@ -12,11 +12,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP_DIR = ROOT / "app" / "src" / "main" / "assets" / "bootstrap"
+GENERATED_BOOTSTRAP_DIR = ROOT / "app" / "build" / "generated" / "bootstrapAssets" / "bootstrap"
 REQUIRED_BOOTSTRAPS = [
     "arm64-v8a.tar",
     "armeabi-v7a.tar",
     "x86.tar",
     "x86_64.tar",
+]
+LOADER_APK_NAME = "loader.apk"
+TERMUX_MARKERS = [
+    ROOT / "app" / "src" / "main" / "java" / "com" / "termux",
+    ROOT / "app" / "src" / "main" / "AndroidManifest.xml",
 ]
 
 
@@ -39,6 +45,18 @@ def validate_tar(path: Path) -> tuple[int, str]:
         if not members:
             raise RuntimeError("arquivo tar vazio")
         return len(members), members[0].name
+
+
+def is_termux_enabled() -> bool:
+    termux_dir = TERMUX_MARKERS[0]
+    if termux_dir.exists():
+        return True
+
+    manifest_path = TERMUX_MARKERS[1]
+    if manifest_path.exists():
+        manifest_text = manifest_path.read_text(encoding="utf-8", errors="ignore")
+        return "com.termux" in manifest_text
+    return False
 
 
 def main() -> int:
@@ -71,6 +89,25 @@ def main() -> int:
             f"  - OK {path.relative_to(ROOT)} size={size} entries={member_count} "
             f"sha256_prefix={sha256_prefix(path)} first_entry={first_member}"
         )
+
+    if is_termux_enabled():
+        loader_candidates = [
+            BOOTSTRAP_DIR / LOADER_APK_NAME,
+            GENERATED_BOOTSTRAP_DIR / LOADER_APK_NAME,
+        ]
+        loader_path = next((candidate for candidate in loader_candidates if candidate.exists()), None)
+        if loader_path is None:
+            failures.append(
+                "ausente (Termux habilitado): esperado em "
+                f"{(BOOTSTRAP_DIR / LOADER_APK_NAME).relative_to(ROOT)} "
+                f"ou {(GENERATED_BOOTSTRAP_DIR / LOADER_APK_NAME).relative_to(ROOT)}"
+            )
+        else:
+            loader_size = loader_path.stat().st_size
+            if loader_size <= 0:
+                failures.append(f"vazio (Termux habilitado): {loader_path.relative_to(ROOT)}")
+            else:
+                print(f"  - OK {loader_path.relative_to(ROOT)} size={loader_size} (Termux habilitado)")
 
     if failures:
         print("\n[verify_bootstrap_assets] FALHAS:")
