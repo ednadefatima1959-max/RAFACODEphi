@@ -13,28 +13,22 @@ on:
           - moderado
           - profundo
           - ultra_minucioso
-          - interoperabilidade
-          - confiabilidade
           - diagnostico
-          - release_ready
-          - hardware_focus
+          - interoperavel
+          - confiavel
+          - portavel
+          - hardening
           - matrix_total
-          - holistico
-      build_debug:
-        description: "Gerar APK debug"
-        required: false
-        type: boolean
-        default: true
-      build_release:
-        description: "Gerar APK release/perfRelease"
-        required: false
-        type: boolean
-        default: false
-      sign_release:
-        description: "Assinar release (requer segredos)"
-        required: false
-        type: boolean
-        default: false
+          - forense
+      build_variant:
+        description: "Seleciona debug/release/both"
+        required: true
+        type: choice
+        default: both
+        options:
+          - debug
+          - release
+          - both
       run_lint:
         description: "Executar lint"
         required: false
@@ -45,68 +39,37 @@ on:
         required: false
         type: boolean
         default: true
-      run_unit_tests:
-        description: "Executar testes unitários"
+      signing_mode:
+        description: "Modo de assinatura release"
         required: false
-        type: boolean
-        default: false
-      android_api:
-        description: "Android API (compile/target)"
-        required: false
-        type: string
-        default: "35"
-      build_tools:
-        description: "Android Build Tools"
-        required: false
-        type: string
-        default: "35.0.0"
-      ndk_version:
-        description: "NDK version"
-        required: false
-        type: string
-        default: "27.2.12479018"
-      cmake_version:
-        description: "CMake version"
-        required: false
-        type: string
-        default: "3.22.1"
-      java_version:
-        description: "JDK version"
-        required: false
-        type: string
-        default: "17"
-      gradle_extra_args:
-        description: "Args extras para gradle"
-        required: false
-        type: string
-        default: ""
+        type: choice
+        default: auto
+        options:
+          - auto
+          - unsigned
+          - signed
   workflow_call:
     inputs:
       provenance_run_id:
-        required: true
+        required: false
         type: string
+        default: ""
       expected_sha:
-        required: true
+        required: false
         type: string
+        default: ""
       provenance_manifest_hash:
-        required: true
+        required: false
         type: string
+        default: ""
       mode:
         required: false
         type: string
-        default: moderado
-      build_debug:
+        default: "moderado"
+      build_variant:
         required: false
-        type: boolean
-        default: true
-      build_release:
-        required: false
-        type: boolean
-        default: false
-      sign_release:
-        required: false
-        type: boolean
-        default: false
+        type: string
+        default: "both"
       run_lint:
         required: false
         type: boolean
@@ -115,56 +78,14 @@ on:
         required: false
         type: boolean
         default: true
-      run_unit_tests:
-        required: false
-        type: boolean
-        default: false
-      android_api:
+      signing_mode:
         required: false
         type: string
-        default: "35"
-      build_tools:
-        required: false
-        type: string
-        default: "35.0.0"
-      ndk_version:
-        required: false
-        type: string
-        default: "27.2.12479018"
-      cmake_version:
-        required: false
-        type: string
-        default: "3.22.1"
-      java_version:
-        required: false
-        type: string
-        default: "17"
-      gradle_extra_args:
-        required: false
-        type: string
-        default: ""
-    secrets:
-      VECTRAS_RELEASE_KEYSTORE_B64:
-        required: false
-      VECTRAS_RELEASE_STORE_PASSWORD:
-        required: false
-      VECTRAS_RELEASE_KEY_ALIAS:
-        required: false
-      VECTRAS_RELEASE_KEY_PASSWORD:
-        required: false
-      VECTRAS_GOOGLE_SERVICES_JSON_B64:
-        required: false
+        default: "auto"
 
 permissions:
   contents: read
   actions: read
-
-concurrency:
-  group: android-build-manual-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   android-build:

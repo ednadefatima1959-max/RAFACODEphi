@@ -1,106 +1,66 @@
-name: Android CI
+name: Android CI (delegated to canonical)
 
 on:
-  workflow_call:
   workflow_dispatch:
     inputs:
-      build_selection:
-        description: 'Selecionar artefatos para compilar: debug, release ou ambos'
-        required: false
+      build_variant:
+        description: "Build variant"
         type: choice
+        options: [debug, release, both]
         default: both
-        options:
-          - debug
-          - release
-          - both
-      build_debug:
-        description: 'Build debug APK (assembleDebug)'
-        required: false
-        type: boolean
-        default: true
-      build_release:
-        description: 'Build release APK (assembleRelease)'
-        required: false
-        type: boolean
-        default: true
-      sign_release:
-        description: 'Sign release APK with CI keystore secrets (requires build_release=true)'
-        required: false
-        type: boolean
-        default: false
-      upload_telegram:
-        description: 'Send Telegram notifications and upload release artifacts to Telegram'
-        required: false
-        type: boolean
-        default: false
-      compile_api:
-        description: 'Android compileSdk/targetSdk API level (e.g. 35)'
-        required: false
-        type: string
-        default: '35'
-      tools_version:
-        description: 'Android Build Tools version (e.g. 35.0.0)'
-        required: false
-        type: string
-        default: '35.0.0'
-      ndk_version:
-        description: 'Android NDK version (e.g. 27.2.12479018)'
-        required: false
-        type: string
-        default: '27.2.12479018'
-      cmake_version:
-        description: 'CMake version from SDK manager (e.g. 3.22.1)'
-        required: false
-        type: string
-        default: '3.22.1'
-      java_version:
-        description: 'Java version used by setup-java and Gradle toolchain property'
-        required: false
-        type: string
-        default: '17'
-      diagnostic_mode:
-        description: 'Modo de execução/diagnóstico (11 níveis)'
-        required: false
+      mode:
+        description: "Execution mode profile"
         type: choice
+        options: [fast, moderado, profundo, ultra_minucioso, diagnostico, interoperavel, confiavel, portavel, hardening, matrix_total, forense]
         default: moderado
-        options:
-          - fast
-          - moderado
-          - profundo
-          - ultra_minucioso
-          - diagnostico
-          - compatibilidade
-          - interoperabilidade
-          - confiabilidade
-          - release_hardening
-          - forense
-          - maximo
-      allow_unsigned_release:
-        description: 'Permitir fallback para release unsigned (evita assinatura não intencional)'
+      run_lint:
+        description: "Run lint checks"
+        type: boolean
+        default: true
+      run_native_matrix:
+        description: "Run native matrix checks"
+        type: boolean
+        default: true
+      signing_mode:
+        description: "Release signing mode"
+        type: choice
+        options: [auto, unsigned, signed]
+        default: auto
+  workflow_call:
+    inputs:
+      provenance_run_id:
+        required: true
+        type: string
+      expected_sha:
+        required: true
+        type: string
+      provenance_manifest_hash:
+        required: true
+        type: string
+      build_variant:
+        required: false
+        type: string
+        default: "both"
+      mode:
+        required: false
+        type: string
+        default: "moderado"
+      run_lint:
         required: false
         type: boolean
         default: true
+      run_native_matrix:
+        required: false
+        type: boolean
+        default: true
+      signing_mode:
+        required: false
+        type: string
+        default: "auto"
 
 permissions:
   contents: read
-
-concurrency:
-  group: android-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  JAVA_VERSION: '17'
-  COMPILE_API: '35'
-  TARGET_API: '35'
-  RELEASE_MIN_TARGET_API: '35'
-  TOOLS_VERSION: '35.0.0'
-  CMAKE_VERSION: '3.22.1'
-  NDK_VERSION: '27.2.12479018'
-  GRADLE_ARGS: >-
-    -PCOMPILE_API=35 -PTARGET_API=35 -PRELEASE_MIN_TARGET_API=35
-    -PTOOLS_VERSION=35.0.0 -PJAVA_LANGUAGE_VERSION=17
-    -PCMAKE_VERSION=3.22.1 -PNDK_VERSION=27.2.12479018
+  actions: read
 
 jobs:
   preflight:

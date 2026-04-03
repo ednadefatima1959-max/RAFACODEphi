@@ -49,14 +49,17 @@ on:
   workflow_call:
     inputs:
       provenance_run_id:
-        required: true
+        required: false
         type: string
+        default: ""
       expected_sha:
-        required: true
+        required: false
         type: string
+        default: ""
       provenance_manifest_hash:
-        required: true
+        required: false
         type: string
+        default: ""
       build_variant:
         required: false
         type: string
@@ -122,6 +125,7 @@ env:
   TARGET_API: "35"
   MIN_API: "23"
   TOOLS_VERSION: "35.0.0"
+  SUPPORTED_ABIS: "arm64-v8a"
 
 jobs:
   preflight:
@@ -143,7 +147,7 @@ jobs:
       collect_deep_diagnostics: ${{ steps.mode.outputs.collect_deep_diagnostics }}
     steps:
       - name: Validate provenance chain-of-custody
-        if: ${{ github.event_name == 'workflow_call' }}
+        if: ${{ github.event_name == 'workflow_call' && inputs.provenance_run_id != '' && inputs.expected_sha != '' && inputs.provenance_manifest_hash != '' }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PROVENANCE_RUN_ID: ${{ inputs.provenance_run_id }}
@@ -289,7 +293,8 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
-      - uses: android-actions/setup-android@v3
+      - name: Android build base setup
+        uses: ./.github/actions/android-build-base
         with:
           log-accepted-android-sdk-licenses: false
 
@@ -315,7 +320,7 @@ jobs:
         run: |
           set -euo pipefail
           # Wrapper is the source of truth for JVM policy (17/21) and local.properties bootstrap.
-          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
+          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PSUPPORTED_ABIS=${{ env.SUPPORTED_ABIS }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
 
           ./tools/gradle_with_jdk21.sh verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
 
@@ -349,33 +354,45 @@ jobs:
           ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PartifactVariants=debug
           ./tools/ci/verify_artifact_contract.sh --variants debug
 
+      - name: Validate expected delivery artifacts (debug)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/validate_expected_android_artifacts.sh "debug"
+
       - name: Upload compiled artifacts report (required)
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: ./.github/actions/android-build-base
         with:
-          name: android-compiled-artifacts-report
-          path: app/build/reports/artifacts/compiled-artifacts-report.json
-          if-no-files-found: error
+          phase: upload
+          artifact_name: android-compiled-artifacts-report
+          artifact_path: app/build/reports/artifacts/compiled-artifacts-report.json
+          artifact_if_no_files_found: error
+          artifact_retention_days: '14'
 
       - name: Upload compiled outputs bundle
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: ./.github/actions/android-build-base
         with:
-          name: android-compiled-outputs
-          path: |
+          phase: upload
+          artifact_name: android-compiled-outputs
+          artifact_path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
             app/build/outputs/mapping/**
-          if-no-files-found: error
+          artifact_if_no_files_found: error
+          artifact_retention_days: '14'
 
       - name: Upload debug diagnostics
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: ./.github/actions/android-build-base
         with:
-          name: debug-diagnostics-${{ github.run_id }}
-          retention-days: 14
-          if-no-files-found: ignore
-          path: |
+          phase: upload
+          artifact_name: debug-diagnostics-${{ github.run_id }}
+          artifact_retention_days: '14'
+          artifact_if_no_files_found: ignore
+          artifact_path: |
             app/build/reports/**
             app/build/outputs/logs/**
             **/build/test-results/**
@@ -385,6 +402,8 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.run_release == 'true'
     runs-on: ubuntu-24.04
+    outputs:
+      release_track: ${{ steps.assemble_release.outputs.release_track }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -395,7 +414,8 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
-      - uses: android-actions/setup-android@v3
+      - name: Android build base setup
+        uses: ./.github/actions/android-build-base
         with:
           log-accepted-android-sdk-licenses: false
 
@@ -417,6 +437,7 @@ jobs:
         run: ./tools/ci/verify_bootstrap_contract.sh --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }}
 
       - name: Assemble release (auto/signed/unsigned)
+        id: assemble_release
         shell: bash
         env:
           VECTRAS_RELEASE_STORE_FILE: ${{ secrets.VECTRAS_RELEASE_STORE_FILE }}
@@ -467,18 +488,35 @@ jobs:
           ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PartifactVariants=debug,release,perfRelease
           ./tools/ci/verify_artifact_contract.sh --variants debug,release,perfRelease
 
-      - name: Upload release artifacts
+      - name: Validate expected delivery artifacts (debug, release, perfRelease)
         if: always()
-        uses: actions/upload-artifact@v5
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/validate_expected_android_artifacts.sh "debug,release,perfRelease"
+
+      - name: Upload delivery artifacts
+        if: always()
+        uses: ./.github/actions/android-build-base
         with:
-          name: release-bundle-${{ github.run_id }}
-          retention-days: 30
-          if-no-files-found: ignore
-          path: |
+          phase: upload
+          artifact_name: release-bundle-${{ github.run_id }}
+          artifact_retention_days: '30'
+          artifact_if_no_files_found: ignore
+          artifact_path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
             app/build/outputs/mapping/**
             app/build/reports/artifacts/compiled-artifacts-report.json
+
+      - name: Upload release diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: release-diagnostics-${{ github.run_id }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
             app/build/reports/**
             **/*.log
 
@@ -496,6 +534,7 @@ jobs:
           echo " mode:      ${{ needs.preflight.outputs.mode }}"
           echo " debug:     ${{ needs.build_debug.result }}"
           echo " release:   ${{ needs.build_release.result }}"
+          echo " release-track: ${{ needs.build_release.outputs.release_track || (needs.preflight.outputs.signing_mode == 'unsigned' && 'internal-unsigned') || (needs.preflight.outputs.signing_mode == 'signed' && 'official-signed') || 'auto-mixed' }}"
           echo "=============================================="
           D="${{ needs.build_debug.result }}"
           R="${{ needs.build_release.result }}"
