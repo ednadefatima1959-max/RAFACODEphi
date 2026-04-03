@@ -30,13 +30,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   rafcode-phi-regression:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Validate provenance chain-of-custody
         if: ${{ github.event_name == 'workflow_call' }}
