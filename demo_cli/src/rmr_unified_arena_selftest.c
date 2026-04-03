@@ -39,6 +39,7 @@ static int expect_offset(const RmR_UnifiedKernel *kernel, uint32_t handle, uint3
 enum { RMR_UNIFIED_ARENA_TEST_MIN_BYTES = 4096u };
 
 int main(void) {
+  RmR_UnifiedKernel kernel_uninitialized;
   RmR_UnifiedKernel kernel;
   RmR_UnifiedConfig cfg;
   uint32_t h0, h1, h2, h3, h4, h5, h6, h7, h8, h9;
@@ -46,6 +47,9 @@ int main(void) {
   uint8_t src_b[128];
   uint32_t checksum = 0u;
   uint32_t i;
+  memset(&kernel_uninitialized, 0xA5, sizeof(kernel_uninitialized));
+  memset(&kernel, 0, sizeof(kernel));
+  memset(&cfg, 0, sizeof(cfg));
   cfg.seed = 0x1234ABCDu;
   cfg.arena_ptr = NULL;
   cfg.arena_bytes = RMR_UNIFIED_ARENA_TEST_MIN_BYTES;
