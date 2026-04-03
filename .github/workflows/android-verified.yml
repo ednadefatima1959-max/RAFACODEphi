@@ -95,7 +95,7 @@ env:
   COMPILE_API: "35"
   TARGET_API: "35"
   MIN_API: "23"
-  BUILD_TOOLS_VERSION: "35.0.0"
+  TOOLS_VERSION: "35.0.0"
 
 jobs:
   preflight:
@@ -235,15 +235,13 @@ jobs:
           sdkmanager --install \
             "platform-tools" \
             "platforms;android-${{ env.COMPILE_API }}" \
-            "build-tools;${{ env.BUILD_TOOLS_VERSION }}" \
+            "build-tools;${{ env.TOOLS_VERSION }}" \
             "ndk;${{ needs.preflight.outputs.ndk_version }}" \
             "cmake;${{ env.CMAKE_VERSION }}"
 
       - name: Generate local.properties
-        shell: bash
         run: |
-          set -euo pipefail
-          printf "sdk.dir=%s\n" "${ANDROID_SDK_ROOT}" > local.properties
+          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
 
       - uses: gradle/actions/setup-gradle@v4
 
@@ -326,15 +324,13 @@ jobs:
           sdkmanager --install \
             "platform-tools" \
             "platforms;android-${{ env.COMPILE_API }}" \
-            "build-tools;${{ env.BUILD_TOOLS_VERSION }}" \
+            "build-tools;${{ env.TOOLS_VERSION }}" \
             "ndk;${{ needs.preflight.outputs.ndk_version }}" \
             "cmake;${{ env.CMAKE_VERSION }}"
 
       - name: Generate local.properties
-        shell: bash
         run: |
-          set -euo pipefail
-          printf "sdk.dir=%s\n" "${ANDROID_SDK_ROOT}" > local.properties
+          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
 
       - uses: gradle/actions/setup-gradle@v4
 
