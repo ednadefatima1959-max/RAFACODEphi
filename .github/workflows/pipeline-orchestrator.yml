@@ -17,11 +17,6 @@ on:
         type: boolean
         required: false
         default: true
-      promote_android_minimal:
-        description: "Solicita promoção do estágio Android minimal (somente workflow_dispatch; push/PR permanece desabilitado)"
-        type: boolean
-        required: false
-        default: false
       run_termux_orchestrator:
         description: "Executar pipeline Termux"
         type: boolean
@@ -222,20 +217,6 @@ jobs:
       enable_bitraf_module: true
     secrets: inherit
 
-  android-minimal:
-    name: 06 · Android Minimal (opcional, promoção após verified)
-    needs: [changes, android-verified]
-    if: >-
-      always() && needs.android-verified.result == 'success' &&
-      github.event_name == 'workflow_dispatch' &&
-      inputs.run_android_ci &&
-      inputs.promote_android_minimal
-    uses: ./.github/workflows/android-minimal-debug.yml
-    with:
-      provenance_run_id: ${{ needs.provenance.outputs.run_id }}
-      expected_sha: ${{ needs.provenance.outputs.expected_sha }}
-      provenance_manifest_hash: ${{ needs.provenance.outputs.manifest_hash }}
-
   baremetal-rafcode:
     name: 07 · Baremetal Rafcode Phi
     needs: [changes, android-verified]
@@ -275,7 +256,6 @@ jobs:
       - proof-build
       - android-baseline
       - android-verified
-      - android-minimal
       - baremetal-rafcode
       - termux-orchestrator
     if: always()
@@ -292,11 +272,8 @@ jobs:
             echo "- Host CI: \`${{ needs.host-ci.result }}\`"
             echo "- Engine CI: \`${{ needs.engine-ci.result }}\`"
             echo "- Proof Build: \`${{ needs.proof-build.result }}\`"
-            echo "- Android Baseline (canônico unsigned): \`${{ needs.android-baseline.result }}\`"
+            echo "- Android Internal Validation (unsigned): \`${{ needs.android-baseline.result }}\`"
             echo "- Android Verified: \`${{ needs.android-verified.result }}\`"
-            echo "- Política de promoção Android Minimal em push/PR: \`desabilitada por padrão (somente workflow_dispatch)\`"
-            echo "- Promoção Android Minimal solicitada: \`${{ github.event_name == 'workflow_dispatch' && inputs.promote_android_minimal || false }}\`"
-            echo "- Android Minimal Debug (promoção executada): \`${{ needs.android-minimal.result }}\`"
             echo "- Baremetal Rafcode Phi: \`${{ needs.baremetal-rafcode.result }}\`"
             echo "- Termux Orchestrator: \`${{ needs.termux-orchestrator.result }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
