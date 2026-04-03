@@ -11,22 +11,15 @@ static uint32_t vectra_checksum32_x86_64(const uint8_t* data, size_t len, uint32
     return rmr_lowlevel_checksum32(data, len, seed);
 }
 
-#if defined(__x86_64__)
 static uint32_t vectra_reduce_xor_x86_64(const uint8_t* data, size_t len) {
-    __m128i acc = _mm_setzero_si128();
-    size_t i = 0;
-    for (; i + 16u <= len; i += 16u) {
-        acc = _mm_xor_si128(acc, _mm_loadu_si128((const __m128i*)(data + i)));
-    }
-
-    uint8_t lanes[16];
-    _mm_storeu_si128((__m128i*)lanes, acc);
-    uint32_t out = 0u;
-    for (size_t l = 0; l < 16u; ++l) out ^= lanes[l];
-    for (; i < len; ++i) out ^= data[i];
-    return out;
+    /*
+     * Global contract: reduce_xor follows rmr_lowlevel_reduce_xor semantics
+     * (byte-to-lane fold + rotate-left by 3 per byte), not plain XOR parity.
+     */
+    return rmr_lowlevel_reduce_xor(data, len);
 }
 
+#if defined(__x86_64__)
 static uint32_t vectra_crc32c_x86_64(uint32_t initial, const uint8_t* data, size_t len) {
     uint64_t crc = initial;
     size_t i = 0;
@@ -40,7 +33,6 @@ static uint32_t vectra_crc32c_x86_64(uint32_t initial, const uint8_t* data, size
     return crc32;
 }
 #else
-static uint32_t vectra_reduce_xor_x86_64(const uint8_t* data, size_t len) { return rmr_lowlevel_reduce_xor(data, len); }
 static uint32_t vectra_crc32c_x86_64(uint32_t initial, const uint8_t* data, size_t len) {
     uint32_t crc = initial;
     for (size_t i = 0; i < len; ++i) {
