@@ -8,8 +8,8 @@ def defaultSupportedAbisByPolicy = [
 def officiallySupportedAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64']
 def abiPolicyIntent = [
     'arm64-only': 'distribuição oficial mínima',
-    'with-32bit': 'distribuição oficial completa',
-    'all': 'validação interna completa (não distribuição oficial)'
+    'with-32bit': 'legado interno (incompatível com terminal-emulator atual)',
+    'all': 'validação interna completa (não distribuição oficial; incompatível com terminal-emulator atual)'
 ]
 
 buildscript {

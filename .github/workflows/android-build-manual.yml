@@ -26,7 +26,7 @@ on:
         type: boolean
         default: true
       build_release:
-        description: "Gerar APK release (sem assinatura por padrão)"
+        description: "Gerar APK release/perfRelease"
         required: false
         type: boolean
         default: false
@@ -75,11 +75,6 @@ on:
         required: false
         type: string
         default: "17"
-      gradle_module:
-        description: "Módulo gradle principal (ex: app)"
-        required: false
-        type: string
-        default: "app"
       gradle_extra_args:
         description: "Args extras para gradle"
         required: false
@@ -135,10 +130,6 @@ on:
         required: false
         type: string
         default: "17"
-      gradle_module:
-        required: false
-        type: string
-        default: "app"
       gradle_extra_args:
         required: false
         type: string
@@ -152,6 +143,8 @@ on:
         required: false
       VECTRAS_RELEASE_KEY_PASSWORD:
         required: false
+      VECTRAS_GOOGLE_SERVICES_JSON_B64:
+        required: false
 
 permissions:
   contents: read
@@ -163,7 +156,7 @@ concurrency:
 jobs:
   android-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       JAVA_VERSION: ${{ inputs.java_version || '17' }}
       COMPILE_API: ${{ inputs.android_api || '35' }}
@@ -172,12 +165,14 @@ jobs:
       NDK_VERSION: ${{ inputs.ndk_version || '27.2.12479018' }}
       CMAKE_VERSION: ${{ inputs.cmake_version || '3.22.1' }}
       MODE: ${{ inputs.mode || 'moderado' }}
-      GRADLE_MODULE: ${{ inputs.gradle_module || 'app' }}
       GRADLE_EXTRA_ARGS: ${{ inputs.gradle_extra_args || '' }}
+      GRADLE_ARGS: >-
+        -PCOMPILE_API=${{ inputs.android_api || '35' }} -PTARGET_API=${{ inputs.android_api || '35' }} -PRELEASE_MIN_TARGET_API=${{ inputs.android_api || '35' }}
+        -PTOOLS_VERSION=${{ inputs.build_tools || '35.0.0' }} -PJAVA_LANGUAGE_VERSION=${{ inputs.java_version || '17' }}
+        -PCMAKE_VERSION=${{ inputs.cmake_version || '3.22.1' }} -PNDK_VERSION=${{ inputs.ndk_version || '27.2.12479018' }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -195,25 +190,30 @@ jobs:
           yes | sdkmanager --licenses >/dev/null
           sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
 
-      - name: Configure mode profile
+      - name: Build local.properties
+        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+
+      - name: Materialize Firebase config (debug/tests)
+        env:
+          VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
+        run: ./tools/ci/materialize_google_services_placeholder.sh
+
+      - name: Resolve diagnostic profile
         id: mode
         run: |
           set -euo pipefail
           case "${MODE}" in
             fast)
-              echo "native_strict=false" >> "$GITHUB_OUTPUT"
-              echo "native_matrix_cmd=checkNativeAllMatrix -PbuildStrict=false" >> "$GITHUB_OUTPUT"
               echo "run_repo_checks=false" >> "$GITHUB_OUTPUT"
+              echo "run_connected_tests=false" >> "$GITHUB_OUTPUT"
               ;;
             moderado)
-              echo "native_strict=false" >> "$GITHUB_OUTPUT"
-              echo "native_matrix_cmd=checkNativeAllMatrix -PbuildStrict=false" >> "$GITHUB_OUTPUT"
               echo "run_repo_checks=true" >> "$GITHUB_OUTPUT"
+              echo "run_connected_tests=false" >> "$GITHUB_OUTPUT"
               ;;
             profundo|ultra_minucioso|interoperabilidade|confiabilidade|diagnostico|release_ready|hardware_focus|matrix_total|holistico)
-              echo "native_strict=true" >> "$GITHUB_OUTPUT"
-              echo "native_matrix_cmd=checkNativeAllMatrix -PbuildStrict=true" >> "$GITHUB_OUTPUT"
               echo "run_repo_checks=true" >> "$GITHUB_OUTPUT"
+              echo "run_connected_tests=true" >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "Modo inválido: ${MODE}" >&2
@@ -221,44 +221,50 @@ jobs:
               ;;
           esac
 
-      - name: Validate Android and native toolchain dependencies
-        run: |
-          set -euo pipefail
-          required_tools=(java javac sdkmanager cmake ninja make python3)
-          for tool in "${required_tools[@]}"; do
-            if ! command -v "$tool" >/dev/null 2>&1; then
-              echo "Missing required tool: $tool" >&2
-              exit 1
-            fi
-            echo "OK: $tool -> $(command -v "$tool")"
-          done
+      - name: Bootstrap shell-loader asset (mandatory)
+        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
-      - name: Verify Gradle baseline
-        id: baseline
+      - name: Verify bootstrap assets script
+        run: python3 tools/verify_bootstrap_assets.py
+
+      - name: Verify Gradle baseline gates
         if: steps.mode.outputs.run_repo_checks == 'true'
         run: |
+          ./tools/gradle_with_jdk21.sh \
+            verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility \
+            verifyBootstrapAssets verifyRepoFileDependencies \
+            ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+
+      - name: Run optional lint/tests
+        run: |
           set -euo pipefail
-          case "${MODE}" in
-            fast)
-              TASKS="verifyGradleRuntimeJvm :app:assembleDebug"
-              ;;
-            moderado)
-              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility verifyBootstrapAssets lintDebug :app:assembleDebug"
-              ;;
-            profundo|ultra_minucioso|interoperabilidade|confiabilidade|diagnostico|release_ready|hardware_focus|matrix_total|holistico)
-              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility verifyBootstrapAssets verifyRepoFileDependencies checkNativeAllMatrix lintDebug testDebugUnitTest connectedDebugAndroidTest :app:assembleDebug"
-              ;;
-            *)
-              echo "Modo inválido: ${MODE}" >&2
-              exit 1
-              ;;
-          esac
+          tasks=()
+          if [[ "${{ inputs.run_lint }}" == 'true' ]]; then
+            tasks+=(":app:lintDebug")
+          fi
+          if [[ "${{ inputs.run_unit_tests }}" == 'true' ]]; then
+            tasks+=(":app:testDebugUnitTest")
+          fi
+          if [[ ${#tasks[@]} -gt 0 ]]; then
+            ./tools/gradle_with_jdk21.sh "${tasks[@]}" ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+          fi
 
-          echo "tasks=${TASKS}" >> "$GITHUB_OUTPUT"
-          echo "profile=${MODE}" >> "$GITHUB_OUTPUT"
+      - name: Run native matrix
+        if: inputs.run_native_matrix
+        run: ./tools/gradle_with_jdk21.sh checkNativeAllMatrix -PbuildStrict=true ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
-      - name: Build local.properties
-        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+      - name: Assemble Debug
+        if: inputs.build_debug
+        run: ./tools/gradle_with_jdk21.sh :app:assembleDebug --stacktrace ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+
+      - name: Build unsigned internal release/perfRelease
+        if: inputs.build_release && !inputs.sign_release
+        run: |
+          ./tools/gradle_with_jdk21.sh :app:assembleRelease :app:assemblePerfRelease --stacktrace \
+            -PALLOW_UNSIGNED_RELEASE=true \
+            -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true \
+            -PCI_INTERNAL_VALIDATION=true \
+            ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
       - name: Decode release keystore
         if: inputs.build_release && inputs.sign_release
@@ -267,111 +273,42 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${VECTRAS_RELEASE_KEYSTORE_B64:-}" ]]; then
-            echo "Assinatura solicitada, mas segredo do keystore não foi fornecido." >&2
-            exit 1
-          fi
-          echo "$VECTRAS_RELEASE_KEYSTORE_B64" | base64 -d > vectras-release.jks
-
-      - name: Run selected Gradle tasks
-        env:
-          VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
-          VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
-          VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          chmod +x gradlew
-          TASKS="${{ steps.baseline.outputs.tasks }}"
-          if [[ -z "${TASKS// }" ]]; then
-            TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility verifyBootstrapAssets verifyRepoFileDependencies"
-          fi
-          ./gradlew --no-daemon --stacktrace ${TASKS} ${GRADLE_EXTRA_ARGS}
-
-      - name: Build Debug APK
-        if: inputs.build_debug
-        run: |
-          set -euo pipefail
-          tasks=()
-          if [[ "${{ inputs.run_lint }}" == 'true' ]]; then
-            tasks+=("lintDebug")
-          fi
-          if [[ "${{ inputs.run_unit_tests }}" == 'true' ]]; then
-            tasks+=("testDebugUnitTest")
-          fi
-          tasks+=(":${GRADLE_MODULE}:assembleDebug")
-          ./gradlew --no-daemon --stacktrace "${tasks[@]}" -PcheckVariant=debug ${GRADLE_EXTRA_ARGS}
-
-      - name: Build Release APK (unsigned by default)
-        if: inputs.build_release
-        run: |
-          set -euo pipefail
-          ./gradlew --no-daemon --stacktrace ":${GRADLE_MODULE}:assembleRelease" ${GRADLE_EXTRA_ARGS}
-
-      - name: Verify delivered compiled artifacts report
-        if: inputs.build_debug || inputs.build_release
-        run: |
-          set -euo pipefail
-          variants=()
-          if [[ "${{ inputs.build_debug }}" == 'true' ]]; then
-            variants+=("debug")
-          fi
-          if [[ "${{ inputs.build_release }}" == 'true' ]]; then
-            variants+=("release")
-          fi
-
-          if [[ ${#variants[@]} -eq 0 ]]; then
-            echo "No build variants selected; skipping compiled artifacts verification."
-            exit 0
-          fi
-
-          artifact_variants=$(IFS=,; echo "${variants[*]}")
-          ./gradlew --no-daemon --stacktrace ":${GRADLE_MODULE}:verifyDeliveredCompiledArtifacts" -PartifactVariants="${artifact_variants}" ${GRADLE_EXTRA_ARGS}
-
-      - name: Sign Release APK
-        if: inputs.build_release && inputs.sign_release
-        env:
-          VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
-          VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
-          VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
-          VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${VECTRAS_RELEASE_KEYSTORE_B64}" || -z "${VECTRAS_RELEASE_STORE_PASSWORD}" || -z "${VECTRAS_RELEASE_KEY_ALIAS}" || -z "${VECTRAS_RELEASE_KEY_PASSWORD}" ]]; then
-            echo "Signing requested, but signing secrets are missing." >&2
+            echo "Assinatura solicitada, mas segredo VECTRAS_RELEASE_KEYSTORE_B64 não foi fornecido." >&2
             exit 1
           fi
           mkdir -p .ci-keystore
           echo "${VECTRAS_RELEASE_KEYSTORE_B64}" | base64 -d > .ci-keystore/release.jks
-          ./gradlew --no-daemon --stacktrace \
-            -PVECTRAS_RELEASE_STORE_FILE=.ci-keystore/release.jks \
-            -PVECTRAS_RELEASE_STORE_PASSWORD="${VECTRAS_RELEASE_STORE_PASSWORD}" \
-            -PVECTRAS_RELEASE_KEY_ALIAS="${VECTRAS_RELEASE_KEY_ALIAS}" \
-            -PVECTRAS_RELEASE_KEY_PASSWORD="${VECTRAS_RELEASE_KEY_PASSWORD}" \
-            ":${GRADLE_MODULE}:assembleRelease" ${GRADLE_EXTRA_ARGS}
 
-      - name: Cleanup signing material
-        if: always()
-        run: rm -rf .ci-keystore
-
-      - name: Run native matrix
-        if: inputs.run_native_matrix
-        run: ./gradlew --no-daemon --stacktrace ${{ steps.mode.outputs.native_matrix_cmd }} ${GRADLE_EXTRA_ARGS}
-
-      - name: Generate diagnostics summary
-        if: always()
+      - name: Build signed release/perfRelease
+        if: inputs.build_release && inputs.sign_release
+        env:
+          VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
+          VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
+          VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
         run: |
-          {
-            echo "## Android Build Diagnostics"
-            echo ""
-            echo "- Mode: ${MODE}"
-            echo "- Module: ${GRADLE_MODULE}"
-            echo "- Build debug: ${{ inputs.build_debug }}"
-            echo "- Build release: ${{ inputs.build_release }}"
-            echo "- Sign release: ${{ inputs.sign_release }}"
-            echo "- Run lint: ${{ inputs.run_lint }}"
-            echo "- Run unit tests: ${{ inputs.run_unit_tests }}"
-            echo "- Run native matrix: ${{ inputs.run_native_matrix }}"
-            echo "- API: ${COMPILE_API}, Build Tools: ${TOOLS_VERSION}, NDK: ${NDK_VERSION}, CMake: ${CMAKE_VERSION}"
-          } >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          if [[ -z "${VECTRAS_RELEASE_STORE_PASSWORD:-}" || -z "${VECTRAS_RELEASE_KEY_ALIAS:-}" || -z "${VECTRAS_RELEASE_KEY_PASSWORD:-}" ]]; then
+            echo "Signing requested, but signing secrets are missing." >&2
+            exit 1
+          fi
+          ./tools/gradle_with_jdk21.sh :app:assembleRelease :app:assemblePerfRelease --stacktrace \
+            -Pandroid.injected.signing.store.file="$PWD/.ci-keystore/release.jks" \
+            -Pandroid.injected.signing.store.password="${VECTRAS_RELEASE_STORE_PASSWORD}" \
+            -Pandroid.injected.signing.key.alias="${VECTRAS_RELEASE_KEY_ALIAS}" \
+            -Pandroid.injected.signing.key.password="${VECTRAS_RELEASE_KEY_PASSWORD}" \
+            ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+
+      - name: Verify delivered compiled artifacts
+        if: inputs.build_debug || inputs.build_release
+        run: |
+          set -euo pipefail
+          variants=()
+          if [[ "${{ inputs.build_debug }}" == 'true' ]]; then variants+=("debug"); fi
+          if [[ "${{ inputs.build_release }}" == 'true' ]]; then variants+=("release" "perfRelease"); fi
+          artifact_variants=$(IFS=,; echo "${variants[*]}")
+          ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts \
+            -PartifactVariants="${artifact_variants}" \
+            ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
       - name: Upload compiled artifacts report (required)
         if: always()
@@ -392,13 +329,17 @@ jobs:
             app/build/outputs/mapping/**
           if-no-files-found: error
 
-      - name: Upload APK and diagnostic artifacts
+      - name: Upload diagnostics and logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-manual-artifacts-${{ github.run_number }}
+          name: android-manual-diagnostics-${{ github.run_number }}
           path: |
             **/build/reports/**
             **/build/test-results/**
             **/*.log
           if-no-files-found: warn
+
+      - name: Cleanup signing material
+        if: always()
+        run: rm -rf .ci-keystore
