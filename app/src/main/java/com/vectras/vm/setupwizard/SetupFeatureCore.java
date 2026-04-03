@@ -16,6 +16,7 @@ import com.vectras.vm.core.ProotCommandBuilder;
 import com.vectras.vm.core.ProcessLaunch;
 import com.vectras.vm.core.ProcessRuntimeOps;
 import com.vectras.vm.core.HardwareProfileBridge;
+import com.vectras.vm.core.RuntimeErrorReporter;
 import com.vectras.vm.utils.DeviceUtils;
 import com.vectras.vm.utils.DialogUtils;
 import com.vectras.vm.utils.FileUtils;
@@ -1063,7 +1064,8 @@ public class SetupFeatureCore {
                     selectedAssetHolder[0] = abi;
                 }
                 return assetPath;
-            } catch (IOException ignored) {
+            } catch (IOException e) {
+                RuntimeErrorReporter.warn("VRT-SETUP-0002", "resolve_asset_candidate", assetPath, e);
             }
         }
 
@@ -1199,7 +1201,8 @@ public class SetupFeatureCore {
             try (InputStream inputStream = assetManager.open(assetPath)) {
                 Log.i(ABI_RESOLVE_TAG, "Resolved asset path group=" + assetGroup + " candidate=" + candidate + " path=" + assetPath);
                 return assetPath;
-            } catch (IOException ignored) {
+            } catch (IOException e) {
+                RuntimeErrorReporter.warn("VRT-SETUP-0003", "resolve_first_existing_asset", assetPath, e);
                 Log.d(ABI_RESOLVE_TAG, "Asset candidate not found: " + assetPath);
             }
         }
