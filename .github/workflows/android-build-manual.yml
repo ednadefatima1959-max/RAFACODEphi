@@ -87,6 +87,12 @@ permissions:
   contents: read
   actions: read
 
+concurrency:
+  group: android-build-manual-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+
 jobs:
   android-build:
     runs-on: ubuntu-latest
@@ -106,7 +112,7 @@ jobs:
         -PCMAKE_VERSION=${{ inputs.cmake_version || '3.22.1' }} -PNDK_VERSION=${{ inputs.ndk_version || '27.2.12479018' }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Validate provenance chain-of-custody
         if: ${{ github.event_name == 'workflow_call' }}
@@ -140,7 +146,7 @@ jobs:
           PY
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
@@ -263,7 +269,7 @@ jobs:
 
       - name: Upload compiled artifacts report (required)
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: android-compiled-artifacts-report
           path: app/build/reports/artifacts/compiled-artifacts-report.json
@@ -271,7 +277,7 @@ jobs:
 
       - name: Upload compiled outputs bundle
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: android-compiled-outputs
           path: |
@@ -282,7 +288,7 @@ jobs:
 
       - name: Upload diagnostics and logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: android-manual-diagnostics-${{ github.run_number }}
           path: |

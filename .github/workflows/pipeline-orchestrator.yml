@@ -49,7 +49,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   provenance:
@@ -83,7 +82,7 @@ jobs:
           echo "expected_sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           echo "manifest_hash=${manifest_hash}" >> "$GITHUB_OUTPUT"
       - name: Upload provenance artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: chain-of-custody
           path: provenance.json
@@ -99,7 +98,7 @@ jobs:
       termux: ${{ steps.filter.outputs.termux }}
       baremetal: ${{ steps.filter.outputs.baremetal }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Filter changed paths
         id: filter

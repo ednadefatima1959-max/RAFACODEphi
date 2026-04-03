@@ -60,7 +60,25 @@ on:
 
 permissions:
   contents: read
-  actions: read
+
+concurrency:
+  group: android-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  COMPILE_API: '35'
+  TARGET_API: '35'
+  RELEASE_MIN_TARGET_API: '35'
+  TOOLS_VERSION: '35.0.0'
+  CMAKE_VERSION: '3.22.1'
+  NDK_VERSION: '27.2.12479018'
+  ANDROID_SDK_ROOT: '/usr/local/lib/android/sdk'
+  ANDROID_HOME: '/usr/local/lib/android/sdk'
+  GRADLE_ARGS: >-
+    -PCOMPILE_API=35 -PTARGET_API=35 -PRELEASE_MIN_TARGET_API=35
+    -PTOOLS_VERSION=35.0.0 -PJAVA_LANGUAGE_VERSION=17
+    -PCMAKE_VERSION=3.22.1 -PNDK_VERSION=27.2.12479018
 
 jobs:
   preflight:
@@ -76,14 +94,14 @@ jobs:
       deep_diagnostics: ${{ steps.dispatch_controls.outputs.deep_diagnostics }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Block sensitive artifacts in repository (warn only)
         continue-on-error: true
         run: bash tools/security/block_sensitive_artifacts.sh
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
@@ -104,7 +122,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          accept-android-sdk-licenses: false
+          accept-android-sdk-licenses: true
 
       - name: Accept Android SDK licenses (non-interactive)
         run: |
@@ -304,10 +322,10 @@ jobs:
     needs: preflight
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
@@ -328,7 +346,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          accept-android-sdk-licenses: false
+          accept-android-sdk-licenses: true
 
       - name: Accept Android SDK licenses (non-interactive)
         run: |
@@ -372,7 +390,7 @@ jobs:
 
       - name: Upload ProotCommandBuilder unit test reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: unit-test-reports-test_and_verify
           path: |
@@ -382,7 +400,7 @@ jobs:
 
       - name: Upload ProotCommandBuilder failure logs
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: unit-test-logs-test_and_verify
           path: ./**/*.log
@@ -430,7 +448,7 @@ jobs:
 
       - name: Upload diagnostics bundle
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: android-diagnostics-test_and_verify
           path: |
@@ -456,12 +474,12 @@ jobs:
       CMAKE_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.cmake_version || vars.CMAKE_VERSION || '3.22.1' }}
       JAVA_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.java_version || vars.JAVA_VERSION || '17' }}
       GRADLE_ARGS: >-
-        -PCOMPILE_API=${COMPILE_API} -PTARGET_API=${TARGET_API} -PRELEASE_MIN_TARGET_API=${RELEASE_MIN_TARGET_API}
-        -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION}
-        -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
+        -PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PRELEASE_MIN_TARGET_API=${{ env.RELEASE_MIN_TARGET_API }}
+        -PTOOLS_VERSION=${{ env.TOOLS_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }}
+        -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PNDK_VERSION=${{ env.NDK_VERSION }}
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v4
 
     - name: Print selected inputs
       run: |
@@ -481,7 +499,7 @@ jobs:
       run: bash tools/security/block_sensitive_artifacts.sh
 
     - name: Set up JDK 17
-      uses: actions/setup-java@v5
+      uses: actions/setup-java@v4
       with:
         java-version: ${{ env.JAVA_VERSION }}
         distribution: 'temurin'
@@ -490,7 +508,7 @@ jobs:
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
       with:
-        accept-android-sdk-licenses: false
+        accept-android-sdk-licenses: true
 
     - name: Accept Android SDK licenses (non-interactive)
       run: |
@@ -758,7 +776,7 @@ jobs:
 
     - name: Upload compiled artifacts report (required)
       if: always()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v4
       with:
         name: android-compiled-artifacts-report
         path: app/build/reports/artifacts/compiled-artifacts-report.json
@@ -766,7 +784,7 @@ jobs:
 
     - name: Upload compiled outputs bundle
       if: always()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v4
       with:
         name: android-compiled-outputs
         path: |
@@ -777,14 +795,14 @@ jobs:
 
     - name: Upload Debug APK as artifact
       if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v4
       with:
         name: android-debug-apk
         path: app/build/outputs/apk/debug/app-debug.apk
 
     - name: Upload Release APK as artifact
       if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v4
       with:
         name: android-release-apk
         path: ${{ steps.release_artifact.outputs.path }}
