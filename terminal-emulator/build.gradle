@@ -18,7 +18,7 @@ android {
         minSdkVersion rootProject.ext.minApi
         //noinspection ExpiredTargetSdkVersion
         targetSdkVersion rootProject.ext.targetApi
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters(*rootProject.ext.supportedAbis as String[])
