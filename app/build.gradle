@@ -391,13 +391,22 @@ def registerNativeMatrixTasks = { List<String> abiPolicies, List<String> buildVa
                 def releaseImpactDescription = matrixLabel == 'official'
                     ? 'bloqueante para release/CI oficial'
                     : 'somente diagnóstico interno (não bloqueante para release)'
-                description = "[${matrixLabel}] (${releaseImpactDescription}) Executa :app:assemble${variantTaskPart(variant)} com APP_ABI_POLICY=${policy}."
-                workingDir rootProject.projectDir
-                def gradleArgs = ["-PAPP_ABI_POLICY=${policy}", "-PALLOW_UNSIGNED_RELEASE=true", "-PCI_INTERNAL_VALIDATION=${ciInternalValidation}"]
-                if (isInternalValidationVariant || ciInternalValidation) {
-                    gradleArgs << "-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
-                } else {
-                    gradleArgs << "-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=false"
+                description = "[${matrixLabel}] (${releaseImpactDescription}) Execução determinística interna de :app:assemble${variantTaskPart(variant)} com APP_ABI_POLICY=${policy}."
+                dir = rootProject.projectDir
+                tasks = [':app:assemble' + variantTaskPart(variant)]
+                startParameter.projectProperties = (gradle.startParameter.projectProperties + [
+                    "APP_ABI_POLICY": policy,
+                    "ALLOW_UNSIGNED_RELEASE": "true",
+                    "ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE": isInternalValidationVariant ? "true" : "false",
+                ]).collectEntries { key, value -> [(key): value?.toString()] }
+                startParameter.excludedTaskNames = gradle.startParameter.excludedTaskNames
+                startParameter.warningMode = gradle.startParameter.warningMode
+
+                doFirst {
+                    logger.lifecycle("[${nativeTaskName}] lane start | matrix=${matrixLabel} | policy=${policy} | variant=${variant} | ALLOW_UNSIGNED_RELEASE=true | ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=${isInternalValidationVariant}")
+                }
+                doLast {
+                    logger.lifecycle("[${nativeTaskName}] lane done  | matrix=${matrixLabel} | policy=${policy} | variant=${variant}")
                 }
             }
         }
@@ -424,7 +433,7 @@ def checkNativeExtendedMatrixTasks = registerNativeMatrixTasks(
 
 tasks.register('checkNativeExtendedMatrix') {
     group = "verification"
-    description = "[diagnóstico determinístico] Matriz expandida opcional via Gradle interno (sem shell-out); mantém combinação oficial + não-oficiais somente com -PENABLE_EXTENDED_ABI_MATRIX=true."
+    description = "[diagnóstico] Matriz expandida opcional e determinística por lane (Gradle interno, sem shell out). Requer -PENABLE_EXTENDED_ABI_MATRIX=true para executar combinações não-oficiais."
 
     if (enableExtendedAbiMatrix) {
         dependsOn(checkNativeExtendedMatrixTasks)
@@ -439,7 +448,7 @@ tasks.register('checkNativeExtendedMatrix') {
 
 tasks.register('checkNativeAllMatrix') {
     group = "verification"
-    description = "[bloqueante release determinístico] Alvo canônico de CI oficial via Gradle interno (sem shell-out): executa exatamente combinações aprovadas APP_ABI_POLICY/variant + validações de compatibilidade."
+    description = "[bloqueante release] Alvo canônico de CI oficial: executa deterministicamente apenas combinações oficiais de APP_ABI_POLICY/variant via tasks internas e validações de compatibilidade."
 
     // Matriz oficial de assemble da app por política/variant.
     dependsOn(checkNativeOfficialMatrixTasks)
