@@ -158,9 +158,14 @@ public final class OptimizationStrategies {
         private final Object[] pool;
         private int top;
         private final ObjectFactory<T> factory;
-        
-        @SuppressWarnings("unchecked")
+
         public ObjectPool(ObjectFactory<T> factory, int capacity) {
+            if (factory == null) {
+                throw new IllegalArgumentException("factory must not be null");
+            }
+            if (capacity < 1) {
+                throw new IllegalArgumentException("capacity must be >= 1");
+            }
             this.factory = factory;
             this.pool = new Object[capacity];
             this.top = 0;
@@ -182,7 +187,7 @@ public final class OptimizationStrategies {
                     return obj;
                 }
             }
-            // Pool empty, create new
+            // Pool empty, create new (fallback path).
             return factory.create();
         }
         
