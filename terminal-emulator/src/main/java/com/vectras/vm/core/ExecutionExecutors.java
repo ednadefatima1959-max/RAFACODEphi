@@ -13,6 +13,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Provedor central de executores com orçamento e métricas por domínio.
+ *
+ * <p>Design "no-abort under saturation": sob saturação, as tarefas não são descartadas por
+ * exceção; a política faz fallback determinístico em caller-runs e contabiliza rejeições/saturações
+ * para telemetria.</p>
  */
 public final class ExecutionExecutors {
 
@@ -42,6 +46,7 @@ public final class ExecutionExecutors {
         public final long completedTasks;
         public final long rejectedTasks;
         public final long saturations;
+        public final long callerRunsFallbacks;
         public final long createdThreads;
         public final long avgQueueLatencyMicros;
 
@@ -53,6 +58,7 @@ public final class ExecutionExecutors {
                  long completedTasks,
                  long rejectedTasks,
                  long saturations,
+                 long callerRunsFallbacks,
                  long createdThreads,
                  long avgQueueLatencyMicros) {
             this.domain = domain;
@@ -63,6 +69,7 @@ public final class ExecutionExecutors {
             this.completedTasks = completedTasks;
             this.rejectedTasks = rejectedTasks;
             this.saturations = saturations;
+            this.callerRunsFallbacks = callerRunsFallbacks;
             this.createdThreads = createdThreads;
             this.avgQueueLatencyMicros = avgQueueLatencyMicros;
         }
@@ -118,6 +125,7 @@ public final class ExecutionExecutors {
         private final AtomicLong submittedTasks = new AtomicLong();
         private final AtomicLong rejectedTasks = new AtomicLong();
         private final AtomicLong saturations = new AtomicLong();
+        private final AtomicLong callerRunsFallbacks = new AtomicLong();
         private final AtomicLong queueLatencyNs = new AtomicLong();
         private final AtomicLong queueLatencySamples = new AtomicLong();
 
@@ -177,9 +185,30 @@ public final class ExecutionExecutors {
                     getCompletedTaskCount(),
                     rejectedTasks.get(),
                     saturations.get(),
+                    callerRunsFallbacks.get(),
                     metricThreadFactory.createdCount(),
                     avgMicros
             );
+        }
+    }
+
+    private static final class CountingCallerRunsPolicy implements RejectedExecutionHandler {
+        private final InstrumentedExecutor owner;
+
+        CountingCallerRunsPolicy(InstrumentedExecutor owner) {
+            this.owner = owner;
+        }
+
+        @Override
+        public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+            if (!executor.isShutdown()) {
+                owner.callerRunsFallbacks.incrementAndGet();
+                r.run();
+                return;
+            }
+            if (r instanceof Future<?>) {
+                ((Future<?>) r).cancel(false);
+            }
         }
     }
 
@@ -189,14 +218,24 @@ public final class ExecutionExecutors {
 
         MetricsRejectedHandler(InstrumentedExecutor owner, RejectedExecutionHandler delegate) {
             this.owner = owner;
-            this.delegate = delegate == null ? new ThreadPoolExecutor.CallerRunsPolicy() : delegate;
+            this.delegate = delegate;
         }
 
         @Override
         public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
             owner.rejectedTasks.incrementAndGet();
             owner.saturations.incrementAndGet();
+            if (executor.isShutdown()) {
+                cancelIfFuture(r);
+                return;
+            }
             delegate.rejectedExecution(r, executor);
+        }
+
+        private static void cancelIfFuture(Runnable r) {
+            if (r instanceof Future<?>) {
+                ((Future<?>) r).cancel(false);
+            }
         }
     }
 
@@ -239,9 +278,10 @@ public final class ExecutionExecutors {
                 budget.keepAliveMs,
                 new ArrayBlockingQueue<>(budget.queueCapacity),
                 threadFactory,
-                baseHandler
+                new ThreadPoolExecutor.CallerRunsPolicy()
         );
-        holder[0].setRejectedExecutionHandler(new MetricsRejectedHandler(holder[0], baseHandler));
+        RejectedExecutionHandler fallback = new CountingCallerRunsPolicy(holder[0]);
+        holder[0].setRejectedExecutionHandler(new MetricsRejectedHandler(holder[0], fallback));
         return holder[0];
     }
 
