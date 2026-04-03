@@ -53,7 +53,8 @@ public final class NativeFastPath {
                 || archCode == ARCH_ARM32
                 || archCode == ARCH_X64
                 || archCode == ARCH_X86
-                || archCode == ARCH_RISCV64;
+                || archCode == ARCH_RISCV64
+                || archCode == ARCH_RISCV32;
     }
 
     public static final int OS_UNKNOWN = 0x0000;
