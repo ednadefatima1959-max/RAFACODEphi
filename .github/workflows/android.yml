@@ -26,6 +26,14 @@ on:
         type: choice
         options: [auto, unsigned, signed]
         default: auto
+      allow_legacy_fallback:
+        description: "Allow legacy ANDROID_SIGNING_KEYSTORE fallback in signed/auto mode"
+        type: boolean
+        default: false
+      upload_telegram:
+        description: "Upload release artifact to Telegram"
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       provenance_run_id:
@@ -57,6 +65,14 @@ on:
         required: false
         type: string
         default: "auto"
+      allow_legacy_fallback:
+        required: false
+        type: boolean
+        default: false
+      upload_telegram:
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -92,6 +108,8 @@ jobs:
       selected_build_release: ${{ steps.dispatch_controls.outputs.selected_build_release }}
       diagnostic_mode: ${{ steps.dispatch_controls.outputs.diagnostic_mode }}
       deep_diagnostics: ${{ steps.dispatch_controls.outputs.deep_diagnostics }}
+      signing_mode: ${{ steps.dispatch_controls.outputs.signing_mode }}
+      allow_legacy_fallback: ${{ steps.dispatch_controls.outputs.allow_legacy_fallback }}
 
     steps:
       - uses: actions/checkout@v4
@@ -221,26 +239,39 @@ jobs:
           selected_build_debug='true'
           selected_build_release='true'
           diagnostic_mode='moderado'
+          signing_mode='auto'
+          allow_legacy_fallback='false'
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            build_selection='${{ github.event.inputs.build_selection }}'
-            build_debug_input='${{ github.event.inputs.build_debug }}'
-            build_release_input='${{ github.event.inputs.build_release }}'
-
-            case "${build_selection}" in
+            build_variant='${{ github.event.inputs.build_variant }}'
+            case "${build_variant}" in
               debug) selected_build_release='false' ;;
               release) selected_build_debug='false' ;;
+              both|'') ;;
+              *)
+                echo "::error::Unsupported build_variant: ${build_variant}"
+                exit 1
+                ;;
             esac
 
-            if [[ "${build_debug_input}" != 'true' ]]; then
-              selected_build_debug='false'
-            fi
+            diagnostic_mode='${{ github.event.inputs.mode }}'
+            signing_mode='${{ github.event.inputs.signing_mode }}'
+            allow_legacy_fallback='${{ github.event.inputs.allow_legacy_fallback }}'
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_call" ]]; then
+            build_variant='${{ inputs.build_variant }}'
+            case "${build_variant}" in
+              debug) selected_build_release='false' ;;
+              release) selected_build_debug='false' ;;
+              both|'') ;;
+              *)
+                echo "::error::Unsupported build_variant: ${build_variant}"
+                exit 1
+                ;;
+            esac
 
-            if [[ "${build_release_input}" != 'true' ]]; then
-              selected_build_release='false'
-            fi
-
-            diagnostic_mode='${{ github.event.inputs.diagnostic_mode }}'
+            diagnostic_mode='${{ inputs.mode }}'
+            signing_mode='${{ inputs.signing_mode }}'
+            allow_legacy_fallback='${{ inputs.allow_legacy_fallback }}'
           fi
 
           deep_diagnostics='false'
@@ -254,8 +285,10 @@ jobs:
           echo "selected_build_release=${selected_build_release}" >> "$GITHUB_OUTPUT"
           echo "diagnostic_mode=${diagnostic_mode}" >> "$GITHUB_OUTPUT"
           echo "deep_diagnostics=${deep_diagnostics}" >> "$GITHUB_OUTPUT"
+          echo "signing_mode=${signing_mode}" >> "$GITHUB_OUTPUT"
+          echo "allow_legacy_fallback=${allow_legacy_fallback}" >> "$GITHUB_OUTPUT"
 
-          echo "Resolved profile => build_debug=${selected_build_debug}, build_release=${selected_build_release}, diagnostic_mode=${diagnostic_mode}, deep_diagnostics=${deep_diagnostics}"
+          echo "Resolved profile => build_debug=${selected_build_debug}, build_release=${selected_build_release}, diagnostic_mode=${diagnostic_mode}, deep_diagnostics=${deep_diagnostics}, signing_mode=${signing_mode}, allow_legacy_fallback=${allow_legacy_fallback}"
 
       - name: Validate release version metadata consistency
         run: |
@@ -484,9 +517,10 @@ jobs:
     - name: Print selected inputs
       run: |
         echo "event_name=${GITHUB_EVENT_NAME}"
-        echo "build_debug=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_debug || 'true' }}"
-        echo "build_release=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_release || 'true' }}"
-        echo "sign_release=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release || 'false' }}"
+        echo "selected_build_debug=${{ needs.preflight.outputs.selected_build_debug }}"
+        echo "selected_build_release=${{ needs.preflight.outputs.selected_build_release }}"
+        echo "signing_mode=${{ needs.preflight.outputs.signing_mode }}"
+        echo "allow_legacy_fallback=${{ needs.preflight.outputs.allow_legacy_fallback }}"
         echo "upload_telegram=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram || 'false' }}"
         echo "compile_api=${COMPILE_API}"
         echo "tools_version=${TOOLS_VERSION}"
@@ -665,59 +699,57 @@ jobs:
         fi
 
 
-    - name: Materialize Firebase config for release
-      if: ${{ needs.preflight.outputs.selected_build_release == 'true' && secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 != '' }}
+    - name: Resolve release signing policy
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
       shell: bash
+      env:
+        VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
+        VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
+        VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
+        VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
+        ANDROID_SIGNING_KEYSTORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
       run: |
         set -euo pipefail
-        export VECTRAS_GOOGLE_SERVICES_JSON_B64="${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}"
-        ./tools/ci/materialize_firebase_config.sh --policy official
-        echo "Firebase config loaded from VECTRAS_GOOGLE_SERVICES_JSON_B64 for release build"
+        LEGACY_FLAG=""
+        if [[ "${{ needs.preflight.outputs.allow_legacy_fallback }}" == "true" ]]; then
+          LEGACY_FLAG="--allow-legacy-fallback"
+        fi
+        ./tools/ci/prepare_release_signing.sh \
+          --mode "${{ needs.preflight.outputs.signing_mode }}" \
+          --keystore-out "${RUNNER_TEMP}/vectras-release.jks" \
+          ${LEGACY_FLAG}
 
-    - name: Materialize placeholder Firebase config for unsigned internal validation
-      if: ${{ needs.preflight.outputs.selected_build_release == 'true' && secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 == '' && !((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') }}
+    - name: Materialize Firebase config for release path
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
       shell: bash
+      env:
+        VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
       run: |
         set -euo pipefail
-        ./tools/ci/materialize_firebase_config.sh --policy internal
-        echo "VECTRAS_GOOGLE_SERVICES_JSON_B64 is not configured."
-        echo "Using placeholder google-services.json for unsigned internal validation path."
+        if [[ -n "${VECTRAS_GOOGLE_SERVICES_JSON_B64:-}" ]]; then
+          ./tools/ci/materialize_firebase_config.sh --policy official
+          echo "Firebase config loaded from VECTRAS_GOOGLE_SERVICES_JSON_B64 for release build."
+        elif [[ "${VECTRAS_CI_RELEASE_FLAGS:-}" == *"ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"* ]]; then
+          ./tools/ci/materialize_firebase_config.sh --policy internal
+          echo "::warning::Using placeholder google-services.json for internal unsigned validation."
+        else
+          echo "::error::official policy requires VECTRAS_GOOGLE_SERVICES_JSON_B64 for signed release path."
+          exit 1
+        fi
 
     - name: Validate Firebase release config
       if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: |
-        EXTRA_VALIDATE_FLAGS=""
-        if [[ -z "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" && !(("${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.sign_release }}" == "true") || "${{ needs.preflight.outputs.has_signing_secrets }}" == "true") ]]; then
-          EXTRA_VALIDATE_FLAGS="-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true"
-        fi
-        ./tools/gradle_with_jdk21.sh :app:validateFirebaseReleaseConfig ${{ env.GRADLE_ARGS }} ${EXTRA_VALIDATE_FLAGS}
+      run: ./tools/gradle_with_jdk21.sh :app:validateFirebaseReleaseConfig ${{ env.GRADLE_ARGS }} ${VECTRAS_CI_RELEASE_FLAGS}
 
-    - name: Build Release APK (unsigned fallback)
-      if: ${{ needs.preflight.outputs.selected_build_release == 'true' && !((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.allow_unsigned_release == 'true') }}
+    - name: Build Release APK
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace ${{ env.GRADLE_ARGS }} -PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true
-
-    - name: Build Release APK (signed via CI secrets)
-      if: ${{ github.event_name != 'pull_request' && needs.preflight.outputs.selected_build_release == 'true' && ((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') }}
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        VECTRAS_RELEASE_STORE_FILE: ${{ runner.temp }}/vectras-release.jks
-        VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
-        VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
-        VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
-        VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
-      run: |
-        set -euo pipefail
-        ./tools/ci/prepare_release_signing.sh --mode signed --keystore-out "$VECTRAS_RELEASE_STORE_FILE"
-        ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace \
-          ${{ env.GRADLE_ARGS }} \
-          ${VECTRAS_CI_SIGNING_ARGS}
+      run: ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace ${{ env.GRADLE_ARGS }} ${VECTRAS_CI_RELEASE_FLAGS} ${VECTRAS_CI_SIGNING_ARGS}
 
     - name: Build PerfRelease APK
       if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
@@ -727,11 +759,7 @@ jobs:
       shell: bash
       run: |
         set -euo pipefail
-        EXTRA_FLAGS=""
-        if [[ "${{ needs.preflight.outputs.has_signing_secrets }}" != "true" && !("${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.sign_release }}" == "true") ]]; then
-          EXTRA_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true"
-        fi
-        ./tools/gradle_with_jdk21.sh :app:assemblePerfRelease --stacktrace ${{ env.GRADLE_ARGS }} ${EXTRA_FLAGS}
+        ./tools/gradle_with_jdk21.sh :app:assemblePerfRelease --stacktrace ${{ env.GRADLE_ARGS }} ${VECTRAS_CI_RELEASE_FLAGS} ${VECTRAS_CI_SIGNING_ARGS}
 
     - name: Verify delivered compiled artifacts
       if: ${{ needs.preflight.outputs.selected_build_debug == 'true' || needs.preflight.outputs.selected_build_release == 'true' }}
