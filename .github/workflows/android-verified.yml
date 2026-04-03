@@ -49,14 +49,17 @@ on:
   workflow_call:
     inputs:
       provenance_run_id:
-        required: true
+        required: false
         type: string
+        default: ""
       expected_sha:
-        required: true
+        required: false
         type: string
+        default: ""
       provenance_manifest_hash:
-        required: true
+        required: false
         type: string
+        default: ""
       build_variant:
         required: false
         type: string
@@ -143,7 +146,7 @@ jobs:
       collect_deep_diagnostics: ${{ steps.mode.outputs.collect_deep_diagnostics }}
     steps:
       - name: Validate provenance chain-of-custody
-        if: ${{ github.event_name == 'workflow_call' }}
+        if: ${{ github.event_name == 'workflow_call' && inputs.provenance_run_id != '' && inputs.expected_sha != '' && inputs.provenance_manifest_hash != '' }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PROVENANCE_RUN_ID: ${{ inputs.provenance_run_id }}
@@ -289,32 +292,16 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
-      - uses: android-actions/setup-android@v3
+      - name: Android build base setup
+        uses: ./.github/actions/android-build-base
         with:
-          log-accepted-android-sdk-licenses: false
-
-      - name: Install Android SDK components
-        run: |
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-${{ env.COMPILE_API }}" \
-            "build-tools;${{ env.TOOLS_VERSION }}" \
-            "ndk;${{ needs.preflight.outputs.ndk_version }}" \
-            "cmake;${{ env.CMAKE_VERSION }}"
-
-      - name: Generate local.properties
-        run: |
-          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
-
-      - uses: gradle/actions/setup-gradle@v4
-
-      - name: Bootstrap shell-loader asset (mandatory)
-        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
-
-      - name: Verify bootstrap assets (mandatory)
-        run: |
-          python3 tools/verify_bootstrap_assets.py
-          ./tools/gradle_with_jdk21.sh verifyBootstrapAssets --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }}
+          phase: setup
+          java_version: ${{ env.JAVA_VERSION }}
+          compile_api: ${{ env.COMPILE_API }}
+          tools_version: ${{ env.TOOLS_VERSION }}
+          ndk_version: ${{ needs.preflight.outputs.ndk_version }}
+          cmake_version: ${{ env.CMAKE_VERSION }}
+          gradle_log_flags: ${{ needs.preflight.outputs.gradle_log_flags }}
 
       - name: Build debug with mode policy
         shell: bash
@@ -356,31 +343,36 @@ jobs:
 
       - name: Upload compiled artifacts report (required)
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: ./.github/actions/android-build-base
         with:
-          name: android-compiled-artifacts-report
-          path: app/build/reports/artifacts/compiled-artifacts-report.json
-          if-no-files-found: error
+          phase: upload
+          artifact_name: android-compiled-artifacts-report
+          artifact_path: app/build/reports/artifacts/compiled-artifacts-report.json
+          artifact_if_no_files_found: error
+          artifact_retention_days: '14'
 
       - name: Upload compiled outputs bundle
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: ./.github/actions/android-build-base
         with:
-          name: android-compiled-outputs
-          path: |
+          phase: upload
+          artifact_name: android-compiled-outputs
+          artifact_path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
             app/build/outputs/mapping/**
-          if-no-files-found: error
+          artifact_if_no_files_found: error
+          artifact_retention_days: '14'
 
       - name: Upload debug diagnostics
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: ./.github/actions/android-build-base
         with:
-          name: debug-diagnostics-${{ github.run_id }}
-          retention-days: 14
-          if-no-files-found: ignore
-          path: |
+          phase: upload
+          artifact_name: debug-diagnostics-${{ github.run_id }}
+          artifact_retention_days: '14'
+          artifact_if_no_files_found: ignore
+          artifact_path: |
             app/build/reports/**
             app/build/outputs/logs/**
             **/build/test-results/**
@@ -400,32 +392,16 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
-      - uses: android-actions/setup-android@v3
+      - name: Android build base setup
+        uses: ./.github/actions/android-build-base
         with:
-          log-accepted-android-sdk-licenses: false
-
-      - name: Install Android SDK components
-        run: |
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-${{ env.COMPILE_API }}" \
-            "build-tools;${{ env.TOOLS_VERSION }}" \
-            "ndk;${{ needs.preflight.outputs.ndk_version }}" \
-            "cmake;${{ env.CMAKE_VERSION }}"
-
-      - name: Generate local.properties
-        run: |
-          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
-
-      - uses: gradle/actions/setup-gradle@v4
-
-      - name: Bootstrap shell-loader asset (mandatory)
-        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
-
-      - name: Verify bootstrap assets (mandatory)
-        run: |
-          python3 tools/verify_bootstrap_assets.py
-          ./tools/gradle_with_jdk21.sh verifyBootstrapAssets --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }}
+          phase: setup
+          java_version: ${{ env.JAVA_VERSION }}
+          compile_api: ${{ env.COMPILE_API }}
+          tools_version: ${{ env.TOOLS_VERSION }}
+          ndk_version: ${{ needs.preflight.outputs.ndk_version }}
+          cmake_version: ${{ env.CMAKE_VERSION }}
+          gradle_log_flags: ${{ needs.preflight.outputs.gradle_log_flags }}
 
       - name: Assemble release (auto/signed/unsigned)
         shell: bash
@@ -582,12 +558,13 @@ jobs:
 
       - name: Upload release artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: ./.github/actions/android-build-base
         with:
-          name: release-bundle-${{ github.run_id }}
-          retention-days: 30
-          if-no-files-found: ignore
-          path: |
+          phase: upload
+          artifact_name: release-bundle-${{ github.run_id }}
+          artifact_retention_days: '30'
+          artifact_if_no_files_found: ignore
+          artifact_path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
             app/build/outputs/mapping/**
