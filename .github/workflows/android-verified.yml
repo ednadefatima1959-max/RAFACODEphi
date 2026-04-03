@@ -348,6 +348,12 @@ jobs:
           fi
           file "$SO"
 
+      - name: Verify delivered compiled artifacts (debug)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PartifactVariants=debug
+
       - name: Upload compiled artifacts report (required)
         if: always()
         uses: actions/upload-artifact@v5
@@ -495,20 +501,7 @@ jobs:
             echo "${VECTRAS_GOOGLE_SERVICES_JSON_B64}" | base64 --decode > app/google-services.json
             echo "Loaded production Firebase config from VECTRAS_GOOGLE_SERVICES_JSON_B64."
           elif [[ "${EXTRA_RELEASE_FLAGS}" == *"-PCI_INTERNAL_VALIDATION=true"* ]]; then
-            python3 - <<'PY'
-import json
-from pathlib import Path
-payload = {
-    "project_info": {
-        "project_number": "0",
-        "project_id": "placeholder-internal-validation",
-        "storage_bucket": "placeholder-internal-validation.appspot.com",
-    },
-    "client": [],
-    "configuration_version": "1",
-}
-Path("app/google-services.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-PY
+            python3 -c 'import json; from pathlib import Path; payload={"project_info":{"project_number":"0","project_id":"placeholder-internal-validation","storage_bucket":"placeholder-internal-validation.appspot.com"},"client":[],"configuration_version":"1"}; Path("app/google-services.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")'
             echo "Using placeholder Firebase config for unsigned internal validation."
           else
             echo "::error::google-services.json de produção ausente para caminho oficial assinado."
