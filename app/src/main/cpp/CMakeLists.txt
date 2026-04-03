@@ -12,6 +12,7 @@ option(RMR_ASM_CORE_RISCV64_VALIDATED "Enable RV64I-compatible CASM path on risc
 
 set(VECTRA_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../../)
 set(VECTRA_RMR_INCLUDE_DIR ${VECTRA_REPO_ROOT}/engine/rmr/include)
+set(RMR_SOURCE_BASE "${VECTRA_REPO_ROOT}/")
 
 include(${VECTRA_REPO_ROOT}/engine/rmr/sources_rmr_core.cmake)
 
