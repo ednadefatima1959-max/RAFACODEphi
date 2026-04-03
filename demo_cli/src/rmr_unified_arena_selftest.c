@@ -1,6 +1,7 @@
 #include "rmr_unified_kernel.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 static uint32_t xor_bytes(const uint8_t *buf, uint32_t len) {
   uint32_t acc = 0u;
   uint32_t i;
@@ -38,6 +39,7 @@ static int expect_offset(const RmR_UnifiedKernel *kernel, uint32_t handle, uint3
 enum { RMR_UNIFIED_ARENA_TEST_MIN_BYTES = 4096u };
 
 int main(void) {
+  RmR_UnifiedKernel kernel_uninitialized;
   RmR_UnifiedKernel kernel;
   RmR_UnifiedConfig cfg;
   uint32_t h0, h1, h2, h3, h4, h5, h6, h7, h8, h9;
@@ -45,9 +47,15 @@ int main(void) {
   uint8_t src_b[128];
   uint32_t checksum = 0u;
   uint32_t i;
+  memset(&kernel_uninitialized, 0xA5, sizeof(kernel_uninitialized));
+  memset(&kernel, 0, sizeof(kernel));
+  memset(&cfg, 0, sizeof(cfg));
   cfg.seed = 0x1234ABCDu;
+  cfg.arena_ptr = NULL;
   cfg.arena_bytes = RMR_UNIFIED_ARENA_TEST_MIN_BYTES;
-  if (!expect_ok(RmR_UnifiedKernel_Init(&kernel, &cfg), "init")) return 1;
+  if (!expect_ok(RmR_UnifiedKernel_Init(&kernel_uninitialized, &cfg), "init stack-uninitialized")) return 1;
+  if (!expect_ok(RmR_UnifiedKernel_Shutdown(&kernel_uninitialized), "shutdown stack-uninitialized")) return 1;
+  if (!expect_ok(RmR_UnifiedKernel_Init(&kernel, &cfg), "init stack-zeroed")) return 1;
   if (!expect_ok(RmR_UnifiedKernel_ArenaAlloc(&kernel, 64u, &h0), "alloc h0")) return 1;
   if (!expect_ok(RmR_UnifiedKernel_ArenaAlloc(&kernel, 128u, &h1), "alloc h1")) return 1;
   if (!expect_ok(RmR_UnifiedKernel_ArenaAlloc(&kernel, 256u, &h2), "alloc h2")) return 1;
