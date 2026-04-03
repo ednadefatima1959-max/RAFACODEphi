@@ -1,6 +1,16 @@
 name: Termux Orchestrator Build
 
 on:
+  workflow_call:
+    inputs:
+      dry_run:
+        required: false
+        type: string
+        default: "true"
+      enable_fork_sync:
+        required: false
+        type: string
+        default: "false"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -32,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      ENABLE_FORK_SYNC: ${{ github.event.inputs.enable_fork_sync == 'true' && '1' || '0' }}
+      ENABLE_FORK_SYNC: ${{ (inputs.enable_fork_sync || 'false') == 'true' && '1' || '0' }}
       BOOTSTRAP_ANDROID: "1"
       ENABLE_SPILL: "1"
       ALLOW_NETWORK_TOOLCHAIN: "1"
@@ -40,16 +50,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Prepare release signing env for dry-run
-        if: ${{ github.event.inputs.dry_run != 'false' }}
+        if: ${{ (inputs.dry_run || 'true') != 'false' }}
         run: |
           set -euo pipefail
           mkdir -p .secrets
@@ -61,7 +71,7 @@ jobs:
           echo "CI_DRY_RUN=1" >> "$GITHUB_ENV"
 
       - name: Prepare release signing env for real release build
-        if: ${{ github.event.inputs.dry_run == 'false' }}
+        if: ${{ (inputs.dry_run || 'true') == 'false' }}
         env:
           RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
           RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
@@ -91,8 +101,8 @@ jobs:
           bash tools/termux-arm64-orchestrator/run-local-termux-build.sh
 
       - name: Upload release APK
-        if: ${{ github.event.inputs.dry_run == 'false' }}
-        uses: actions/upload-artifact@v4
+        if: ${{ (inputs.dry_run || 'true') == 'false' }}
+        uses: actions/upload-artifact@v5
         with:
           name: termux-orchestrator-release-apk
           path: app/build/outputs/apk/release/*.apk

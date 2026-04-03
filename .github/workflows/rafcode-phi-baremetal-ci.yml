@@ -1,6 +1,7 @@
 name: rafcode-phi-baremetal-ci
 
 on:
+  workflow_call:
   push:
     paths:
       - 'tools/baremetal/rafcode_phi/**'
@@ -21,7 +22,7 @@ jobs:
   rafcode-phi-regression:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Build + regression CRC32C/token table/layout
         run: |

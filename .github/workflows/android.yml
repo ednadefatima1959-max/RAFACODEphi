@@ -1,6 +1,7 @@
 name: Android CI
 
 on:
+  workflow_call:
   push:
     branches: [main, master, dev, release/**]
     paths:
@@ -162,14 +163,14 @@ jobs:
       deep_diagnostics: ${{ steps.dispatch_controls.outputs.deep_diagnostics }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Block sensitive artifacts in repository (warn only)
         continue-on-error: true
         run: bash tools/security/block_sensitive_artifacts.sh
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
@@ -390,10 +391,10 @@ jobs:
     needs: preflight
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
@@ -461,7 +462,7 @@ jobs:
 
       - name: Upload ProotCommandBuilder unit test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: unit-test-reports-test_and_verify
           path: |
@@ -471,7 +472,7 @@ jobs:
 
       - name: Upload ProotCommandBuilder failure logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: unit-test-logs-test_and_verify
           path: ./**/*.log
@@ -526,7 +527,7 @@ jobs:
 
       - name: Upload diagnostics bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: android-diagnostics-test_and_verify
           path: |
@@ -557,7 +558,7 @@ jobs:
         -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Print selected inputs
       run: |
@@ -577,7 +578,7 @@ jobs:
       run: bash tools/security/block_sensitive_artifacts.sh
 
     - name: Set up JDK 17
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: ${{ env.JAVA_VERSION }}
         distribution: 'temurin'
@@ -866,7 +867,7 @@ jobs:
 
     - name: Upload compiled artifacts report (required)
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: android-compiled-artifacts-report
         path: app/build/reports/artifacts/compiled-artifacts-report.json
@@ -874,7 +875,7 @@ jobs:
 
     - name: Upload compiled outputs bundle
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: android-compiled-outputs
         path: |
@@ -885,14 +886,14 @@ jobs:
 
     - name: Upload Debug APK as artifact
       if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: android-debug-apk
         path: app/build/outputs/apk/debug/app-debug.apk
 
     - name: Upload Release APK as artifact
       if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: android-release-apk
         path: ${{ steps.release_artifact.outputs.path }}

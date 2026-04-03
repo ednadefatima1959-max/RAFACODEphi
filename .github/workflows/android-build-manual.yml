@@ -172,7 +172,7 @@ jobs:
         -PCMAKE_VERSION=${{ inputs.cmake_version || '3.22.1' }} -PNDK_VERSION=${{ inputs.ndk_version || '27.2.12479018' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -312,7 +312,7 @@ jobs:
 
       - name: Upload compiled artifacts report (required)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: android-compiled-artifacts-report
           path: app/build/reports/artifacts/compiled-artifacts-report.json
@@ -320,7 +320,7 @@ jobs:
 
       - name: Upload compiled outputs bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: android-compiled-outputs
           path: |
@@ -331,7 +331,7 @@ jobs:
 
       - name: Upload diagnostics and logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: android-manual-diagnostics-${{ github.run_number }}
           path: |
