@@ -9,13 +9,16 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.AppConfig;
 import com.vectras.vm.R;
+import com.vectras.vm.StartVM;
 import com.vectras.vm.VMManager;
 import com.vectras.vm.core.ProotCommandBuilder;
 import com.vectras.vm.core.ProcessLaunch;
 import com.vectras.vm.core.ProcessRuntimeOps;
 import com.vectras.vm.core.HardwareProfileBridge;
+import com.vectras.vm.qemu.QemuArgsBuilder;
 import com.vectras.vm.qemu.QemuBinaryResolver;
 import com.vectras.vm.utils.DeviceUtils;
 import com.vectras.vm.utils.DialogUtils;
@@ -54,12 +57,19 @@ public class SetupFeatureCore {
     public static String TAG = "SetupFeatureCore";
     public static final String ABI_RESOLVE_TAG = "SETUP_ABI_RESOLVE";
     public static String lastErrorLog = "";
+    public static String lastWarningLog = "";
     public static final String COPY_FAIL_PREFIX = "COPY_FAIL:";
     public static final String INTEGRITY_FAIL_PREFIX = "INTEGRITY_FAIL:";
     public static final String EXTRACTION_FAIL_PREFIX = "EXTRACTION_FAIL:";
+    public static final String EXTRACTION_WARN_PREFIX = "EXTRACTION_WARN:";
     public static final String POST_CHECK_FAIL_PREFIX = "POST_CHECK_FAIL:";
     private static final String BOOTSTRAP_LOG_PREFIX = "PROOT_BOOTSTRAP";
     private static final long MIN_TAR_BYTES = 1024L;
+    private static final List<String> CRITICAL_STDERR_PATTERNS = Arrays.asList(
+            "cannot open",
+            "permission denied",
+            "error is not recoverable"
+    );
 
     public static boolean isInstalledSystemFiles(Context context) {
         return isInstalledProot(context) && isInstalledDistro(context);
@@ -450,11 +460,16 @@ public class SetupFeatureCore {
         String filesDir = context.getFilesDir().getAbsolutePath();
         String rootfsPath = filesDir + "/distro";
         String workDir = "/root";
-        String requiredQemuBinary = QemuBinaryResolver.primaryBinaryForArch("X86_64");
+        String configuredArch = MainSettingsManager.getArch(context);
+        String effectiveArch = StartVM.resolvedArch(context);
+        String requiredQemuBinary = QemuArgsBuilder.binaryForArch(effectiveArch);
 
         detailMap.put("filesDir", filesDir);
         detailMap.put("rootfsPath", rootfsPath);
         detailMap.put("workDir", workDir);
+        detailMap.put("configuredArch", configuredArch == null ? "<null>" : configuredArch);
+        detailMap.put("effectiveArch", effectiveArch);
+        detailMap.put("requiredQemuBinary", requiredQemuBinary);
 
         ProotPrerequisiteResult prerequisiteResult = validateProotPrerequisites(context, rootfsPath, workDir);
         if (!prerequisiteResult.ok) {
@@ -834,6 +849,7 @@ public class SetupFeatureCore {
     public static boolean startExtractSystemFiles(Context context, @Nullable String bootstrapExpectedSha256) {
         if (isInstalledSystemFiles(context)) return true;
         lastErrorLog = "";
+        lastWarningLog = "";
 
         String filesDir = context.getFilesDir().getAbsolutePath();
         File distroDir = new File(filesDir + "/distro");
@@ -864,6 +880,7 @@ public class SetupFeatureCore {
     }
 
     public static boolean extractSystemFiles(Context context, String fromAsset, String extractTo, @Nullable String expectedSha256) {
+        lastWarningLog = "";
         String randomFileName = VMManager.startRandomVMID();
         final String[] selectedAssetHolder = new String[1];
         String assetPath = resolveAssetPath(context, fromAsset, selectedAssetHolder);
@@ -950,7 +967,8 @@ public class SetupFeatureCore {
                 // Security note: ProcessBuilder receives each token separately. There is no shell invocation here.
                 ProcessBuilder processBuilder = new ProcessBuilder(cmdline);
                 processBuilder.environment().remove("LD_LIBRARY_PATH");
-                StringBuilder errorOutput = new StringBuilder();
+                StringBuilder stdoutOutput = new StringBuilder();
+                StringBuilder stderrOutput = new StringBuilder();
                 ProcessLaunch.LaunchResult waitResult = ProcessLaunch.withBudget(
                         context,
                         "setupwizard.extract",
@@ -959,15 +977,20 @@ public class SetupFeatureCore {
                         null,
                         ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION,
                         processBuilder,
-                        line -> appendExtractOutput(errorOutput, line),
-                        line -> appendExtractOutput(errorOutput, line),
+                        line -> appendProcessOutput(stdoutOutput, line),
+                        line -> appendProcessOutput(stderrOutput, line),
                         null
                 );
 
                 String commandSummary = formatCommand(cmdline);
+                String stdoutSummary;
                 String stderrSummary;
-                synchronized (errorOutput) {
-                    stderrSummary = errorOutput.toString().trim();
+                synchronized (stderrOutput) {
+                    stderrSummary = stderrOutput.toString().trim();
+                }
+                String stdoutSummary;
+                synchronized (stdoutOutput) {
+                    stdoutSummary = stdoutOutput.toString().trim();
                 }
                 if (waitResult.status == ProcessLaunch.LaunchStatus.TIMEOUT) {
                     lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_TIMEOUT ["
@@ -975,7 +998,8 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " detail=" + waitResult.diagnosis
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary)
+                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -986,20 +1010,42 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " detail=" + waitResult.diagnosis
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary)
+                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
 
-                if (waitResult.exitCode != 0 || !stderrSummary.isEmpty()) {
-                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_NON_ZERO_OR_OUTPUT_VALIDATION_FAIL ["
+                if (waitResult.exitCode != 0) {
+                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_NON_ZERO_EXIT ["
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " exit=" + waitResult.exitCode
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary)
+                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
+                }
+
+                if (!stderrSummary.isEmpty()) {
+                    String stderrLower = stderrSummary.toLowerCase(Locale.ROOT);
+                    if (containsCriticalStderr(stderrLower)) {
+                        lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_CRITICAL_STDERR_DETECTED ["
+                                + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
+                                + "] asset=" + assetPath
+                                + " cmd=" + commandSummary
+                                + " stderr=" + stderrSummary);
+                        Log.e(TAG, lastErrorLog);
+                        return false;
+                    }
+
+                    lastWarningLog = formatErrorCode(EXTRACTION_WARN_PREFIX, "PROCESS_STDERR_WARNING ["
+                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
+                            + "] asset=" + assetPath
+                            + " cmd=" + commandSummary
+                            + " warning=" + stderrSummary);
+                    Log.w(TAG, lastWarningLog);
                 }
 
                 ArrayList<String> extractionPostCheckFailedItems = new ArrayList<>();
@@ -1044,13 +1090,22 @@ public class SetupFeatureCore {
     }
 
 
-    private static void appendExtractOutput(StringBuilder output, String line) {
+    private static void appendProcessOutput(StringBuilder output, String line) {
         if (line == null) {
             return;
         }
-        synchronized (output) {
-            output.append(line).append("\n");
+        synchronized (outputBuffer) {
+            outputBuffer.append(outputLine).append("\n");
         }
+    }
+
+    private static boolean containsCriticalStderr(String stderrLower) {
+        for (String pattern : CRITICAL_STDERR_PATTERNS) {
+            if (stderrLower.contains(pattern)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
