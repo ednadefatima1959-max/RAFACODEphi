@@ -125,6 +125,24 @@ public final class LowLevelBridge {
         return LowLevelDeterminism.crc32cCompatFallback(initial, data, offset, length);
     }
 
+    /**
+     * Validates reduce_xor parity across all compiled low-level backends.
+     * Returns true when every backend matches the canonical low-level contract.
+     */
+    public static boolean validateReduceXorBackendParity(byte[] data, int offset, int length) {
+        if (data == null || offset < 0 || length < 0 || offset + length > data.length) {
+            return false;
+        }
+        if (!LOADED) {
+            return true;
+        }
+        try {
+            return nativeValidateReduceXorBackendParity(data, offset, length) == 0;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     private static native int nativeFold32(int a, int b, int c, int d);
 
     private static native int nativeReduceXor(byte[] data, int offset, int length);
@@ -134,4 +152,6 @@ public final class LowLevelBridge {
     private static native int nativeXorChecksumCompat(byte[] data, int offset, int length);
 
     private static native int nativeCrc32cCompat(int initial, byte[] data, int offset, int length);
+
+    private static native int nativeValidateReduceXorBackendParity(byte[] data, int offset, int length);
 }
