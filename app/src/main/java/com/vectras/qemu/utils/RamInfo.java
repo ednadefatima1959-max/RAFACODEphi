@@ -11,8 +11,10 @@ import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.utils.TextUtils;
 
 public class RamInfo {
+    private static final int MIN_VM_MEMORY_MB = 128;
+
     public static int ensureMinimumVmMemoryMb(int requestedMb) {
-        return Math.max(requestedMb, 128);
+        return Math.max(requestedMb, MIN_VM_MEMORY_MB);
     }
     public static int safeLongToInt(long l) {
         if (l < Integer.MIN_VALUE || l > Integer.MAX_VALUE) {
@@ -36,9 +38,5 @@ public class RamInfo {
         } else {
             return Math.max(freeRamInt - 100, 256);
         }
-    }
-
-    public static int ensureMinimumVmMemoryMb(int requestedMb) {
-        return Math.max(MIN_VM_MEMORY_MB, requestedMb);
     }
 }
