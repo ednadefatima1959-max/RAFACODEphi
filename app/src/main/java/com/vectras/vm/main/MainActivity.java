@@ -41,11 +41,13 @@ import com.vectras.qemu.Config;
 import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.AboutActivity;
 import com.vectras.vm.AppConfig;
+import com.vectras.vm.BuildConfig;
 import com.vectras.vm.VMCreatorActivity;
 import com.vectras.vm.Minitools;
 import com.vectras.vm.R;
 import com.vectras.vm.WebViewActivity;
 import com.vectras.vm.benchmark.BenchmarkActivity;
+import com.vectras.vm.core.ExecutionGovernance;
 import com.vectras.vm.core.LogcatRuntime;
 import com.vectras.vm.core.HardwareProfileBridge;
 import com.vectras.vm.core.VmFlowTracker;
@@ -105,6 +107,9 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
     private SoftwareStoreHomeAdapterSearch adapterSoftwareStoreSearch;
     private final List<DataRoms> dataRomStoreSearch = new ArrayList<>();
     private final List<DataRoms> dataSoftwareStoreSearch = new ArrayList<>();
+    private final ExecutionGovernance.GovernedExecutor startupIoExecutor =
+            ExecutionGovernance.newSerialExecutor("main-activity-startup", "MainActivity/StartupIO");
+    private final ExecutorService startupIoPool = startupIoExecutor.executor();
     private MainUiStateViewModel mainUiStateViewModel;
 
     public static CallbackInterface.HomeCallToVmsListener homeCallToVmsListener;
@@ -132,8 +137,14 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
     protected void onCreate(Bundle bundle) {
         super.onCreate(bundle);
 
-        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-        StrictMode.setThreadPolicy(policy);
+        if (BuildConfig.DEBUG) {
+            StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
+                    .detectNetwork()
+                    .detectDiskReads()
+                    .detectDiskWrites()
+                    .penaltyLog()
+                    .build());
+        }
 
         VmsFragment.vmsCallToHomeListener = this;
 
@@ -302,8 +313,7 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
                     }
                 });
 
-        new LibraryChecker(this).
-        checkMissingLibraries(this);
+        startupIoPool.execute(() -> new LibraryChecker(getApplicationContext()).checkMissingLibraries(this));
 
         setupDrawer();
         NotificationUtils.clearAll(this);
@@ -326,6 +336,7 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
         if (isFinishing()) {
             homeCallToVmsListener = null;
         }
+        startupIoExecutor.shutdown();
         super.onDestroy();
     }
 
