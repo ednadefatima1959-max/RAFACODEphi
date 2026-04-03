@@ -510,10 +510,10 @@ jobs:
               "configuration_version": "1"
             }
             JSON
-            MATRIX_FLAGS="-PCI_INTERNAL_VALIDATION=true"
+            MATRIX_FLAGS="-PCI_INTERNAL_VALIDATION=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
             echo "Native matrix will use placeholder Firebase config for internal validation."
           fi
-          ./gradlew checkNativeAllMatrix ${{ env.GRADLE_ARGS }} ${MATRIX_FLAGS}
+          ./tools/gradle_with_jdk21.sh checkNativeAllMatrix ${{ env.GRADLE_ARGS }} ${MATRIX_FLAGS}
 
       - name: Deep diagnostics bundle
         if: ${{ needs.preflight.outputs.deep_diagnostics == 'true' }}
@@ -623,6 +623,15 @@ jobs:
         java -version
         ./tools/gradle_with_jdk21.sh --version
 
+    - name: Bootstrap shell-loader asset (mandatory)
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+      run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap ${{ env.GRADLE_ARGS }}
+
+    - name: Validate bootstrap assets (mandatory)
+      run: python3 tools/verify_bootstrap_assets.py
+
     - name: Run ProotCommandBuilder unit tests
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
@@ -698,7 +707,7 @@ jobs:
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./tools/gradle_with_jdk21.sh assembleDebug -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
+      run: ./tools/gradle_with_jdk21.sh :app:assembleDebug --stacktrace ${{ env.GRADLE_ARGS }}
 
     - name: Validate native binaries are arm64-v8a
       if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
@@ -781,7 +790,7 @@ jobs:
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./gradlew assembleRelease -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION} -PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true
+      run: ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace ${{ env.GRADLE_ARGS }} -PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true
 
     - name: Build Release APK (signed via CI secrets)
       if: ${{ github.event_name != 'pull_request' && needs.preflight.outputs.selected_build_release == 'true' && ((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') }}
@@ -794,8 +803,8 @@ jobs:
         VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
       run: |
         echo "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}" | base64 --decode > "$VECTRAS_RELEASE_STORE_FILE"
-        ./tools/gradle_with_jdk21.sh assembleRelease \
-          -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION} \
+        ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace \
+          ${{ env.GRADLE_ARGS }} \
           -Pandroid.injected.signing.store.file="$VECTRAS_RELEASE_STORE_FILE" \
           -Pandroid.injected.signing.store.password="$VECTRAS_RELEASE_STORE_PASSWORD" \
           -Pandroid.injected.signing.key.alias="$VECTRAS_RELEASE_KEY_ALIAS" \
@@ -806,17 +815,32 @@ jobs:
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./tools/gradle_with_jdk21.sh :app:assemblePerfRelease -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
+      shell: bash
+      run: |
+        set -euo pipefail
+        EXTRA_FLAGS=""
+        if [[ "${{ needs.preflight.outputs.has_signing_secrets }}" != "true" && !("${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.sign_release }}" == "true") ]]; then
+          EXTRA_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true"
+        fi
+        ./tools/gradle_with_jdk21.sh :app:assemblePerfRelease --stacktrace ${{ env.GRADLE_ARGS }} ${EXTRA_FLAGS}
 
-    - name: Verify delivered compiled artifacts (debug, release, perfRelease)
-      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' && needs.preflight.outputs.selected_build_release == 'true' }}
+    - name: Verify delivered compiled artifacts
+      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' || needs.preflight.outputs.selected_build_release == 'true' }}
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
       shell: bash
       run: |
         set -euo pipefail
-        ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=debug,release,perfRelease
+        variants=()
+        if [[ "${{ needs.preflight.outputs.selected_build_debug }}" == "true" ]]; then
+          variants+=("debug")
+        fi
+        if [[ "${{ needs.preflight.outputs.selected_build_release }}" == "true" ]]; then
+          variants+=("release" "perfRelease")
+        fi
+        artifact_variants="$(IFS=,; echo "${variants[*]}")"
+        ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants="${artifact_variants}"
 
     - name: Resolve release artifact path
       id: release_artifact
