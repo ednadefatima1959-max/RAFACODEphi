@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Block duplicated overlay ZIP source
         run: bash tools/check_overlay_zip_duplicates.sh
@@ -76,7 +76,7 @@ jobs:
 
       - name: Upload host logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: host-engine-logs
           path: |

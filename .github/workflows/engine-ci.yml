@@ -1,6 +1,7 @@
 name: Engine CI
 
 on:
+  workflow_call:
   push:
     paths:
       - 'engine/**'
@@ -55,7 +56,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Block sensitive artifacts in repository (warn only)
         continue-on-error: true
@@ -137,7 +138,7 @@ jobs:
 
       - name: Upload BitΩ smoke artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: bitomega-artifacts
           path: |
@@ -148,7 +149,7 @@ jobs:
 
       - name: Upload bench summary artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: bench-summary
           path: |
@@ -159,7 +160,7 @@ jobs:
 
       - name: Upload baremetal reports artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: baremetal-reports
           path: reports/baremetal/*
@@ -176,7 +177,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install build dependencies
         run: |
@@ -236,7 +237,7 @@ jobs:
 
       - name: Upload arm64 selftest logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: selftest-logs-arm64
           path: |
@@ -248,7 +249,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build clang ripgrep
       - name: ASAN+UBSAN smoke build
         run: |

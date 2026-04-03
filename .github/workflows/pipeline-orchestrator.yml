@@ -8,15 +8,20 @@ on:
   workflow_dispatch:
     inputs:
       run_host_ci:
-        description: "Force run host CI"
+        description: "Executar validações de host/engine"
         type: boolean
         required: false
         default: true
       run_android_ci:
-        description: "Force run Android CI"
+        description: "Executar pipeline Android"
         type: boolean
         required: false
         default: true
+      run_termux_orchestrator:
+        description: "Executar pipeline Termux"
+        type: boolean
+        required: false
+        default: false
       mode:
         description: "Android build profile"
         type: choice
@@ -49,8 +54,11 @@ jobs:
     outputs:
       host: ${{ steps.filter.outputs.host }}
       android: ${{ steps.filter.outputs.android }}
+      termux: ${{ steps.filter.outputs.termux }}
+      baremetal: ${{ steps.filter.outputs.baremetal }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
       - name: Filter changed paths
         id: filter
         uses: dorny/paths-filter@v3
@@ -58,10 +66,14 @@ jobs:
           filters: |
             host:
               - 'engine/**'
+              - 'bench/**'
+              - 'demo_cli/**'
               - 'tools/**'
               - 'CMakeLists.txt'
               - 'Makefile'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/engine-ci.yml'
+              - '.github/workflows/proof-build.yml'
             android:
               - 'app/**'
               - 'terminal-emulator/**'
@@ -75,22 +87,46 @@ jobs:
               - '.github/workflows/android-minimal-debug.yml'
               - '.github/workflows/android-verified.yml'
               - '.github/workflows/android-build-manual.yml'
-              - '.github/workflows/pipeline-orchestrator.yml'
+            termux:
+              - 'tools/termux-arm64-orchestrator/**'
+              - '.github/workflows/termux-orchestrator.yml'
+            baremetal:
+              - 'tools/baremetal/rafcode_phi/**'
+              - '.github/workflows/rafcode-phi-baremetal-ci.yml'
 
   host-ci:
-    name: Host CI
+    name: 01 · Host CI
     needs: changes
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.run_host_ci)
       || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.host == 'true')
     uses: ./.github/workflows/ci.yml
 
-  android-ci:
-    name: Android CI
-    needs: changes
+  engine-ci:
+    name: 02 · Engine CI
+    needs: [changes, host-ci]
     if: >-
+      always() && needs.host-ci.result != 'failure' && (
+      (github.event_name == 'workflow_dispatch' && inputs.run_host_ci)
+      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.host == 'true'))
+    uses: ./.github/workflows/engine-ci.yml
+
+  proof-build:
+    name: 03 · Proof Build
+    needs: [changes, engine-ci]
+    if: >-
+      always() && needs.engine-ci.result != 'failure' && (
+      (github.event_name == 'workflow_dispatch' && inputs.run_host_ci)
+      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.host == 'true'))
+    uses: ./.github/workflows/proof-build.yml
+
+  android-ci:
+    name: 04 · Android Build Manual (baseline)
+    needs: [changes, proof-build]
+    if: >-
+      always() && needs.proof-build.result != 'failure' && (
       (github.event_name == 'workflow_dispatch' && inputs.run_android_ci)
-      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.android == 'true')
+      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.android == 'true'))
     uses: ./.github/workflows/android-build-manual.yml
     with:
       mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'moderado' }}
@@ -100,3 +136,50 @@ jobs:
       run_native_matrix: true
       run_unit_tests: false
     secrets: inherit
+
+  android-verified:
+    name: 05 · Android Verified
+    needs: [changes, android-ci]
+    if: >-
+      always() && needs.android-ci.result != 'failure' && (
+      (github.event_name == 'workflow_dispatch' && inputs.run_android_ci)
+      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.android == 'true'))
+    uses: ./.github/workflows/android-verified.yml
+    with:
+      build_variant: debug
+      build_mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'moderado' }}
+      abi_policy: arm64-only
+      signing_mode: auto
+      enable_policy_module: true
+      enable_bitraf_module: true
+    secrets: inherit
+
+  android-minimal-debug:
+    name: 06 · Android Minimal Debug
+    needs: [changes, android-verified]
+    if: >-
+      always() && needs.android-verified.result != 'failure' && (
+      (github.event_name == 'workflow_dispatch' && inputs.run_android_ci)
+      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.android == 'true'))
+    uses: ./.github/workflows/android-minimal-debug.yml
+
+  baremetal-rafcode:
+    name: 07 · Baremetal Rafcode Phi
+    needs: [changes, android-minimal-debug]
+    if: >-
+      always() && needs.android-minimal-debug.result != 'failure' && (
+      github.event_name == 'workflow_dispatch'
+      || needs.changes.outputs.baremetal == 'true')
+    uses: ./.github/workflows/rafcode-phi-baremetal-ci.yml
+
+  termux-orchestrator:
+    name: 08 · Termux Orchestrator
+    needs: [changes, baremetal-rafcode]
+    if: >-
+      always() && needs.baremetal-rafcode.result != 'failure' && (
+      (github.event_name == 'workflow_dispatch' && inputs.run_termux_orchestrator)
+      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.termux == 'true'))
+    uses: ./.github/workflows/termux-orchestrator.yml
+    with:
+      dry_run: "true"
+      enable_fork_sync: "false"

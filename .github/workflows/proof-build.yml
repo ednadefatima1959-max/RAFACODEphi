@@ -1,6 +1,7 @@
 name: proof-build-process
 
 on:
+  workflow_call:
   push:
   pull_request:
   workflow_dispatch:
@@ -18,7 +19,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install deps
         run: |
@@ -72,7 +73,7 @@ jobs:
 
       - name: Upload host logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: host-proof-logs
           path: |
