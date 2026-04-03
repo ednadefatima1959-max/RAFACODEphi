@@ -442,6 +442,15 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Build shell-loader bootstrap asset (fail-fast)
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+        run: ./gradlew :app:syncShellLoaderBootstrap ${{ env.GRADLE_ARGS }}
+
+      - name: Validate bootstrap assets (fail-fast)
+        run: python3 tools/verify_bootstrap_assets.py
+
       - name: Run ProotCommandBuilder unit tests
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}

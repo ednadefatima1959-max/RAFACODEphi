@@ -142,6 +142,31 @@ android {
     kotlinOptions {
         jvmTarget = String.valueOf(rootProject.ext.javaLanguageVersion)
     }
+
+    sourceSets {
+        main.assets.srcDir(layout.buildDirectory.dir("generated/bootstrapAssets"))
+    }
+}
+
+def loaderVariant = (providers.gradleProperty("loaderVariant").orElse("release").get() ?: "release").trim()
+if (!loaderVariant) {
+    loaderVariant = "release"
+}
+def loaderVariantTaskSuffix = loaderVariant.substring(0, 1).toUpperCase() + loaderVariant.substring(1)
+def shellLoaderAssembleTask = ":shell-loader:assemble${loaderVariantTaskSuffix}"
+def generatedBootstrapDir = layout.buildDirectory.dir("generated/bootstrapAssets/bootstrap")
+
+tasks.register("syncShellLoaderBootstrap", Copy) {
+    group = "build setup"
+    description = "Copia shell-loader (${loaderVariant}) para assets intermediários em bootstrap/loader.apk."
+    dependsOn(shellLoaderAssembleTask)
+    from(project(":shell-loader").layout.buildDirectory.file("outputs/apk/${loaderVariant}/loader.apk"))
+    into(generatedBootstrapDir)
+    rename { "loader.apk" }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(tasks.named("syncShellLoaderBootstrap"))
 }
 
 def checkVariant = (providers.gradleProperty("checkVariant").orElse("debug").get() ?: "debug").trim()

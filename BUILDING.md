@@ -28,6 +28,21 @@ from `ANDROID_SDK_ROOT` (or `ANDROID_HOME`) when the directory exists.
 ./tools/gradle_with_jdk21.sh :app:lintDebug --stacktrace
 ```
 
+## Fluxo oficial para gerar bootstrap/loader.apk (Termux)
+O artefato `loader.apk` é produzido pelo módulo `shell-loader` e copiado para assets intermediários do app
+em `app/build/generated/bootstrapAssets/bootstrap/loader.apk` (sem versionar binário em `app/src/main/assets`).
+
+```bash
+# Variant estável padrão (release). Pode sobrescrever com -PloaderVariant=debug.
+./tools/gradle_with_jdk21.sh :shell-loader:buildStableLoader
+
+# Copia o loader gerado para os assets de build do app.
+./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
+
+# Valida bootstraps versionados + loader quando Termux está habilitado.
+python3 tools/verify_bootstrap_assets.py
+```
+
 `verifyDeliveredCompiledArtifacts` validates APK/AAB delivery per variant and writes
 `app/build/reports/artifacts/compiled-artifacts-report.json`.
 

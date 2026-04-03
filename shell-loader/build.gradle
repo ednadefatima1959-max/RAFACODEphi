@@ -73,3 +73,12 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.14.1'
 }
+
+def stableLoaderVariant = (findProperty("loaderVariant") ?: "release").toString().trim().toLowerCase()
+def stableLoaderAssembleTask = "assemble${stableLoaderVariant.substring(0, 1).toUpperCase()}${stableLoaderVariant.substring(1)}"
+
+tasks.register("buildStableLoader") {
+    group = "build"
+    description = "Gera APK estável do shell-loader para o variant configurado (-PloaderVariant=<variant>, padrão: release)."
+    dependsOn(stableLoaderAssembleTask)
+}
