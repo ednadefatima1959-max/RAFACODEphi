@@ -22,6 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -225,8 +226,7 @@ final class TermuxInstaller {
     }
 
     private static final String TERMUX_BOOTSTRAP_LIB = "termux-bootstrap";
-    private static volatile boolean bootstrapNativeLoadAttempted = false;
-    private static volatile boolean bootstrapNativeLoaded = false;
+    private static volatile NativeBootstrapProvider nativeBootstrapProvider = createDefaultNativeBootstrapProvider();
     private static volatile String bootstrapNativeLoadError = "";
     private static volatile BootstrapDiagnostic bootstrapDiagnostic = BootstrapDiagnostic.idle();
 
@@ -331,7 +331,69 @@ final class TermuxInstaller {
     }
 
     public static String getBootstrapNativeLoadError() {
-        return bootstrapNativeLoadError;
+        return "target_lib=" + bootstrapNativeTargetLibrary
+            + ", abi=" + bootstrapNativeSupportedAbis
+            + ", failure_type=" + bootstrapNativeFailureType
+            + ", linker_message=" + bootstrapNativeLinkerMessage
+            + ", detail=" + bootstrapNativeLoadError;
+    }
+
+    private static void recordBootstrapNativeEnvironment() {
+        bootstrapNativeTargetLibrary = TERMUX_BOOTSTRAP_LIB;
+        bootstrapNativeSupportedAbis = Arrays.toString(Build.SUPPORTED_ABIS);
+    }
+
+    private static void recordBootstrapNativeFailure(Throwable t) {
+        String throwableClass = t.getClass().getSimpleName();
+        String message = String.valueOf(t.getMessage());
+        recordBootstrapNativeFailure(throwableClass, message);
+    }
+
+    private static void recordBootstrapNativeFailure(String failureType, String message) {
+        bootstrapNativeFailureType = failureType;
+        bootstrapNativeLinkerMessage = message;
+        bootstrapNativeLoadError = failureType + ": " + message;
+    }
+
+    private static void logBootstrapFailureTelemetry(String event, String errorCode, Throwable error) {
+        String throwableType = error != null ? error.getClass().getSimpleName() : "none";
+        String throwableMessage = error != null ? String.valueOf(error.getMessage()) : "none";
+        Log.e(
+            EmulatorDebug.LOG_TAG,
+            "telemetry_event=" + event
+                + " error_code=" + errorCode
+                + " target_lib=" + bootstrapNativeTargetLibrary
+                + " supported_abis=" + bootstrapNativeSupportedAbis
+                + " failure_type=" + bootstrapNativeFailureType
+                + " linker_message=" + bootstrapNativeLinkerMessage
+                + " throwable_type=" + throwableType
+                + " throwable_message=" + throwableMessage
+        );
+    }
+
+    private static final class BootstrapInstallException extends RuntimeException {
+        final String errorCode;
+        final int userMessageResId;
+
+        BootstrapInstallException(String errorCode, int userMessageResId, String message) {
+            super(message);
+            this.errorCode = errorCode;
+            this.userMessageResId = userMessageResId;
+        }
+    }
+
+    static void setNativeBootstrapProviderForTests(NativeBootstrapProvider provider) {
+        nativeBootstrapProvider = provider;
+        bootstrapNativeLoadError = "";
+    }
+
+    static void resetNativeBootstrapProviderForTests() {
+        nativeBootstrapProvider = createDefaultNativeBootstrapProvider();
+        bootstrapNativeLoadError = "";
+    }
+
+    private static String describeThrowable(Throwable throwable) {
+        return throwable.getClass().getSimpleName() + ": " + String.valueOf(throwable.getMessage());
     }
 
     private static native byte[] nativeGetZip();
