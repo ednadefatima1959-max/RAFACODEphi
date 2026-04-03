@@ -34,11 +34,6 @@ on:
         default: "false"
         type: choice
         options: ["true", "false"]
-  push:
-    paths:
-      - "tools/termux-arm64-orchestrator/**"
-      - ".github/workflows/termux-orchestrator.yml"
-
 permissions:
   contents: read
   actions: read

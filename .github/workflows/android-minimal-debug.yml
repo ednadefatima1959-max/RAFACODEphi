@@ -13,20 +13,6 @@ on:
         required: true
         type: string
   workflow_dispatch:
-  push:
-    branches: [ main, master ]
-    paths:
-      - 'app/**'
-      - 'terminal-emulator/**'
-      - 'terminal-view/**'
-      - 'shell-loader/**'
-      - 'engine/**'
-      - 'build.gradle'
-      - 'settings.gradle'
-      - 'gradle.properties'
-      - 'gradle/**'
-      - '.github/workflows/android-minimal-debug.yml'
-
 permissions:
   contents: read
   actions: read
