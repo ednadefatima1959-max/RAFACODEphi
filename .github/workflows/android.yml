@@ -212,7 +212,7 @@ jobs:
           VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
           VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
           VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
-        run: ./tools/ci/prepare_release_signing.sh
+        run: ./tools/ci/prepare_release_signing.sh --mode "${{ inputs.signing_mode || 'auto' }}" --allow-legacy-fallback
 
       - name: Enforce bootstrap contract
         run: ./tools/ci/verify_bootstrap_contract.sh
@@ -223,7 +223,14 @@ jobs:
 
       - name: Native checks (optional)
         if: ${{ inputs.run_native_checks != false }}
-        run: ./tools/ci/assert_make_cmake_build_config.sh
+        shell: bash
+        run: |
+          set -euo pipefail
+          make print-build-config-env
+          cmake -S . -B build-cmake \
+            -DRMR_JNI_BUILD=1 \
+            -DRMR_ENABLE_POLICY_MODULE=ON
+          ./tools/ci/assert_make_cmake_build_config.sh
 
       - name: Execute selected Android workfile
         shell: bash
@@ -240,6 +247,8 @@ jobs:
             -Pndk.version=${NDK_VERSION} \
             -Pcmake.version=${CMAKE_VERSION} \
             -Pjava.language.version=${JAVA_VERSION} \
+            ${VECTRAS_CI_RELEASE_FLAGS:-} \
+            ${VECTRAS_CI_SIGNING_ARGS:-} \
             ${{ needs.resolve.outputs.gradle_log_flags }} \
             ${{ needs.resolve.outputs.gradle_tasks }}
 
