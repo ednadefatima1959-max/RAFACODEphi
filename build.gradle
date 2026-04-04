@@ -5,7 +5,7 @@ def defaultSupportedAbisByPolicy = [
 ]
 
 def officiallySupportedAbis = ['arm64-v8a']
-def internalValidationAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64', 'riscv64']
+def internalValidationAbisBaseline = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64', 'riscv64']
 def abiPolicyIntent = [
     'arm64-only'   : 'distribuição oficial (arm64 obrigatório)',
     'internal-5abi': 'validação interna expandida em 5 ABIs (nunca para release oficial de loja)'
@@ -62,8 +62,8 @@ ext {
     cmakeVersion = resolveProperty(['cmake.version', 'CMAKE_VERSION'], '3.22.1')
     appAbiPolicy = properties.get('APP_ABI_POLICY', 'arm64-only')
     officialAbis = officiallySupportedAbis
-    internalValidationAbis = internalValidationAbis
-    allowedAbis = (officiallySupportedAbis + internalValidationAbis).unique()
+    internalValidationAbis = internalValidationAbisBaseline
+    allowedAbis = (officiallySupportedAbis + internalValidationAbisBaseline).unique()
     supportedAbis = properties.get('SUPPORTED_ABIS', defaultSupportedAbisByPolicy.get(appAbiPolicy, 'arm64-v8a'))
         .split(',')
         .collect { it.trim() }
@@ -134,7 +134,7 @@ def validateMinApiAbiCompatibility(boolean strictMode = true) {
         if (!ciInternalValidation) {
             emitValidationMessage('validateMinApiAbiCompatibility', "APP_ABI_POLICY=internal-5abi exige CI_INTERNAL_VALIDATION=true para bloquear uso acidental em trilha oficial.", strictMode)
         }
-        def expectedInternalAbis = (internalValidationAbis ?: []) as List<String>
+        def expectedInternalAbis = (ext.internalValidationAbis ?: []) as List<String>
         if (supportedAbis != expectedInternalAbis) {
             emitValidationMessage('validateMinApiAbiCompatibility', "APP_ABI_POLICY=internal-5abi exige SUPPORTED_ABIS=${expectedInternalAbis} (atual: ${supportedAbis}).", strictMode)
         }

@@ -99,13 +99,13 @@ find . -maxdepth 2 -type d | sort
   - `pipeline_profile`: host-only, android-only ou full.
   - `run_workfile`: `smoke_debug`, `unit_loader`, `full_debug`, `release_gate`.
   - `log_level`: `lifecycle`, `info`, `debug`.
-  - `abi_profile`: `official_arm64` (oficial) ou `internal_5abi` (validação interna multi-ABI).
+  - `abi_profile`: `official_arm64` (trilha oficial no workflow canônico).
 - Depuração pontual: execute o workflow **android-ci** diretamente quando quiser isolar build/test Android.
 - Inputs principais do workflow **android-ci**:
   - `run_workfile`: define o conjunto de tarefas Gradle.
   - `build_variant` (`debug`|`release`|`both`): define variante alvo.
   - `signing_mode` (`auto`|`signed`|`unsigned`): política de assinatura de release.
-  - `abi_profile` (`official_arm64`|`internal_5abi`): seleciona política ABI e escopo de validação.
+  - `abi_profile` (`official_arm64`): mantém a trilha ABI oficial no workflow canônico.
   - `run_lint` e `run_native_checks`: habilitam gates opcionais.
   - `log_level`: controla verbosidade e rastreabilidade dos logs.
 - Para manter valores padrão por repositório em CI, configure variáveis em **Settings > Secrets and variables > Actions > Variables** (prefira canônicas: `compile.api`, `tools.version`, `ndk.version`, `cmake.version`, `java.language.version`; aliases legados como `COMPILE_API`, `TOOLS_VERSION`, `NDK_VERSION`, `CMAKE_VERSION`, `JAVA_VERSION` ficam como fallback de compatibilidade).
@@ -135,7 +135,7 @@ find . -maxdepth 2 -type d | sort
   - `APP_ABI_POLICY=arm64-only` + `SUPPORTED_ABIS=arm64-v8a` (default oficial).
 - **Política Gradle de validação técnica interna**:
   - `APP_ABI_POLICY=internal-5abi` + `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` para validação interna unsigned em GitHub Actions (exige `CI_INTERNAL_VALIDATION=true` e `MIN_API>=35`).
-  - no workflow Android, `abi_profile=internal_5abi` bloqueia `signing_mode=signed` para impedir release oficial acidental fora da trilha canônica.
+  - a validação `internal-5abi` permanece para execução técnica interna explícita via Gradle local/diagnóstico, fora da trilha canônica de release no workflow principal.
 - O CI executa `tools/check_abi_policy_alignment.py` para garantir alinhamento entre `gradle.properties` (`APP_ABI_POLICY`/`SUPPORTED_ABIS`) e os escopos ABI em `tools/qemu_launch.yml`.
 - Entradas condicionais para ABIs fora dessa matriz no CMake (ex.: `riscv64`) são apenas roadmap e não representam ABI ativa no empacotamento Gradle.
 

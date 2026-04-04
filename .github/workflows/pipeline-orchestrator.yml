@@ -34,7 +34,6 @@ on:
         default: official_arm64
         options:
           - official_arm64
-          - internal_5abi
 
 permissions:
   contents: read

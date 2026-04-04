@@ -50,10 +50,10 @@ on:
         default: auto
         options: [auto, signed, unsigned]
       abi_profile:
-        description: "Perfil ABI (oficial arm64 ou validação interna multi-ABI)"
+        description: "Perfil ABI (trilha oficial)"
         type: choice
         default: official_arm64
-        options: [official_arm64, internal_5abi]
+        options: [official_arm64]
       log_level:
         description: "Nível de logs Gradle"
         type: choice
@@ -190,19 +190,8 @@ jobs:
               ci_internal_validation="false"
               artifact_name_suffix="arm64-only"
               ;;
-            internal_5abi)
-              app_abi_policy="internal-5abi"
-              supported_abis="arm64-v8a,armeabi-v7a,x86,x86_64,riscv64"
-              effective_min_api="${COMPILE_API}"
-              ci_internal_validation="true"
-              artifact_name_suffix="internal-5abi"
-              if [[ "${signing_mode}" == "signed" ]]; then
-                echo "abi_profile=internal_5abi não permite signing_mode=signed (uso interno apenas)." >&2
-                exit 1
-              fi
-              ;;
             *)
-              echo "abi_profile inválido: ${abi_profile}" >&2
+              echo "abi_profile inválido: ${abi_profile}. Valor suportado: official_arm64." >&2
               exit 1
               ;;
           esac
