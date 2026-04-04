@@ -313,7 +313,7 @@ jobs:
             ${{ needs.resolve.outputs.gradle_tasks }}
 
           if [[ "${{ needs.resolve.outputs.expect_app_artifacts }}" == "true" ]]; then
-            ./tools/gradle_with_jdk21.sh --no-daemon \
+          ./tools/gradle_with_jdk21.sh --no-daemon \
               -PbuildStrict=true \
               -PAPP_ABI_POLICY=${{ needs.resolve.outputs.app_abi_policy }} \
               -PSUPPORTED_ABIS=${{ needs.resolve.outputs.supported_abis }} \
