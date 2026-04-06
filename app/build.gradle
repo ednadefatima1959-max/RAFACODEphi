@@ -168,12 +168,49 @@ if (!loaderVariant) {
 def loaderVariantTaskSuffix = loaderVariant.substring(0, 1).toUpperCase() + loaderVariant.substring(1)
 def shellLoaderAssembleTask = ":shell-loader:assemble${loaderVariantTaskSuffix}"
 def generatedBootstrapDir = layout.buildDirectory.dir("generated/bootstrapAssets/bootstrap")
+def shellLoaderArtifactPath = project(":shell-loader").layout.buildDirectory.file("outputs/apk/${loaderVariant}/loader.apk")
+def verifyShellLoaderManifest = Boolean.parseBoolean(providers.gradleProperty("verifyShellLoaderManifest").orElse("false").get())
+
+tasks.register("verifyShellLoaderArtifact") {
+    group = "verification"
+    description = "Valida loader.apk da variant do shell-loader antes da sincronização para bootstrap."
+    dependsOn(shellLoaderAssembleTask)
+
+    doLast {
+        def artifactFile = shellLoaderArtifactPath.get().asFile
+        def expectedPath = artifactFile.absolutePath
+        def failMessage = { String reason ->
+            throw new GradleException("Shell loader artifact inválido em '${expectedPath}': ${reason}.")
+        }
+
+        if (!artifactFile.exists()) {
+            failMessage("arquivo não encontrado")
+        }
+
+        if (!artifactFile.isFile()) {
+            failMessage("caminho não aponta para arquivo regular")
+        }
+
+        if (artifactFile.length() <= 0L) {
+            failMessage("arquivo vazio (tamanho <= 0 bytes)")
+        }
+
+        if (verifyShellLoaderManifest) {
+            def manifestEntry = zipTree(artifactFile).matching {
+                include "AndroidManifest.xml"
+            }.files
+            if (manifestEntry.isEmpty()) {
+                failMessage("AndroidManifest.xml ausente dentro do APK")
+            }
+        }
+    }
+}
 
 tasks.register("syncShellLoaderBootstrap", Copy) {
     group = "build setup"
     description = "Copia shell-loader (${loaderVariant}) para assets intermediários em bootstrap/loader.apk."
-    dependsOn(shellLoaderAssembleTask)
-    from(project(":shell-loader").layout.buildDirectory.file("outputs/apk/${loaderVariant}/loader.apk"))
+    dependsOn(tasks.named("verifyShellLoaderArtifact"))
+    from(shellLoaderArtifactPath)
     into(generatedBootstrapDir)
     rename { "loader.apk" }
 }
