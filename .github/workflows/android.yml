@@ -410,14 +410,25 @@ jobs:
           overwrite: true
 
       - name: Upload Android outputs
-  if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
-  uses: actions/upload-artifact@v4
-  with:
-    name: android-outputs-${{ needs.resolve.outputs.artifact_name_suffix }}-${{ github.run_id }}
-    path: |
-      app/build/outputs/apk/**
-      app/build/outputs/bundle/**
-      app/build/reports/**
-      **/build/test-results/**
-    if-no-files-found: error
-    overwrite: true
+        if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-outputs-${{ needs.resolve.outputs.artifact_name_suffix }}-${{ github.run_id }}
+          path: |
+            app/build/outputs/apk/**
+            app/build/outputs/bundle/**
+            app/build/reports/**
+            **/build/test-results/**
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Upload Android logs bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.resolve.outputs.log_bundle_name }}
+          path: |
+            **/build/reports/**
+            **/build/outputs/logs/**
+            **/build/test-results/**
+          if-no-files-found: warn
