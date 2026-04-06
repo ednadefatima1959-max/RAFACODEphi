@@ -420,7 +420,7 @@ jobs:
             app/build/reports/**
             **/build/test-results/**
           if-no-files-found: error
-          overwrite:true
+          overwrite: true
 
       - name: Upload Android logs bundle
         if: always()
