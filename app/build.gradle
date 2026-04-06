@@ -87,12 +87,16 @@ android {
         }
     }
 
+    def ciRelease = providers.gradleProperty("ciRelease").map { it.toBoolean() }.orElse(false).get()
+
     buildTypes {
         release {
             if (signingConfigs.findByName('release') != null) {
                 signingConfig = signingConfigs.release
+            } else if (ciRelease) {
+                throw new GradleException("buildTypes.release exige signingConfigs.release quando -PciRelease=true (contexto de distribuição).")
             } else {
-                logger.lifecycle("Release signing não configurado: build de release seguirá sem assinatura de produção.")
+                logger.lifecycle("Release signing não configurado fora de distribuição (ciRelease=false).")
             }
             minifyEnabled = true
             shrinkResources = true
@@ -107,6 +111,11 @@ android {
         perfRelease {
             initWith release
             matchingFallbacks = ['release']
+            if (signingConfigs.findByName('release') != null) {
+                signingConfig = signingConfigs.release
+            } else if (ciRelease) {
+                throw new GradleException("buildTypes.perfRelease exige signingConfigs.release quando -PciRelease=true (contexto de distribuição).")
+            }
         }
     }
 
@@ -159,12 +168,49 @@ if (!loaderVariant) {
 def loaderVariantTaskSuffix = loaderVariant.substring(0, 1).toUpperCase() + loaderVariant.substring(1)
 def shellLoaderAssembleTask = ":shell-loader:assemble${loaderVariantTaskSuffix}"
 def generatedBootstrapDir = layout.buildDirectory.dir("generated/bootstrapAssets/bootstrap")
+def shellLoaderArtifactPath = project(":shell-loader").layout.buildDirectory.file("outputs/apk/${loaderVariant}/loader.apk")
+def verifyShellLoaderManifest = Boolean.parseBoolean(providers.gradleProperty("verifyShellLoaderManifest").orElse("false").get())
+
+tasks.register("verifyShellLoaderArtifact") {
+    group = "verification"
+    description = "Valida loader.apk da variant do shell-loader antes da sincronização para bootstrap."
+    dependsOn(shellLoaderAssembleTask)
+
+    doLast {
+        def artifactFile = shellLoaderArtifactPath.get().asFile
+        def expectedPath = artifactFile.absolutePath
+        def failMessage = { String reason ->
+            throw new GradleException("Shell loader artifact inválido em '${expectedPath}': ${reason}.")
+        }
+
+        if (!artifactFile.exists()) {
+            failMessage("arquivo não encontrado")
+        }
+
+        if (!artifactFile.isFile()) {
+            failMessage("caminho não aponta para arquivo regular")
+        }
+
+        if (artifactFile.length() <= 0L) {
+            failMessage("arquivo vazio (tamanho <= 0 bytes)")
+        }
+
+        if (verifyShellLoaderManifest) {
+            def manifestEntry = zipTree(artifactFile).matching {
+                include "AndroidManifest.xml"
+            }.files
+            if (manifestEntry.isEmpty()) {
+                failMessage("AndroidManifest.xml ausente dentro do APK")
+            }
+        }
+    }
+}
 
 tasks.register("syncShellLoaderBootstrap", Copy) {
     group = "build setup"
     description = "Copia shell-loader (${loaderVariant}) para assets intermediários em bootstrap/loader.apk."
-    dependsOn(shellLoaderAssembleTask)
-    from(project(":shell-loader").layout.buildDirectory.file("outputs/apk/${loaderVariant}/loader.apk"))
+    dependsOn(tasks.named("verifyShellLoaderArtifact"))
+    from(shellLoaderArtifactPath)
     into(generatedBootstrapDir)
     rename { "loader.apk" }
 }
@@ -209,6 +255,12 @@ tasks.register("verifyTermuxBootstrapAbiCoverage") {
                     throw new GradleException("APP_ABI_POLICY=arm64-only exige SUPPORTED_ABIS=arm64-v8a (atual: ${supportedAbis}).")
                 }
                 break
+            case "arm32-arm64":
+                def expectedDualArmAbis = ['arm64-v8a', 'armeabi-v7a']
+                if (supportedAbis != expectedDualArmAbis) {
+                    throw new GradleException("APP_ABI_POLICY=arm32-arm64 exige SUPPORTED_ABIS=${expectedDualArmAbis} (atual: ${supportedAbis}).")
+                }
+                break
             case "internal-5abi":
                 def expectedAbis = (rootProject.ext.internalValidationAbis ?: []) as List<String>
                 if (!ciInternalValidationEnabled) {
@@ -219,10 +271,10 @@ tasks.register("verifyTermuxBootstrapAbiCoverage") {
                 }
                 break
             default:
-                throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only ou internal-5abi.")
+                throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only, arm32-arm64 ou internal-5abi.")
         }
 
-        if (appAbiPolicy == "arm64-only") {
+        if (appAbiPolicy in ["arm64-only", "arm32-arm64"]) {
             def unsupportedByBootstrap = supportedAbis.findAll { !(it in termuxBootstrapSupportedAbis) }
             if (!unsupportedByBootstrap.isEmpty()) {
                 throw new GradleException("termux-bootstrap não suporta ABIs solicitadas em SUPPORTED_ABIS: ${unsupportedByBootstrap}. ABIs válidas para termux-bootstrap: ${termuxBootstrapSupportedAbis}.")
@@ -242,7 +294,7 @@ tasks.register("verifyTermuxBootstrapAbiCoverage") {
         apkFiles.each { apkFile ->
             def zipFile = new java.util.zip.ZipFile(apkFile)
             try {
-                def requiredBootstrapAbis = appAbiPolicy == "arm64-only" ? supportedAbis : []
+                def requiredBootstrapAbis = appAbiPolicy in ["arm64-only", "arm32-arm64"] ? supportedAbis : []
                 requiredBootstrapAbis.each { abi ->
                     def entryPath = "lib/${abi}/${termuxBootstrapLibName}"
                     if (zipFile.getEntry(entryPath) == null) {

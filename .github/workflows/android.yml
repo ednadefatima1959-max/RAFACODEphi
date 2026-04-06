@@ -53,7 +53,7 @@ on:
         description: "Perfil ABI (trilha oficial)"
         type: choice
         default: official_arm64
-        options: [official_arm64]
+        options: [official_arm64, internal_arm32_arm64]
       log_level:
         description: "Nível de logs Gradle"
         type: choice
@@ -126,13 +126,13 @@ jobs:
       expect_app_artifacts: ${{ steps.flags.outputs.expect_app_artifacts }}
       gradle_tasks: ${{ steps.flags.outputs.gradle_tasks }}
       gradle_log_flags: ${{ steps.flags.outputs.gradle_log_flags }}
-      should_sign_release: ${{ steps.flags.outputs.should_sign_release }}
       log_bundle_name: ${{ steps.flags.outputs.log_bundle_name }}
       app_abi_policy: ${{ steps.flags.outputs.app_abi_policy }}
       supported_abis: ${{ steps.flags.outputs.supported_abis }}
       effective_min_api: ${{ steps.flags.outputs.effective_min_api }}
       ci_internal_validation: ${{ steps.flags.outputs.ci_internal_validation }}
       artifact_name_suffix: ${{ steps.flags.outputs.artifact_name_suffix }}
+      ci_release_gradle_arg: ${{ steps.flags.outputs.ci_release_gradle_arg }}
     steps:
       - id: flags
         shell: bash
@@ -190,19 +190,27 @@ jobs:
               ci_internal_validation="false"
               artifact_name_suffix="arm64-only"
               ;;
+            internal_arm32_arm64)
+              app_abi_policy="arm32-arm64"
+              supported_abis="arm64-v8a,armeabi-v7a"
+              effective_min_api="${MIN_API}"
+              ci_internal_validation="true"
+              artifact_name_suffix="internal-arm32-arm64"
+              ;;
             *)
-              echo "abi_profile inválido: ${abi_profile}. Valor suportado: official_arm64." >&2
+              echo "abi_profile inválido: ${abi_profile}. Valores suportados: official_arm64, internal_arm32_arm64." >&2
               exit 1
               ;;
           esac
 
-          should_sign_release=false
-          if [[ "${run_release}" == "true" ]]; then
-            if [[ "${signing_mode}" == "signed" && "${ci_internal_validation}" != "true" ]]; then
-              should_sign_release=true
-            elif [[ "${signing_mode}" == "auto" && -n "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 || '' }}" && "${ci_internal_validation}" != "true" ]]; then
-              should_sign_release=true
-            fi
+          if [[ "${run_release}" == "true" && "${abi_profile}" != "official_arm64" ]]; then
+            echo "release bloqueado para abi_profile=${abi_profile}. A trilha oficial de release aceita apenas official_arm64." >&2
+            exit 1
+          fi
+
+          if [[ "${run_release}" == "true" && "${signing_mode}" == "unsigned" ]]; then
+            echo "signing_mode=unsigned não é permitido para build_variant=${build_variant}. Trilhas de release oficiais devem permanecer assinadas." >&2
+            exit 1
           fi
 
           artifact_variants=()
@@ -219,19 +227,46 @@ jobs:
           echo "expect_app_artifacts=${expect_app_artifacts}" >> "$GITHUB_OUTPUT"
           echo "gradle_tasks=${tasks}" >> "$GITHUB_OUTPUT"
           echo "gradle_log_flags=${log_flags}" >> "$GITHUB_OUTPUT"
-          echo "should_sign_release=${should_sign_release}" >> "$GITHUB_OUTPUT"
           echo "log_bundle_name=android-logs-${run_workfile}-${log_level}-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
           echo "app_abi_policy=${app_abi_policy}" >> "$GITHUB_OUTPUT"
           echo "supported_abis=${supported_abis}" >> "$GITHUB_OUTPUT"
           echo "effective_min_api=${effective_min_api}" >> "$GITHUB_OUTPUT"
           echo "ci_internal_validation=${ci_internal_validation}" >> "$GITHUB_OUTPUT"
           echo "artifact_name_suffix=${artifact_name_suffix}" >> "$GITHUB_OUTPUT"
+          if [[ "${run_release}" == "true" ]]; then
+            echo "ci_release_gradle_arg=-PciRelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ci_release_gradle_arg=-PciRelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     runs-on: ubuntu-latest
     needs: resolve
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate Android pipeline directories
+        run: ./tools/ci/validate_pipeline_directories.sh --profile android
+
+      - name: Validate release signing secrets (distribution context)
+        if: ${{ needs.resolve.outputs.run_release == 'true' }}
+        env:
+          VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
+          VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
+          VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
+          VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "${VECTRAS_RELEASE_KEYSTORE_B64:-}" ]] || missing+=("VECTRAS_RELEASE_KEYSTORE_B64")
+          [[ -n "${VECTRAS_RELEASE_STORE_PASSWORD:-}" ]] || missing+=("VECTRAS_RELEASE_STORE_PASSWORD")
+          [[ -n "${VECTRAS_RELEASE_KEY_ALIAS:-}" ]] || missing+=("VECTRAS_RELEASE_KEY_ALIAS")
+          [[ -n "${VECTRAS_RELEASE_KEY_PASSWORD:-}" ]] || missing+=("VECTRAS_RELEASE_KEY_PASSWORD")
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "::error::Release job requer assinatura oficial e segredos obrigatórios. Ausentes: ${missing[*]}" >&2
+            exit 1
+          fi
 
       - uses: actions/setup-java@v4
         with:
@@ -263,14 +298,14 @@ jobs:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
         run: ./tools/ci/materialize_firebase_config.sh --policy internal
 
-      - name: Prepare release signing (only when selected)
+      - name: Prepare release signing (distribution context)
         if: ${{ needs.resolve.outputs.run_release == 'true' }}
         env:
           VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
           VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
           VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
           VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
-        run: ./tools/ci/prepare_release_signing.sh --mode "${{ inputs.signing_mode || 'auto' }}" --allow-legacy-fallback
+        run: ./tools/ci/prepare_release_signing.sh --mode signed
 
       - name: Enforce bootstrap contract
         run: ./tools/ci/verify_bootstrap_contract.sh
@@ -307,6 +342,7 @@ jobs:
             -Pcmake.version=${CMAKE_VERSION} \
             -Pjava.language.version=${JAVA_VERSION} \
             -PCI_INTERNAL_VALIDATION=${{ needs.resolve.outputs.ci_internal_validation }} \
+            ${{ needs.resolve.outputs.ci_release_gradle_arg }} \
             ${VECTRAS_CI_RELEASE_FLAGS:-} \
             ${VECTRAS_CI_SIGNING_ARGS:-} \
             ${{ needs.resolve.outputs.gradle_log_flags }} \
@@ -318,6 +354,7 @@ jobs:
               -PAPP_ABI_POLICY=${{ needs.resolve.outputs.app_abi_policy }} \
               -PSUPPORTED_ABIS=${{ needs.resolve.outputs.supported_abis }} \
               -PCI_INTERNAL_VALIDATION=${{ needs.resolve.outputs.ci_internal_validation }} \
+              ${{ needs.resolve.outputs.ci_release_gradle_arg }} \
               -PartifactVariants="${{ needs.resolve.outputs.artifact_variants }}" \
               ${{ needs.resolve.outputs.gradle_log_flags }} \
               :app:verifyDeliveredCompiledArtifacts
@@ -326,6 +363,51 @@ jobs:
       - name: Validate expected artifacts
         if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
         run: ./tools/ci/validate_expected_android_artifacts.sh "${{ needs.resolve.outputs.artifact_variants }}"
+
+      - name: Generate canonical build status snapshot
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ci-artifacts
+          snapshot="ci-artifacts/CANONICAL_BUILD_STATUS.md"
+          source_report="reports/CANONICAL_BUILD_STATUS.md"
+          if [[ ! -f "${source_report}" ]]; then
+            {
+              echo "# Canonical build status source missing"
+              echo
+              echo "- generated_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+              echo "- reason: reports/CANONICAL_BUILD_STATUS.md não foi gerado; mantendo causa-raiz original do job."
+            } > "${source_report}"
+          fi
+          {
+            echo "# CI Snapshot — Canonical Build Status"
+            echo
+            echo "- generated_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo "- workflow: ${GITHUB_WORKFLOW}"
+            echo "- run_id: ${GITHUB_RUN_ID}"
+            echo "- run_attempt: ${GITHUB_RUN_ATTEMPT}"
+            echo "- repository: ${GITHUB_REPOSITORY}"
+            echo "- ref: ${GITHUB_REF}"
+            echo "- commit_sha: ${GITHUB_SHA}"
+            echo "- selected_tasks: ${{ needs.resolve.outputs.gradle_tasks }}"
+            echo "- artifact_variants: ${{ needs.resolve.outputs.artifact_variants }}"
+            echo "- ci_internal_validation: ${{ needs.resolve.outputs.ci_internal_validation }}"
+            echo "- job_status: ${{ job.status }}"
+            echo
+            echo "---"
+            echo
+            cat "${source_report}"
+          } > "${snapshot}"
+
+      - name: Upload canonical build status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canonical-build-status
+          path: ci-artifacts/CANONICAL_BUILD_STATUS.md
+          if-no-files-found: error
+          overwrite: true
 
       - name: Upload Android outputs
         if: always()
