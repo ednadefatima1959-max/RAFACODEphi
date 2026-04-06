@@ -1,6 +1,6 @@
 # Build Validation Report — 2026-04-03
 
-> superseded by `reports/CANONICAL_BUILD_STATUS.md`
+> superseded by CANONICAL_BUILD_STATUS.md
 
 ## Scope executed
 

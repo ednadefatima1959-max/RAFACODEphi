@@ -392,9 +392,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: canonical-build-status-${{ github.run_id }}
+          name: canonical-build-status
           path: ci-artifacts/CANONICAL_BUILD_STATUS.md
           if-no-files-found: error
+          overwrite: true
 
       - name: Upload Android outputs
         if: always()
