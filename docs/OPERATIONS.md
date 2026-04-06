@@ -41,6 +41,30 @@
 | Artefatos de distribuição | Assegurar rastreabilidade de binários gerados na pipeline | Upload automatizado dos APKs de debug/release via `actions/upload-artifact@v5` com execução forçada das JavaScript Actions em Node.js 24 (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`). | Artefatos versionados por run no GitHub Actions + upload Telegram condicionado a segredo. |
 
 
+
+## Contrato formal — Shell Loader Bootstrap (`loader.apk`)
+
+### Fonte de verdade do artefato
+- Variant selecionada por `-PloaderVariant` (padrão: `release`).
+- Caminho obrigatório: `shell-loader/build/outputs/apk/<loaderVariant>/loader.apk`.
+
+### Gate de validação
+- Task: `:app:verifyShellLoaderArtifact`.
+- Ordem: depende de `:shell-loader:assemble<LoaderVariant>` e deve executar antes de `:app:syncShellLoaderBootstrap`.
+
+### Critérios de aprovação
+1. Arquivo existe no caminho exato esperado.
+2. Caminho aponta para arquivo regular.
+3. Tamanho do arquivo é maior que zero bytes.
+4. **Opcional**: com `-PverifyShellLoaderManifest=true`, o APK deve conter `AndroidManifest.xml`.
+
+### Padrão de erro (único e objetivo)
+Quando qualquer critério falha, a exceção segue o formato único:
+
+`Shell loader artifact inválido em '<caminho absoluto esperado>': <motivo>.`
+
+Esse padrão elimina ambiguidade operacional e facilita troubleshooting em CI/local.
+
 ## Ciclo Toroidal Recursivo
 
 O container determinístico passa a publicar metadados de ciclo para fechar o loop entre
