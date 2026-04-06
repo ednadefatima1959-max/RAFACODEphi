@@ -1,6 +1,6 @@
 # CANONICAL_BUILD_STATUS
 
-> Fonte de verdade para status de build oficial. Substitui relatórios ad-hoc quando houver divergência.
+> Fonte de verdade para status oficial de build/release. Em caso de divergência, este arquivo prevalece.
 
 ## Última validação oficial (UTC)
 
@@ -13,22 +13,20 @@
 
 1. `./tools/gradle_with_jdk21.sh clean :app:assembleDebug --stacktrace`
 
-### Sob gate (somente quando política/segredos permitirem)
+### Sob gate (somente quando política de release + segredos permitirem)
 
 1. `./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace`
 2. `./tools/gradle_with_jdk21.sh :app:assemblePerfRelease --stacktrace`
-3. `./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts --stacktrace`
 
 ## Resultado final por tarefa
 
-| Tarefa | Resultado | Evidência |
+| Tarefa | Resultado final oficial | Observação |
 |---|---|---|
-| `:app:assembleDebug` | ✅ SUCCESS | `reports/build-verification-2026-04-03-fix.md` |
-| `:app:assembleRelease` | ⛔ GATED (não executado na validação oficial) | Exige gate de release + segredos |
-| `:app:assemblePerfRelease` | ⛔ GATED (não executado na validação oficial) | Exige gate de release/perf |
-| `:app:verifyDeliveredCompiledArtifacts` | ⛔ GATED (não executado na validação oficial) | Executar após release/perfRelease quando gate ativo |
+| `:app:assembleDebug` | ✅ SUCCESS | Validado oficialmente no commit acima. |
+| `:app:assembleRelease` | ⛔ GATED | Executar somente com gate de release e assinatura oficial ativa. |
+| `:app:assemblePerfRelease` | ⛔ GATED | Executar somente com gate de perf/release e política interna habilitada. |
 
 ## Observações operacionais
 
-- Este arquivo é o único status canônico para decisões de build/release.
-- CI deve publicar snapshot deste status como artifact em toda execução do workflow Android.
+- O histórico de validações ad-hoc deve apontar para este arquivo como status canônico.
+- O workflow Android (`.github/workflows/android.yml`) publica snapshot deste status como artifact de CI em toda execução.
